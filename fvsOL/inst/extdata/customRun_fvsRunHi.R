@@ -3,7 +3,7 @@ unlink("FvsHi.log")
 
 # Note: The form of the function call is very carefully coded. Make sure
 # "runOps" exists if you want them to be used.
-fvsRunHiGy <- function(runOps=NULL, logfile="FvsHi.log")
+fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log")
 {
 
   if (!is.null(logfile) && !interactive())
