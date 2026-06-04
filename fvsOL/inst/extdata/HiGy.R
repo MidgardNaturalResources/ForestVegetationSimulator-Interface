@@ -340,7 +340,7 @@ dht = function(dbh, ht, bal, ba, cr, byi, planted,
               b4 * log(bal + 1) +
               b5 * log(pmax(cr, 0.01)) + 
               b6 * sqrt(pmax(ba * ht, 0)) +
-              b7 * sqrt(planted*pmin(ht, 20)) + 
+              b7 * sqrt(planted * pmin(ht, 20)) + 
               b8 * log(pmax(byi, 1))) *cf
   
   # constrain to between 0 and 2 m
@@ -509,7 +509,7 @@ calc_mortality = function(tree.data, plot.data,
                   # r.ht = pmax(ht / htmax, 0.65), 
                   surv = surv_prob(dbh, ht, cr, r.ht, byi,
                                    b0, b1, b2, b3, b4, b5, b6, b7),
-                  dexpf= expf*(1-surv),
+                  dexpf = expf*(1-surv),
                   #apply mortality multiplier
                   dexpf = dexpf * mort.mult)
   

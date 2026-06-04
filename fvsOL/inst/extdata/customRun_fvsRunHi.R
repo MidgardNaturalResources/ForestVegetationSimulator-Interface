@@ -3,7 +3,7 @@ unlink("FvsHi.log")
 
 # Note: The form of the function call is very carefully coded. Make sure
 # "runOps" exists if you want them to be used.
-fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", auto.load=TRUE)
+fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
 {
 
   if (!is.null(logfile) && !interactive())
@@ -14,8 +14,8 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", auto.load=TRUE)
   
   cat ("\nLog file created\n")
   
-  #load the growth model R code if auto.load=TRUE
-  if(auto.load){
+  #load the growth model R code if autoload.model=TRUE
+  if(autoload.model){
   rFn="HiGy.R"
   if (file.exists(rFn)) {
     source(rFn)
