@@ -12,7 +12,7 @@ import numpy as np
 SDI_MAX = 500.0
 
 def surv_calibrated(dbh, ht, cr, rht, byi, bal=0.0, baph=0.0, planted=0, sdi=None,
-                    base_nat=0.005, base_plt=0.003, onset=0.65, full=0.85,
+                    base_nat=0.003, base_plt=0.006, onset=0.65, full=0.85,
                     maxlift=0.15, mort_max=0.20):
     """Annual survival. Mortality = base(origin) + linear self-thinning lift that
     starts at onset RD (0.65), increases linearly to maxlift at full RD (0.85),

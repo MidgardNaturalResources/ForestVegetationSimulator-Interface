@@ -26,8 +26,19 @@
 # Inputs (metric): sdi (stand SDI), baph m2/ha (fallback if sdi missing),
 # planted 0/1.
 
+# ORIGIN AND BYI (data-checked). Origin: yes. At low density (background), the
+# data show plantations HIGHER (0.66%/yr) than natural (0.22%/yr) -- young-stand
+# establishment mortality -- so base_plt > base_nat. Natural stands look higher
+# overall only because they carry the self-thinning load. BYI: no direct term.
+# Plantations occur only at BYI <= 191 (max 191; zero records above 399), so an
+# origin x BYI interaction is not identifiable (confounded). The real dynamics
+# you would expect -- plantations and higher-BYI sites self-thin faster, and
+# survival is lower at higher BYI -- EMERGE from growth driving stands into the
+# self-thinning ramp sooner (verified: natural self-thinning onset age 14 -> 7
+# as BYI rises 100 -> 550; plantations onset 5-8 yr, earlier at every BYI;
+# realized natural mortality 2.2% -> 2.8%/yr across BYI). No BYI coefficient.
 koa.SURV.calibrated <- function(sdi = NA, baph = NA, planted = 0,
-                                base_nat = 0.005, base_plt = 0.003,
+                                base_nat = 0.003, base_plt = 0.006,
                                 SDImax = 500, onset = 0.65, full = 0.85,
                                 maxlift = 0.15, mort_max = 0.20) {
   RD   <- if (!is.na(sdi)) sdi / SDImax else baph / 60          # relative density

@@ -150,10 +150,10 @@ children.push(P("Equations:"));
 children.push(mono("  SDI   = TPH * (QMD / 25)^1.6           SDImax = 500"));
 children.push(mono("  RD    = SDI / SDImax                   (relative density)"));
 children.push(mono("  f     = clamp( (RD - 0.65) / (0.85 - 0.65), 0, 1 )"));
-children.push(mono("  base  = 0.005  (natural)   or   0.003  (planted)   per year"));
+children.push(mono("  base  = 0.003  (natural)   or   0.006  (planted)   per year"));
 children.push(mono("  m     = min( base + 0.15 * f , 0.20 )  (annual mortality)"));
 children.push(mono("  S     = 1 - m                          (annual survival)"));
-children.push(P("Mortality is the origin background (0.5%/yr natural, 0.3%/yr planted) below 0.65 RD, increases linearly to about 15.5%/yr at 0.85 RD, and plateaus above (capped at 20%/yr). BYI does not appear; it acts through growth. Full R code in Appendix B."));
+children.push(P("Mortality is the origin background (0.3%/yr natural, 0.6%/yr planted; see section 11.6 for the data-checked origin direction) below 0.65 RD, increases linearly to about 15.6%/yr at 0.85 RD, and plateaus above (capped at 20%/yr). BYI does not appear as a direct term; it acts through growth. Full R code in Appendix B."));
 children.push(H2("11.3 Final long-term stress test (200-year projections)"));
 children.push(P("Cohort QMD (cm) / trees per hectare / percent of SDImax, final model, across origin and site:"));
 children.push(table(["Origin / BYI","Age 25","Age 50","Age 100","Age 150","Age 200"],
@@ -164,7 +164,7 @@ children.push(table(["Origin / BYI","Age 25","Age 50","Age 100","Age 150","Age 2
   [2360,1400,1400,1400,1400,1400]));
 children.push(img("fig_longterm_calibrated.png", 480, 148));
 children.push(cap("Figure 4. 200-year behavior, final calibrated survival (ramp 0.65 to 0.85 RD). Left: SDI rises to 72-88% of SDImax then tracks the self-thinning line. Center: QMD approaches ~90 cm (natural) or the 60 cm cap (plantation). Right: stand trajectory in QMD by density space."));
-children.push(P("Robustness checks across all six origin by BYI combinations pass: no runaway (peak 70 to 88% of SDImax), no collapse, and monotonic QMD over 200 years. Background annual mortality is 0.5% natural and 0.3% plantation, rising to about 15% per year at full self-thinning. Higher BYI reaches the self-thinning onset sooner and grows larger, so BYI shapes density through growth rather than a confounded mortality term. Plantations self-thin earlier from denser starts and plateau at the 60 cm cap. This is the long-term behavior the model was missing."));
+children.push(P("Robustness checks across all six origin by BYI combinations pass: no runaway (peak 70 to 88% of SDImax), no collapse, and monotonic QMD over 200 years. Background annual mortality is 0.3% natural and 0.6% plantation (origin direction confirmed in section 11.6), rising to about 15% per year at full self-thinning. Higher BYI reaches the self-thinning onset sooner and grows larger, so BYI shapes density through growth rather than a confounded mortality term. Plantations self-thin earlier from denser starts and plateau at the 60 cm cap. This is the long-term behavior the model was missing."));
 
 // 11.4 allocation
 children.push(H2("11.4 Allocating stand mortality to individual trees"));
@@ -190,6 +190,16 @@ children.push(table(["Origin / BYI","MAI culmination age","MAI peak (m3/ha/yr)",
 children.push(img("fig_mai_pai.png", 470, 184));
 children.push(cap("Figure 5. PAI (thin) and MAI (bold) for natural and plantation stands by BYI; dotted lines mark MAI culmination. PAI peaks before MAI culminates in every case."));
 children.push(P("Trends are correct: MAI peak rises with BYI (natural 4.3 to 8.2, plantation 5.4 to 10.3 m3/ha/yr), culmination occurs earlier on better sites and earlier for plantations than natural stands, and PAI peaks before MAI culminates. The absolute culmination ages are on the young side for koa (9 to 15 years natural), reflecting rapid early increment and a constant form factor (0.40) in the simple volume proxy; these should be checked against observed koa yield data and the manuscript Table 8 before being used for rotation guidance. The qualitative site and origin ordering is robust."));
+
+// 11.6 origin / BYI
+children.push(H2("11.6 Does survival change by origin and BYI?"));
+children.push(P("This was checked directly on the survival data with exposure-based annual rates, separating density from origin and site."));
+children.push(bullet("Origin: yes. At low density (background, RD below 0.65) plantations have higher mortality than natural (0.66 versus 0.22 percent per year), reflecting young-stand establishment loss, so the background base is origin-specific with plantation higher. Natural stands appear higher only in the overall average because they carry the self-thinning load at high density."));
+children.push(bullet("BYI: no direct term. The apparent BYI effect is confined to high-BYI natural plots at high density (self-thinning), and plantations occur only at BYI at or below 191 (maximum 191; zero records above 399). Origin and BYI are therefore confounded at high BYI and the origin-by-BYI interaction is not identifiable (interaction coefficient non-significant, p = 0.39, with a very large standard error)."));
+children.push(bullet("The dynamics one expects do emerge through growth, not a BYI coefficient: plantations and higher-BYI sites self-thin faster, and survival is lower at higher BYI. Natural self-thinning onset falls from age 14 to age 7 as BYI rises from 100 to 550; plantations reach onset at age 5 to 8, earlier than natural at every BYI; realized natural mortality rises from 2.2 to 2.8 percent per year across the BYI range."));
+children.push(img("fig_emergent_byi.png", 470, 184));
+children.push(cap("Figure 6. Emergent BYI and origin effects from the calibrated model (no direct BYI term). Left: realized mean annual mortality rises with BYI and is higher for plantations. Right: self-thinning onset age falls with BYI and is earlier for plantations."));
+children.push(P("So survival is origin-dependent and, through the growth to self-thinning pathway, lower on higher-BYI sites and earlier-thinning in plantations, matching the expected biology while avoiding an unidentifiable, unstable direct BYI mortality term."));
 
 // 12 Code issues
 children.push(H1("12. Open code issues"));
