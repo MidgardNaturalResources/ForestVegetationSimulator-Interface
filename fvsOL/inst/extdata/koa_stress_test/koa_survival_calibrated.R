@@ -15,30 +15,31 @@
 #
 # DESIGN. Annual mortality = a low density-independent background that differs
 # by origin (plantations lower, as observed) PLUS a density-dependent
-# self-thinning term that ramps as relative density (SDI/SDImax) passes the
-# self-thinning onset. BYI is deliberately NOT a direct mortality driver; it
-# influences long-term density correctly through GROWTH (higher BYI reaches the
-# self-thinning boundary sooner). Verified on 150-year projections: SDI peaks
-# near 83% of SDImax then tracks the self-thinning line; natural QMD approaches
-# ~90 cm, plantations plateau at the 60 cm cap; no collapse, no runaway.
+# self-thinning term that starts at 0.65 relative density (SDI/SDImax), increases
+# LINEARLY to a maximum lift at 0.85 RD, and plateaus above. BYI is deliberately
+# NOT a direct mortality driver; it influences long-term density correctly
+# through GROWTH (higher BYI reaches the self-thinning boundary sooner). Verified
+# on 200-year projections across origin and BYI: SDI peaks at 72 to 88% of
+# SDImax then tracks the self-thinning line (no runaway, no collapse, QMD
+# monotonic); natural QMD approaches ~90 cm, plantations plateau at the 60 cm cap.
 #
-# Inputs (metric): dbh cm (unused but kept for signature), sdi (stand SDI),
-# baph m2/ha (fallback if sdi missing), planted 0/1.
+# Inputs (metric): sdi (stand SDI), baph m2/ha (fallback if sdi missing),
+# planted 0/1.
 
-koa.SURV.calibrated <- function(dbh = NA, sdi = NA, baph = NA, planted = 0,
+koa.SURV.calibrated <- function(sdi = NA, baph = NA, planted = 0,
                                 base_nat = 0.005, base_plt = 0.003,
-                                SDImax = 500, onset = 0.55, ramp = 0.55,
-                                power = 2, mort_max = 0.15) {
+                                SDImax = 500, onset = 0.65, full = 0.85,
+                                maxlift = 0.15, mort_max = 0.20) {
   RD   <- if (!is.na(sdi)) sdi / SDImax else baph / 60          # relative density
   base <- ifelse(planted == 1, base_plt, base_nat)
-  thin <- ramp * pmax(0, RD - onset)^power                      # self-thinning lift
-  mort <- pmin(pmax(base + thin, 0), mort_max)                  # annual mortality
+  frac <- pmin(pmax((RD - onset) / (full - onset), 0), 1)       # 0 at .65, 1 at .85+
+  mort <- pmin(pmax(base + maxlift * frac, 0), mort_max)        # annual mortality
   1 - mort                                                      # annual survival
 }
 
 # Drop-in for HiGy.R calc_mortality(): compute stand SDI from the plot summary
 #   (sdi = tph.plot * (qmd/25)^1.6), then
-#   surv = koa.SURV.calibrated(dbh, sdi = sdi, planted = stand$planted)
+#   surv = koa.SURV.calibrated(sdi = sdi, planted = stand$planted)
 # and keep dexpf = expf * (1 - surv) * mort.mult as is. The mortality is a stand
 # (density) rate applied to all trees; refine the four constants as Kahikinui,
 # KMR, and Kualoa remeasurements accrue.

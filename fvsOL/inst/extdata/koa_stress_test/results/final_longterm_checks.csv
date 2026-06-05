@@ -1,0 +1,7 @@
+origin,BYI,peak_pctSDImax,runaway,collapse,qmd_monotonic,QMD200,TPH200
+nat,100,70.0,False,False,True,83.0,46.0
+nat,264,73.0,False,False,True,90.0,34.0
+nat,450,75.0,False,False,True,90.0,29.0
+plt,100,78.0,False,False,True,60.0,53.0
+plt,264,84.0,False,False,True,60.0,50.0
+plt,450,88.0,False,False,True,60.0,49.0

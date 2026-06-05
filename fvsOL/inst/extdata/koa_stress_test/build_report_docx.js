@@ -143,20 +143,35 @@ children.push(bullet("Mortality is lowest in small trees (0 to 5 cm: 0.04%/yr; 5
 children.push(bullet("The apparent BYI effect is an artifact of one cluster: the top BYI tercile (above 408) shows 3.3%/yr versus about 0.15%/yr in the lower two, and that cluster is entirely natural stands. Plantations do not span high BYI, so a BYI mortality effect cannot be estimated for plantations at all. Forcing BYI into a GLM produces unstable 890-fold rate ratios."));
 children.push(bullet("The robust, real signals are origin (plantations about 0.5%/yr versus natural) and density (mortality rises through the 0.55 to 0.8 relative-density self-thinning zone)."));
 children.push(H2("11.2 Recommended model"));
-children.push(P("Annual mortality is a low density-independent background that differs by origin, plus a density-dependent self-thinning term that ramps as relative density (SDI/SDImax) passes the self-thinning onset. BYI is deliberately not a direct mortality driver; it influences long-term density correctly through growth, by driving stands into self-thinning sooner. Drop-in code is koa_survival_calibrated.R; four interpretable constants to refine as data accrue."));
-children.push(P([new TextRun({text:"mortality = base(origin) + ramp × max(0, SDI/SDImax − 0.55)^2,",italics:true}),
-  new TextRun("  with base 0.005/yr natural, 0.003/yr plantation, ramp 0.55, capped at 0.15/yr.")]));
-children.push(H2("11.3 Long-term behavior (150-year projections)"));
-children.push(P("Cohort QMD (cm) / trees per hectare / percent of SDImax at decade marks, tuned model:"));
-children.push(table(["Origin / BYI","Age 20","Age 40","Age 60","Age 100","Age 150"],
-  [["Natural BYI 100","24/415/77","35/220/74","44/143/70","58/84/65","72/55/60"],
-   ["Natural BYI 264","29/323/82","43/156/75","54/101/70","71/60/64","87/41/60"],
-   ["Natural BYI 450","33/272/84","48/129/75","61/84/70","79/51/64","90/35/55"],
-   ["Plantation BYI 264","32/297/90","56/108/78","60/77/62","60/66/54","60/57/46"]],
+children.push(P("Annual mortality is a low density-independent background that differs by origin, plus a density-dependent self-thinning lift that starts at 0.65 relative density (SDI/SDImax), increases linearly to a maximum at 0.85 RD, and plateaus above. BYI is deliberately not a direct mortality driver; it influences long-term density correctly through growth, by driving stands into self-thinning sooner. Drop-in code is koa_survival_calibrated.R; the constants are interpretable and meant to be refined as data accrue."));
+children.push(P([new TextRun({text:"mortality = base(origin) + maxlift × clamp((SDI/SDImax − 0.65) / 0.20, 0, 1),",italics:true}),
+  new TextRun("  with base 0.005/yr natural, 0.003/yr plantation, maxlift 0.15/yr reached at 0.85 RD, capped at 0.20/yr.")]));
+children.push(H2("11.3 Final long-term stress test (200-year projections)"));
+children.push(P("Cohort QMD (cm) / trees per hectare / percent of SDImax, final model, across origin and site:"));
+children.push(table(["Origin / BYI","Age 25","Age 50","Age 100","Age 150","Age 200"],
+  [["Natural BYI 100","27/307/69","40/157/67","59/83/65","72/59/65","83/46/63"],
+   ["Natural BYI 264","34/217/70","50/110/67","72/60/65","87/44/65","90/34/53"],
+   ["Natural BYI 450","38/178/70","56/91/67","80/51/65","90/38/59","90/29/46"],
+   ["Plantation BYI 264","41/163/72","60/79/64","60/68/55","60/58/47","60/50/41"]],
   [2360,1400,1400,1400,1400,1400]));
 children.push(img("fig_longterm_calibrated.png", 480, 148));
-children.push(cap("Figure 4. 150-year behavior, tuned calibrated survival. Left: SDI rises to about 83% of SDImax then tracks the self-thinning line. Center: QMD approaches ~90 cm (natural) or the 60 cm cap (plantation). Right: stand trajectory in QMD by density space."));
-children.push(P("SDI peaks near 83% of SDImax then declines along the self-thinning trajectory: no runaway, no collapse. Higher BYI reaches the self-thinning onset sooner (natural age 12 at BYI 100 versus age 7 at BYI 450) and grows larger, so BYI shapes density through growth rather than a confounded mortality term. Plantations self-thin earlier from denser starts and plateau at the 60 cm cap. This is the long-term behavior the model was missing."));
+children.push(cap("Figure 4. 200-year behavior, final calibrated survival (ramp 0.65 to 0.85 RD). Left: SDI rises to 72-88% of SDImax then tracks the self-thinning line. Center: QMD approaches ~90 cm (natural) or the 60 cm cap (plantation). Right: stand trajectory in QMD by density space."));
+children.push(P("Robustness checks across all six origin by BYI combinations pass: no runaway (peak 70 to 88% of SDImax), no collapse, and monotonic QMD over 200 years. Background annual mortality is 0.5% natural and 0.3% plantation, rising to about 15% per year at full self-thinning. Higher BYI reaches the self-thinning onset sooner and grows larger, so BYI shapes density through growth rather than a confounded mortality term. Plantations self-thin earlier from denser starts and plateau at the 60 cm cap. This is the long-term behavior the model was missing."));
+
+// 11.4 PAI/MAI
+children.push(H2("11.4 Volume increment: PAI and MAI culmination"));
+children.push(P("Projecting from establishment (2 cm, age 1) to 200 years, periodic annual increment (PAI) and mean annual increment (MAI) of stem volume behave as expected, and MAI culmination (biological rotation age) responds correctly to site and origin:"));
+children.push(table(["Origin / BYI","MAI culmination age","MAI peak (m3/ha/yr)","PAI peak age","Volume age 200"],
+  [["Natural BYI 100","15","4.3","13","171"],
+   ["Natural BYI 264","11","6.5","9","158"],
+   ["Natural BYI 450","9","8.2","7","140"],
+   ["Plantation BYI 100","10","5.4","8","110"],
+   ["Plantation BYI 264","7","8.1","6","106"],
+   ["Plantation BYI 450","7","10.3","5","104"]],
+  [2360,1900,1850,1450,1800]));
+children.push(img("fig_mai_pai.png", 470, 184));
+children.push(cap("Figure 5. PAI (thin) and MAI (bold) for natural and plantation stands by BYI; dotted lines mark MAI culmination. PAI peaks before MAI culminates in every case."));
+children.push(P("Trends are correct: MAI peak rises with BYI (natural 4.3 to 8.2, plantation 5.4 to 10.3 m3/ha/yr), culmination occurs earlier on better sites and earlier for plantations than natural stands, and PAI peaks before MAI culminates. The absolute culmination ages are on the young side for koa (9 to 15 years natural), reflecting rapid early increment and a constant form factor (0.40) in the simple volume proxy; these should be checked against observed koa yield data and the manuscript Table 8 before being used for rotation guidance. The qualitative site and origin ordering is robust."));
 
 // 12 Code issues
 children.push(H1("12. Open code issues"));

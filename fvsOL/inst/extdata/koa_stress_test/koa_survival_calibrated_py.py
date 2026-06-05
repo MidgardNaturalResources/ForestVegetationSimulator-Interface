@@ -12,13 +12,17 @@ import numpy as np
 SDI_MAX = 500.0
 
 def surv_calibrated(dbh, ht, cr, rht, byi, bal=0.0, baph=0.0, planted=0, sdi=None,
-                    base_nat=0.005, base_plt=0.003, onset=0.55, ramp=0.55,
-                    power=2.0, mort_max=0.15):
+                    base_nat=0.005, base_plt=0.003, onset=0.65, full=0.85,
+                    maxlift=0.15, mort_max=0.20):
+    """Annual survival. Mortality = base(origin) + linear self-thinning lift that
+    starts at onset RD (0.65), increases linearly to maxlift at full RD (0.85),
+    and plateaus above. RD = SDI/SDImax (or BA/60 fallback). BYI not a direct
+    driver (acts through growth)."""
     dbh = np.asarray(dbh, float)
     RD = (sdi/SDI_MAX) if sdi is not None else (np.asarray(baph,float)/60.0)
     base = base_plt if planted == 1 else base_nat
-    thin = ramp * np.maximum(0.0, RD - onset)**power
-    mort = np.clip(base + thin, 0.0, mort_max)
+    frac = np.clip((RD - onset)/(full - onset), 0.0, 1.0)   # 0 at .65, 1 at .85+
+    mort = np.clip(base + maxlift*frac, 0.0, mort_max)
     return 1.0 - mort
 
 def make(**kw):
