@@ -136,18 +136,27 @@ children.push(P("Across both origins and three site classes, 100% of decade snap
 
 // 11 Survival solution
 children.push(H1("11. Survival solution for plantations and individual trees"));
-children.push(P("The published survival model is not a usable per-tree solution. We explored three routes. Refitting the same cloglog or new forms on the current data overfits: with only 280 deaths and crown ratio, size, site, and origin strongly collinear, the coefficients are extreme (intercept 44, planted -24, BYI/1000 -87) and behave backwards out of sample, predicting near-total plantation mortality when origin is changed at fixed size. Minimal monotonic GLMs are stable in their coefficients but predict absurd annual rates (about 34% per year natural). The survival signal in this dataset cannot support a free per-tree GLM."));
-children.push(P("The recommended solution is a calibrated mortality rate anchored to the observed annual mortality by origin (natural 1.5%, plantation 0.5%), modulated by relative density (self-thinning onset near 55% of the basal area envelope) and tree size. It is transparent, monotonic, origin-correct, and stable. Drop-in code is koa_survival_calibrated.R."));
-children.push(table(["Survival option","Natural mort/yr","Plantation mort/yr","40-yr retain nat","40-yr retain plt","CFI density bias"],
-  [["S1 raw (current/shipped)","~100%","~100%","0%","0%","-99.9%"],
-   ["S1 stabilized (clamp+floor)","10%","10%","3%","2%","-9.3%"],
-   ["Free refit (logit/cloglog)","0%","99%","100%","0%","+84%"],
-   ["Calibrated (recommended)","1.9%","0.6%","53%","66%","+59%"],
-   ["Observed","~1.6%","~0.5%","high","high","--"]],
-  [2360,1300,1400,1400,1400,1500]));
-children.push(img("fig_survival_solution.png", 470, 184));
-children.push(cap("Figure 4. Survival options. Left: 40-year cohort retention versus a realistic band; only the calibrated rate is sensible for both origins. Right: typical-tree annual mortality versus observed (dotted)."));
-children.push(P("The calibrated rate is the only option that reproduces both the observed annual mortality and realistic cohort retention for plantations and natural stands. The residual CFI density over-prediction reflects the missing ingrowth submodel in young building stands, not the survival rate. Refit the four constants as Kahikinui, KMR, and Kualoa remeasurement data accumulate."));
+children.push(P("The published survival model is not a usable per-tree solution, and a free refit does not fix it. With only 280 deaths and crown ratio, size, site, and origin strongly collinear, fitted GLMs overfit: coefficients are extreme (intercept 44, planted -24, BYI/1000 -87) and behave backwards out of sample, predicting near-total plantation mortality when origin is flipped at fixed size; minimal stable-coefficient GLMs instead predict absurd rates (about 34% per year). The survival signal cannot support a free per-tree GLM."));
+children.push(H2("11.1 What the data actually show"));
+children.push(P("Exposure-based (deaths per tree-year) diagnostics on the 6,489-record survival dataset reframe the problem:"));
+children.push(bullet("Mortality is lowest in small trees (0 to 5 cm: 0.04%/yr; 5 to 10 cm: 0.56%/yr) and peaks in the 10 to 20 cm class (2.77%/yr). A small-tree mortality term is therefore wrong for koa."));
+children.push(bullet("The apparent BYI effect is an artifact of one cluster: the top BYI tercile (above 408) shows 3.3%/yr versus about 0.15%/yr in the lower two, and that cluster is entirely natural stands. Plantations do not span high BYI, so a BYI mortality effect cannot be estimated for plantations at all. Forcing BYI into a GLM produces unstable 890-fold rate ratios."));
+children.push(bullet("The robust, real signals are origin (plantations about 0.5%/yr versus natural) and density (mortality rises through the 0.55 to 0.8 relative-density self-thinning zone)."));
+children.push(H2("11.2 Recommended model"));
+children.push(P("Annual mortality is a low density-independent background that differs by origin, plus a density-dependent self-thinning term that ramps as relative density (SDI/SDImax) passes the self-thinning onset. BYI is deliberately not a direct mortality driver; it influences long-term density correctly through growth, by driving stands into self-thinning sooner. Drop-in code is koa_survival_calibrated.R; four interpretable constants to refine as data accrue."));
+children.push(P([new TextRun({text:"mortality = base(origin) + ramp × max(0, SDI/SDImax − 0.55)^2,",italics:true}),
+  new TextRun("  with base 0.005/yr natural, 0.003/yr plantation, ramp 0.55, capped at 0.15/yr.")]));
+children.push(H2("11.3 Long-term behavior (150-year projections)"));
+children.push(P("Cohort QMD (cm) / trees per hectare / percent of SDImax at decade marks, tuned model:"));
+children.push(table(["Origin / BYI","Age 20","Age 40","Age 60","Age 100","Age 150"],
+  [["Natural BYI 100","24/415/77","35/220/74","44/143/70","58/84/65","72/55/60"],
+   ["Natural BYI 264","29/323/82","43/156/75","54/101/70","71/60/64","87/41/60"],
+   ["Natural BYI 450","33/272/84","48/129/75","61/84/70","79/51/64","90/35/55"],
+   ["Plantation BYI 264","32/297/90","56/108/78","60/77/62","60/66/54","60/57/46"]],
+  [2360,1400,1400,1400,1400,1400]));
+children.push(img("fig_longterm_calibrated.png", 480, 148));
+children.push(cap("Figure 4. 150-year behavior, tuned calibrated survival. Left: SDI rises to about 83% of SDImax then tracks the self-thinning line. Center: QMD approaches ~90 cm (natural) or the 60 cm cap (plantation). Right: stand trajectory in QMD by density space."));
+children.push(P("SDI peaks near 83% of SDImax then declines along the self-thinning trajectory: no runaway, no collapse. Higher BYI reaches the self-thinning onset sooner (natural age 12 at BYI 100 versus age 7 at BYI 450) and grows larger, so BYI shapes density through growth rather than a confounded mortality term. Plantations self-thin earlier from denser starts and plateau at the 60 cm cap. This is the long-term behavior the model was missing."));
 
 // 12 Code issues
 children.push(H1("12. Open code issues"));

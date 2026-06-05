@@ -29,7 +29,7 @@ def sdi_of(tph, qmd): return tph * (np.maximum(qmd, 0.1) / 25.0) ** 1.6
 
 
 # ---------------------------------------------------------------------------
-def project_cohort(byi, planted, lineage, bounded=True, surv_mode="cohort",
+def project_cohort(byi, planted, lineage, bounded=True, surv_mode="cohort", surv_fn=None,
                    init_dbh=None, init_tph=None, init_age=1, max_age=100,
                    ddbh_mult=1.0, dht_mult=1.0, mort_mult=1.0, sdi_max=SDI_MAX):
     # surv_mode: 'cohort'=raw eqn floored at 0.5/yr (koa_projection.py crutch),
@@ -57,14 +57,18 @@ def project_cohort(byi, planted, lineage, bounded=True, surv_mode="cohort",
         rec["HCB"][step], rec["VOL"][step] = HCB, BAPH*HT*FORM_FACTOR
         if step == n-1: break
 
-        if bounded:                                  # self-thinning guardrail
+        if bounded and surv_fn is None:              # self-thinning guardrail (off when surv_fn drives mortality)
             pct = SDI / sdi_max
             if pct > 0.60:
                 tr = 0.55/pct; tphn = TPH*tr
                 DBH *= (TPH/max(tphn,1))**0.08; QMD = DBH; TPH = tphn
                 BAPH = TPH*np.pi/4*(QMD/100)**2
 
-        if surv_mode == "stable":
+        if surv_fn is not None:
+            ps = float(np.atleast_1d(surv_fn(DBH, HT, CR, rHT, byi,
+                                             bal=BAL_avg, baph=BAPH, planted=planted, sdi=SDI))[0])
+            ps = np.clip(1.0 - mort_mult*(1.0-ps), 0.0, 1.0)
+        elif surv_mode == "stable":
             ps = float(L.surv_annual_stable(DBH, HT, CR, rHT, byi))
             ps = np.clip(1.0 - mort_mult*(1.0-ps), 0.0, 1.0)
         elif surv_mode == "raw":
@@ -122,7 +126,7 @@ def project_psp(trees, byi, planted, lineage, n_years, surv_mode="raw", surv_fn=
         # survival -> expf decay
         if surv_fn is not None:
             ps = surv_fn(t.dbh.values, t.ht.values, t.cr.values, rht, byi,
-                         bal=t.bal.values, baph=baph, planted=planted)
+                         bal=t.bal.values, baph=baph, planted=planted, sdi=sdi)
         else:
             ps = surv(t.dbh.values, t.ht.values, t.cr.values, rht, byi, sdi=sdi, planted=planted)
         t["expf"] = np.maximum(t.expf*ps, 1e-5)
