@@ -15,6 +15,8 @@ const H1 = t => new Paragraph({ heading: HeadingLevel.HEADING_1, children:[new T
 const H2 = t => new Paragraph({ heading: HeadingLevel.HEADING_2, children:[new TextRun(t)] });
 const bullet = t => new Paragraph({ numbering:{reference:"b",level:0}, spacing:{after:80},
   children:[new TextRun(t)] });
+const mono = t => new Paragraph({ spacing:{after:0}, shading:{fill:"F4F6F8",type:ShadingType.CLEAR},
+  children:[new TextRun({text:(t===""?" ":t), font:"Consolas", size:17})] });
 
 function table(headers, rows, widths){
   const cell = (txt, w, opts={}) => new TableCell({ borders, width:{size:w,type:WidthType.DXA},
@@ -144,8 +146,14 @@ children.push(bullet("The apparent BYI effect is an artifact of one cluster: the
 children.push(bullet("The robust, real signals are origin (plantations about 0.5%/yr versus natural) and density (mortality rises through the 0.55 to 0.8 relative-density self-thinning zone)."));
 children.push(H2("11.2 Recommended model"));
 children.push(P("Annual mortality is a low density-independent background that differs by origin, plus a density-dependent self-thinning lift that starts at 0.65 relative density (SDI/SDImax), increases linearly to a maximum at 0.85 RD, and plateaus above. BYI is deliberately not a direct mortality driver; it influences long-term density correctly through growth, by driving stands into self-thinning sooner. Drop-in code is koa_survival_calibrated.R; the constants are interpretable and meant to be refined as data accrue."));
-children.push(P([new TextRun({text:"mortality = base(origin) + maxlift × clamp((SDI/SDImax − 0.65) / 0.20, 0, 1),",italics:true}),
-  new TextRun("  with base 0.005/yr natural, 0.003/yr plantation, maxlift 0.15/yr reached at 0.85 RD, capped at 0.20/yr.")]));
+children.push(P("Equations:"));
+children.push(mono("  SDI   = TPH * (QMD / 25)^1.6           SDImax = 500"));
+children.push(mono("  RD    = SDI / SDImax                   (relative density)"));
+children.push(mono("  f     = clamp( (RD - 0.65) / (0.85 - 0.65), 0, 1 )"));
+children.push(mono("  base  = 0.005  (natural)   or   0.003  (planted)   per year"));
+children.push(mono("  m     = min( base + 0.15 * f , 0.20 )  (annual mortality)"));
+children.push(mono("  S     = 1 - m                          (annual survival)"));
+children.push(P("Mortality is the origin background (0.5%/yr natural, 0.3%/yr planted) below 0.65 RD, increases linearly to about 15.5%/yr at 0.85 RD, and plateaus above (capped at 20%/yr). BYI does not appear; it acts through growth. Full R code in Appendix B."));
 children.push(H2("11.3 Final long-term stress test (200-year projections)"));
 children.push(P("Cohort QMD (cm) / trees per hectare / percent of SDImax, final model, across origin and site:"));
 children.push(table(["Origin / BYI","Age 25","Age 50","Age 100","Age 150","Age 200"],
@@ -158,8 +166,18 @@ children.push(img("fig_longterm_calibrated.png", 480, 148));
 children.push(cap("Figure 4. 200-year behavior, final calibrated survival (ramp 0.65 to 0.85 RD). Left: SDI rises to 72-88% of SDImax then tracks the self-thinning line. Center: QMD approaches ~90 cm (natural) or the 60 cm cap (plantation). Right: stand trajectory in QMD by density space."));
 children.push(P("Robustness checks across all six origin by BYI combinations pass: no runaway (peak 70 to 88% of SDImax), no collapse, and monotonic QMD over 200 years. Background annual mortality is 0.5% natural and 0.3% plantation, rising to about 15% per year at full self-thinning. Higher BYI reaches the self-thinning onset sooner and grows larger, so BYI shapes density through growth rather than a confounded mortality term. Plantations self-thin earlier from denser starts and plateau at the 60 cm cap. This is the long-term behavior the model was missing."));
 
-// 11.4 PAI/MAI
-children.push(H2("11.4 Volume increment: PAI and MAI culmination"));
+// 11.4 allocation
+children.push(H2("11.4 Allocating stand mortality to individual trees"));
+children.push(P("The calibrated rate is a stand (density) mortality. To make self-thinning size-realistic for individual-tree FVS output while keeping the validated stand trajectory, the stand rate is allocated to trees by relative size and constrained so the expansion-factor-weighted mean equals the stand rate:"));
+children.push(mono("  m_stand = 1 - S_annual            (calibrated stand mortality)"));
+children.push(mono("  rDBH_i  = dbh_i / QMD"));
+children.push(mono("  w_i     = exp( -beta * (rDBH_i - 1) )   beta = 3"));
+children.push(mono("  p_i     = clamp( m_stand * w_i / mean_expf(w) , 0, 0.95 )"));
+children.push(mono("  removed = sum_i expf_i * p_i  ==  m_stand * sum_i expf_i   (constraint)"));
+children.push(P("Suppressed trees (rDBH below 1) get above-average mortality and dominant trees below-average, but the expansion-factor-weighted mean is held at the stand rate, so the density trajectory is unchanged by construction. Verified: realized stand mortality equals the calibrated target exactly (natural 0.0050/yr, plantation 0.0903/yr at the tested densities). Over 100 years the allocation preserves SDI and density but raises natural QMD from 59.9 to 66.5 cm by removing small trees first (plantations are at the 60 cm cap, so unchanged). This is the recommended option for per-tree output; the constants beta and the stand rate are the only knobs."));
+
+// 11.5 PAI/MAI
+children.push(H2("11.5 Volume increment: PAI and MAI culmination"));
 children.push(P("Projecting from establishment (2 cm, age 1) to 200 years, periodic annual increment (PAI) and mean annual increment (MAI) of stem volume behave as expected, and MAI culmination (biological rotation age) responds correctly to site and origin:"));
 children.push(table(["Origin / BYI","MAI culmination age","MAI peak (m3/ha/yr)","PAI peak age","Volume age 200"],
   [["Natural BYI 100","15","4.3","13","171"],
@@ -189,8 +207,15 @@ children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new Tex
 children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Reconcile the FVS_FINAL README and parameters.csv with the actual FINAL code (see discrepancies.md).")]}));
 children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Validate in true FVS on the dense-planted, small-DBH regime that the equation-level harness cannot fully exercise.")]}));
 
-children.push(H1("Appendix: reproduce"));
-children.push(P("Branch koa-stress-test, folder fvsOL/inst/extdata/koa_stress_test: Rscript fidelity_check.R (port check); python3 run_stress_comprehensive.py (this report); python3 run_cfi.py (CFI validation). Python needs numpy, pandas, matplotlib; R needs no packages."));
+children.push(H1("Appendix A: reproduce"));
+children.push(P("Branch koa-stress-test, folder fvsOL/inst/extdata/koa_stress_test: Rscript fidelity_check.R (port check); python3 run_stress_comprehensive.py; python3 run_final_longterm.py (200-yr stress test); python3 run_mai_pai.py; python3 run_cfi.py. Python needs numpy, pandas, matplotlib; R needs no packages."));
+
+children.push(new Paragraph({heading:HeadingLevel.HEADING_1, pageBreakBefore:true, children:[new TextRun("Appendix B: koa_survival_calibrated.R")]}));
+children.push(P("Drop-in survival code (replaces the published cloglog in HiGy.R calc_mortality):"));
+try {
+  const rsrc = fs.readFileSync(process.argv[3] || (R + "/../koa_survival_calibrated.R"), "utf8");
+  rsrc.split("\n").forEach(line => children.push(mono(line.replace(/\t/g,"  "))));
+} catch(e) { children.push(P("[koa_survival_calibrated.R not found at build time]")); }
 
 const doc = new Document({
   styles: { default:{document:{run:{font:"Arial",size:22}}},
