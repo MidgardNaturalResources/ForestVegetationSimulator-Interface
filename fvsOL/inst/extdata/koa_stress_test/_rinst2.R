@@ -1,0 +1,7 @@
+.libPaths("/sessions/elegant-lucid-cannon/mnt/outputs/.Rlib")
+options(repos = c(P3M = "https://packagemanager.posit.co/cran/__linux__/jammy/latest"))
+need <- c("dplyr","purrr")
+todo <- setdiff(need, rownames(installed.packages()))
+if(length(todo)) install.packages(todo, quiet=TRUE)
+suppressMessages({library(dplyr); library(purrr)})
+cat("OK dplyr", as.character(packageVersion("dplyr")), "purrr", as.character(packageVersion("purrr")), "\n")
