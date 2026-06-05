@@ -19,6 +19,10 @@ This branch adds a self-contained harness (`fvsOL/inst/extdata/koa_stress_test/`
 
 ### Also flagged
 - Four code issues: first-cycle HCB unit-order bug in `customRun_fvsRunHi.R`; `Hi.GY()` calls `AcadianGYOneStand()`; tree-size cap units; koa-only parameterization vs the six-species GUI. See `discrepancies.md`.
-- Add an ingrowth submodel (main residual gap in young-stand basal area).
+### Ingrowth (new component, `koa_ingrowth.R`)
+- HiGy.R has no ingrowth. Reconstructed koa ingrowth from AK.HT.csv remeasurements (363 plot-periods) and fit a single annualized RD model: `E[trees/ha/yr] = exp(5.3836 - 3.0933*RD - 1.6359*planted)`.
+- RD is the dominant driver (p<1e-4; ~160 open -> ~13 at canopy closure); plantations have ~5x less ingrowth (p=0.029). BYI is NOT supported as a direct term (main p=0.28, BYI x RD p=0.56) and % koa BA has no variation (pure koa stands), so BYI acts through growth. Optional BYI multiplier provided, off by default.
+- 200-yr stress test: stands become realistically multi-cohort (sustained BA/density), no runaway/collapse across origin x BYI.
+- Max SDI by origin: a higher plantation SDImax is plausible but not identifiable (plantations sparse at high density); SDImax=500 used for both, flagged for revisit.
 
 Happy to walk through any of it.

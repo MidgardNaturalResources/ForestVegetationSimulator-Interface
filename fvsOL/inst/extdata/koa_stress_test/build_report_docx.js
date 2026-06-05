@@ -201,24 +201,38 @@ children.push(img("fig_emergent_byi.png", 470, 184));
 children.push(cap("Figure 6. Emergent BYI and origin effects from the calibrated model (no direct BYI term). Left: realized mean annual mortality rises with BYI and is higher for plantations. Right: self-thinning onset age falls with BYI and is earlier for plantations."));
 children.push(P("So survival is origin-dependent and, through the growth to self-thinning pathway, lower on higher-BYI sites and earlier-thinning in plantations, matching the expected biology while avoiding an unidentifiable, unstable direct BYI mortality term."));
 
-// 12 Code issues
-children.push(H1("12. Open code issues"));
+// 12 Ingrowth
+children.push(H1("12. Ingrowth component (new)"));
+children.push(P("HiGy.R has no ingrowth, the main residual gap in young-stand basal area. Following Li, Weiskittel and Kershaw (2011), but reduced to a single annualized expectation keyed on relative density per the preferred form, koa ingrowth was reconstructed from AK.HT.csv remeasurements (363 plot-periods, 22 percent with ingrowth) and fit with a quasi-Poisson log model."));
+children.push(mono("  E[ingrowth, trees/ha/yr] = exp( 5.3836 - 3.0933*RD - 1.6359*planted )"));
+children.push(P("Findings, with the data-checked answer to the origin and BYI questions:"));
+children.push(bullet("RD is the dominant driver (p < 0.0001): ingrowth falls from about 160 to 13 trees per hectare per year as relative density rises from 0.1 to 0.9, i.e. recruitment fills open stands and ceases at canopy closure."));
+children.push(bullet("Origin matters (p = 0.029): plantations have about five times less ingrowth (rate ratio 0.195), consistent with managed and weeded plantations."));
+children.push(bullet("BYI is not supported: neither a BYI main effect (p = 0.28) nor a BYI by RD interaction (p = 0.56) is significant; the raw pattern peaks at intermediate BYI but is too noisy. Percent koa basal area has no variation (koa stands are essentially pure koa, median 1.0). BYI acts on ingrowth indirectly through growth, by raising relative density faster. An optional BYI multiplier is provided but defaults off."));
+children.push(img("fig_ingrowth.png", 470, 180));
+children.push(cap("Figure 7. Left: koa ingrowth versus relative density by origin. Right: ingrowth sustains long-term basal area (natural), preventing the even-aged decline to a few large trees."));
+children.push(P("In 200-year projection the ingrowth model makes stands realistically multi-cohort, sustaining basal area and density rather than self-thinning to a few large stems, with no runaway or collapse across origin and BYI (SDI 69 to 83 percent of SDImax). Recruits enter at a 2.5 cm threshold with height from the height-diameter model. Drop-in code is koa_ingrowth.R (Appendix C)."));
+children.push(H2("12.1 Maximum SDI by origin (data limitation)"));
+children.push(P("A higher maximum SDI for plantations is plausible but cannot be estimated here: plantations are sparse at high density (very few plantation records above 0.65 relative density), so a separate plantation SDImax is not identifiable. A single SDImax of 500 is used for both origins; this should be revisited as plantation remeasurements at high density accumulate. A sensitivity run with a higher plantation SDImax is straightforward to add if desired."));
+
+// 13 Code issues
+children.push(H1("13. Open code issues"));
 children.push(bullet("Unit-order bug in the first-cycle crown imputation in customRun_fvsRunHi.R: height is converted to feet before calc_hcb, which expects metres, biasing imputed crown ratios. Compute crown base while metric, convert to feet last."));
 children.push(bullet("Hi.GY() calls AcadianGYOneStand() instead of HIGYOneStand(); latent but should be corrected or the wrapper removed."));
 children.push(bullet("Tree-size cap units: tree.size.cap AK=(90,92) is multiplied by inch-to-cm and foot-to-metre; if 90 was cm the DBH cap is effectively disabled at 228 cm."));
 children.push(bullet("Species scope: only koa is parameterized; ohia and sandalwood map to OT and are held static. Document or add surrogates."));
 
-// 13 Recommendations
-children.push(H1("13. Recommendations"));
-children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Replace the published survival cloglog with the calibrated rate (koa_survival_calibrated.R). Do not ship the raw cloglog; a free refit is not better.")]}));
+// 14 Recommendations
+children.push(H1("14. Recommendations"));
+children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Replace the published survival cloglog with the calibrated rate (koa_survival_calibrated.R), allocated to trees by relative size (koa.SURV.allocate). Do not ship the raw cloglog; a free refit is not better.")]}));
+children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Add the koa ingrowth equation (koa_ingrowth.R): RD plus origin, koa only; it removes the main young-stand basal area gap and gives realistic multi-cohort long-term behavior.")]}));
 children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Keep the current height, height-to-crown-base, and increment equations with conditional correction factors (matches the FINAL code and tracks Table 8).")]}));
-children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Add an ingrowth submodel, or document the no-ingrowth limitation; it is the main residual gap in young-stand basal area and density.")]}));
-children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Fix the four code issues in section 11.")]}));
-children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Reconcile the FVS_FINAL README and parameters.csv with the actual FINAL code (see discrepancies.md).")]}));
+children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Fix the four code issues in section 13.")]}));
+children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Reconcile the FVS_FINAL README and parameters.csv with the actual FINAL code (see discrepancies.md), and revisit a plantation-specific maximum SDI as high-density plantation data accumulate.")]}));
 children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Validate in true FVS on the dense-planted, small-DBH regime that the equation-level harness cannot fully exercise.")]}));
 
 children.push(H1("Appendix A: reproduce"));
-children.push(P("Branch koa-stress-test, folder fvsOL/inst/extdata/koa_stress_test: Rscript fidelity_check.R (port check); python3 run_stress_comprehensive.py; python3 run_final_longterm.py (200-yr stress test); python3 run_mai_pai.py; python3 run_cfi.py. Python needs numpy, pandas, matplotlib; R needs no packages."));
+children.push(P("Branch koa-stress-test, folder fvsOL/inst/extdata/koa_stress_test: Rscript fidelity_check.R (port check); Rscript tune_survival.R; Rscript fit_ingrowth_byi.R (ingrowth + BYI/origin tests); python3 run_final_longterm.py (200-yr stress test); python3 run_mai_pai.py; python3 run_ingrowth_longterm.py; python3 run_cfi.py. Python needs numpy, pandas, matplotlib; R needs no packages."));
 
 children.push(new Paragraph({heading:HeadingLevel.HEADING_1, pageBreakBefore:true, children:[new TextRun("Appendix B: koa_survival_calibrated.R")]}));
 children.push(P("Drop-in survival code (replaces the published cloglog in HiGy.R calc_mortality):"));
@@ -226,6 +240,13 @@ try {
   const rsrc = fs.readFileSync(process.argv[3] || (R + "/../koa_survival_calibrated.R"), "utf8");
   rsrc.split("\n").forEach(line => children.push(mono(line.replace(/\t/g,"  "))));
 } catch(e) { children.push(P("[koa_survival_calibrated.R not found at build time]")); }
+
+children.push(new Paragraph({heading:HeadingLevel.HEADING_1, pageBreakBefore:true, children:[new TextRun("Appendix C: koa_ingrowth.R")]}));
+children.push(P("Drop-in ingrowth code (adds the recruitment component to HiGy.R):"));
+try {
+  const isrc = fs.readFileSync(process.argv[4] || (R + "/../koa_ingrowth.R"), "utf8");
+  isrc.split("\n").forEach(line => children.push(mono(line.replace(/\t/g,"  "))));
+} catch(e) { children.push(P("[koa_ingrowth.R not found at build time]")); }
 
 const doc = new Document({
   styles: { default:{document:{run:{font:"Arial",size:22}}},

@@ -99,7 +99,8 @@ def project_cohort(byi, planted, lineage, bounded=True, surv_mode="cohort", surv
 
 # ---------------------------------------------------------------------------
 def project_psp(trees, byi, planted, lineage, n_years, surv_mode="raw", surv_fn=None,
-                alloc_beta=3.0, use_size_caps=True, dbh_max=None, ht_max=92*0.3048):
+                alloc_beta=3.0, ingrowth=False, ingrowth_byi_c=0.0,
+                recruit_dbh=2.5, use_size_caps=True, dbh_max=None, ht_max=92*0.3048):
     """trees: DataFrame with columns dbh(cm), ht(m), cr(0-1), expf(/ha). One plot.
     surv_mode: 'raw' = HiGy.R/FINAL survival; 'stable' = clamped+floored;
       'calib_alloc' = calibrated STAND mortality allocated to trees by relative
@@ -146,6 +147,14 @@ def project_psp(trees, byi, planted, lineage, n_years, surv_mode="raw", surv_fn=
             nd = np.where(nd > dbh_max, t.dbh.values, nd)
             nh = np.where(nh > ht_max,  t.ht.values, nh)
         t["dbh"] = nd; t["ht"] = nh
+        # ingrowth: add annual recruits at threshold DBH (RD + origin model)
+        if ingrowth:
+            from koa_ingrowth import ingrowth_annual
+            n_rec = ingrowth_annual(sdi=sdi, planted=planted, byi=byi, byi_c=ingrowth_byi_c)
+            if n_rec > 1e-3:
+                rh = float(predict_HT(recruit_dbh, baph, max(qmd,1.0), byi))
+                t = pd.concat([t, pd.DataFrame([dict(dbh=recruit_dbh, ht=rh,
+                              cr=0.6, expf=n_rec)])], ignore_index=True)
     baph = (t.dbh**2*0.00007854*t.expf).sum(); tph = t.expf.sum()
     qmd = np.sqrt(baph/(0.00007854*tph)) if tph > 0 else 0.0
     return dict(QMD=qmd, BAPH=baph, TPH=tph, SDI=sdi_of(tph, qmd),
