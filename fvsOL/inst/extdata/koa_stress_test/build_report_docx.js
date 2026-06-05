@@ -134,16 +134,31 @@ children.push(P([new TextRun({text:"Recommended interim setting: ",bold:true}),
 children.push(H1("10. Bakuzis / SDI envelope"));
 children.push(P("Across both origins and three site classes, 100% of decade snapshots remain within 110% of the maximum stand density index (500) under self-thinning. The equations respect the self-thinning boundary; they do not push stands above the observed density envelope."));
 
-// 11 Code issues
-children.push(H1("11. Open code issues"));
+// 11 Survival solution
+children.push(H1("11. Survival solution for plantations and individual trees"));
+children.push(P("The published survival model is not a usable per-tree solution. We explored three routes. Refitting the same cloglog or new forms on the current data overfits: with only 280 deaths and crown ratio, size, site, and origin strongly collinear, the coefficients are extreme (intercept 44, planted -24, BYI/1000 -87) and behave backwards out of sample, predicting near-total plantation mortality when origin is changed at fixed size. Minimal monotonic GLMs are stable in their coefficients but predict absurd annual rates (about 34% per year natural). The survival signal in this dataset cannot support a free per-tree GLM."));
+children.push(P("The recommended solution is a calibrated mortality rate anchored to the observed annual mortality by origin (natural 1.5%, plantation 0.5%), modulated by relative density (self-thinning onset near 55% of the basal area envelope) and tree size. It is transparent, monotonic, origin-correct, and stable. Drop-in code is koa_survival_calibrated.R."));
+children.push(table(["Survival option","Natural mort/yr","Plantation mort/yr","40-yr retain nat","40-yr retain plt","CFI density bias"],
+  [["S1 raw (current/shipped)","~100%","~100%","0%","0%","-99.9%"],
+   ["S1 stabilized (clamp+floor)","10%","10%","3%","2%","-9.3%"],
+   ["Free refit (logit/cloglog)","0%","99%","100%","0%","+84%"],
+   ["Calibrated (recommended)","1.9%","0.6%","53%","66%","+59%"],
+   ["Observed","~1.6%","~0.5%","high","high","--"]],
+  [2360,1300,1400,1400,1400,1500]));
+children.push(img("fig_survival_solution.png", 470, 184));
+children.push(cap("Figure 4. Survival options. Left: 40-year cohort retention versus a realistic band; only the calibrated rate is sensible for both origins. Right: typical-tree annual mortality versus observed (dotted)."));
+children.push(P("The calibrated rate is the only option that reproduces both the observed annual mortality and realistic cohort retention for plantations and natural stands. The residual CFI density over-prediction reflects the missing ingrowth submodel in young building stands, not the survival rate. Refit the four constants as Kahikinui, KMR, and Kualoa remeasurement data accumulate."));
+
+// 12 Code issues
+children.push(H1("12. Open code issues"));
 children.push(bullet("Unit-order bug in the first-cycle crown imputation in customRun_fvsRunHi.R: height is converted to feet before calc_hcb, which expects metres, biasing imputed crown ratios. Compute crown base while metric, convert to feet last."));
 children.push(bullet("Hi.GY() calls AcadianGYOneStand() instead of HIGYOneStand(); latent but should be corrected or the wrapper removed."));
 children.push(bullet("Tree-size cap units: tree.size.cap AK=(90,92) is multiplied by inch-to-cm and foot-to-metre; if 90 was cm the DBH cap is effectively disabled at 228 cm."));
 children.push(bullet("Species scope: only koa is parameterized; ohia and sandalwood map to OT and are held static. Document or add surrogates."));
 
-// 12 Recommendations
-children.push(H1("12. Recommendations"));
-children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Do not ship the raw survival cloglog unguarded. Ship the stabilizer (clamp plus floor) as an interim, or refit survival for individual-tree use.")]}));
+// 13 Recommendations
+children.push(H1("13. Recommendations"));
+children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Replace the published survival cloglog with the calibrated rate (koa_survival_calibrated.R). Do not ship the raw cloglog; a free refit is not better.")]}));
 children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Keep the current height, height-to-crown-base, and increment equations with conditional correction factors (matches the FINAL code and tracks Table 8).")]}));
 children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Add an ingrowth submodel, or document the no-ingrowth limitation; it is the main residual gap in young-stand basal area and density.")]}));
 children.push(new Paragraph({numbering:{reference:"n",level:0},children:[new TextRun("Fix the four code issues in section 11.")]}));

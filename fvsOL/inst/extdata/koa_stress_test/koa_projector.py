@@ -94,10 +94,11 @@ def project_cohort(byi, planted, lineage, bounded=True, surv_mode="cohort",
 
 
 # ---------------------------------------------------------------------------
-def project_psp(trees, byi, planted, lineage, n_years, surv_mode="raw",
+def project_psp(trees, byi, planted, lineage, n_years, surv_mode="raw", surv_fn=None,
                 use_size_caps=True, dbh_max=None, ht_max=92*0.3048):
     """trees: DataFrame with columns dbh(cm), ht(m), cr(0-1), expf(/ha). One plot.
-    surv_mode: 'raw' = HiGy.R/FINAL survival; 'stable' = clamped+floored."""
+    surv_mode: 'raw' = HiGy.R/FINAL survival; 'stable' = clamped+floored.
+    surv_fn(dbh,ht,cr,rht,byi,bal=,baph=,planted=) overrides surv_mode if given."""
     L = LINEAGES[lineage]
     surv = L.surv_annual_stable if surv_mode == "stable" else L.surv_annual
     if dbh_max is None: dbh_max = (60.0 if planted else 90.0)
@@ -119,7 +120,11 @@ def project_psp(trees, byi, planted, lineage, n_years, surv_mode="raw",
         dH = L.dHT(t.ht.values, baph, t.bal.values, t.cr.values, byi, planted, sdi=sdi, rht=rht)
         dD = np.where(below_bh, 0.0, dD)
         # survival -> expf decay
-        ps = surv(t.dbh.values, t.ht.values, t.cr.values, rht, byi, sdi=sdi, planted=planted)
+        if surv_fn is not None:
+            ps = surv_fn(t.dbh.values, t.ht.values, t.cr.values, rht, byi,
+                         bal=t.bal.values, baph=baph, planted=planted)
+        else:
+            ps = surv(t.dbh.values, t.ht.values, t.cr.values, rht, byi, sdi=sdi, planted=planted)
         t["expf"] = np.maximum(t.expf*ps, 1e-5)
         nd = t.dbh.values + dD; nh = t.ht.values + dH
         if use_size_caps:

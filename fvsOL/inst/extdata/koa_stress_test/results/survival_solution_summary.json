@@ -1,0 +1,44 @@
+{
+  "cfi": [
+    {
+      "candidate": "S1_raw(current)",
+      "QMD_bias_pct": -13.3,
+      "BAPH_bias_pct": -99.9,
+      "TPH_bias_pct": -99.9
+    },
+    {
+      "candidate": "S1_stabilized",
+      "QMD_bias_pct": -27.5,
+      "BAPH_bias_pct": -71.1,
+      "TPH_bias_pct": -9.3
+    },
+    {
+      "candidate": "Snew_logit(refit)",
+      "QMD_bias_pct": -31.4,
+      "BAPH_bias_pct": -43.1,
+      "TPH_bias_pct": 83.5
+    },
+    {
+      "candidate": "S_calibrated",
+      "QMD_bias_pct": -30.6,
+      "BAPH_bias_pct": -50.1,
+      "TPH_bias_pct": 58.9
+    }
+  ],
+  "cohort": [
+    {
+      "origin": "natural",
+      "S1_raw(current)": 0.1,
+      "S1_stabilized": 3.1,
+      "Snew_logit(refit)": 100.0,
+      "S_calibrated": 52.8
+    },
+    {
+      "origin": "plantation",
+      "S1_raw(current)": 0.0,
+      "S1_stabilized": 1.5,
+      "Snew_logit(refit)": 0.0,
+      "S_calibrated": 65.6
+    }
+  ]
+}
