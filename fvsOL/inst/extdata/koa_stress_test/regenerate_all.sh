@@ -33,6 +33,9 @@ run python3 run_survival_solution.py
 run python3 run_origin_byi_final.py
 run python3 run_alloc_test.py
 run python3 run_ingrowth_longterm.py
+run python3 run_final_stress.py
+run python3 run_ingrowth_behavior.py
+run python3 verify_consistency.py
 
 echo "=== Figures ==="
 for f in _figs.py _figs2.py _fig3.py _figsurv.py _fig_lt.py _figsurv2.py _fig_ing.py; do

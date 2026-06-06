@@ -99,63 +99,73 @@ def project_cohort(byi, planted, lineage, bounded=True, surv_mode="cohort", surv
 
 # ---------------------------------------------------------------------------
 def project_psp(trees, byi, planted, lineage, n_years, surv_mode="raw", surv_fn=None,
-                alloc_beta=3.0, ingrowth=False, ingrowth_byi_c=0.0,
-                recruit_dbh=2.5, use_size_caps=True, dbh_max=None, ht_max=92*0.3048):
-    """trees: DataFrame with columns dbh(cm), ht(m), cr(0-1), expf(/ha). One plot.
-    surv_mode: 'raw' = HiGy.R/FINAL survival; 'stable' = clamped+floored;
-      'calib_alloc' = calibrated STAND mortality allocated to trees by relative
-      size (w_i = exp(-beta*(rDBH-1))), normalized so the expf-weighted mean
-      mortality equals the stand rate (constrained to the stand-level trend)."""
+                alloc_beta=3.0, ingrowth=False, ingrowth_byi_c=0.0, recruit_dbh=2.5,
+                use_size_caps=True, dbh_max=None, ht_max=92*0.3048, return_traj=False):
+    """trees: DataFrame with dbh(cm), ht(m), cr(0-1), expf(/ha). One plot.
+    surv_mode: 'raw'|'stable'|'calib_alloc'. Numpy engine; return_traj gives the
+    annual stand-summary trajectory."""
     from koa_survival_calibrated_py import surv_calibrated
+    from koa_ingrowth import ingrowth_annual
     L = LINEAGES[lineage]
     surv = L.surv_annual_stable if surv_mode == "stable" else L.surv_annual
     if dbh_max is None: dbh_max = (60.0 if planted else 90.0)
-    t = trees.copy().reset_index(drop=True)
+    dbh = trees.dbh.to_numpy(float); ht = trees.ht.to_numpy(float)
+    cr = trees.cr.to_numpy(float); expf = trees.expf.to_numpy(float)
+    traj = []; recs = []
     for _ in range(int(n_years)):
-        t["ba"] = (t.dbh**2 * 0.00007854) * t.expf
-        t = t.sort_values("dbh", ascending=False).reset_index(drop=True)
-        t["bal"] = t.ba.cumsum() - t.ba
-        baph = t.ba.sum(); tph = t.expf.sum()
+        order = np.argsort(-dbh)
+        dbh, ht, cr, expf = dbh[order], ht[order], cr[order], expf[order]
+        ba = (dbh**2*0.00007854)*expf
+        bal = np.cumsum(ba) - ba
+        baph = ba.sum(); tph = expf.sum()
         qmd = np.sqrt(baph/(0.00007854*tph)) if tph > 0 else 0.0
-        sdi = sdi_of(tph, qmd); htmax = t.ht.max()
-        # HCB -> CR
-        hcb = predict_HCB(t.dbh.values, t.ht.values, t.bal.values, baph, byi)
-        t["cr"] = np.clip(1 - hcb/np.maximum(t.ht, 0.1), 0.05, 0.95)
-        rht = t.ht.values/max(htmax, 0.1)
-        # increments
-        below_bh = t.ht.values < 1.3716
-        dD = L.dDBH(t.dbh.values, baph, t.bal.values, t.cr.values, byi, planted, sdi=sdi, rht=rht)
-        dH = L.dHT(t.ht.values, baph, t.bal.values, t.cr.values, byi, planted, sdi=sdi, rht=rht)
-        dD = np.where(below_bh, 0.0, dD)
-        # survival -> expf decay
+        sdi = sdi_of(tph, qmd); htmax = ht.max() if len(ht) else 0.1
+        if return_traj:
+            traj.append((baph, tph, qmd, sdi))
+        hcb = predict_HCB(dbh, ht, bal, baph, byi)
+        cr = np.clip(1 - hcb/np.maximum(ht, 0.1), 0.05, 0.95)
+        rht = ht/max(htmax, 0.1)
+        below_bh = ht < 1.3716
+        dD = np.where(below_bh, 0.0, L.dDBH(dbh, baph, bal, cr, byi, planted, sdi=sdi, rht=rht))
+        dH = L.dHT(ht, baph, bal, cr, byi, planted, sdi=sdi, rht=rht)
         if surv_mode == "calib_alloc":
-            m_stand = 1.0 - float(surv_calibrated(qmd, htmax, 0.5, 0.5, byi,
-                                                  baph=baph, planted=planted, sdi=sdi))
-            rdbh = t.dbh.values / max(qmd, 0.1)
-            w = np.exp(-alloc_beta * (rdbh - 1.0))           # small trees higher risk
-            wbar = np.sum(w * t.expf.values) / max(np.sum(t.expf.values), 1e-9)
-            p = np.clip(m_stand * w / max(wbar, 1e-9), 0.0, 0.95)
-            ps = 1.0 - p
+            m_stand = 1.0 - float(surv_calibrated(qmd, htmax, 0.5, 0.5, byi, baph=baph, planted=planted, sdi=sdi))
+            w = np.exp(-alloc_beta*(dbh/max(qmd,0.1) - 1.0))
+            wbar = np.sum(w*expf)/max(np.sum(expf), 1e-9)
+            ps = 1.0 - np.clip(m_stand*w/max(wbar,1e-9), 0.0, 0.95)
         elif surv_fn is not None:
-            ps = surv_fn(t.dbh.values, t.ht.values, t.cr.values, rht, byi,
-                         bal=t.bal.values, baph=baph, planted=planted, sdi=sdi)
+            ps = surv_fn(dbh, ht, cr, rht, byi, bal=bal, baph=baph, planted=planted, sdi=sdi)
         else:
-            ps = surv(t.dbh.values, t.ht.values, t.cr.values, rht, byi, sdi=sdi, planted=planted)
-        t["expf"] = np.maximum(t.expf*ps, 1e-5)
-        nd = t.dbh.values + dD; nh = t.ht.values + dH
+            ps = surv(dbh, ht, cr, rht, byi, sdi=sdi, planted=planted)
+        expf = np.maximum(expf*ps, 1e-5)
+        nd = dbh + dD; nh = ht + dH
         if use_size_caps:
-            nd = np.where(nd > dbh_max, t.dbh.values, nd)
-            nh = np.where(nh > ht_max,  t.ht.values, nh)
-        t["dbh"] = nd; t["ht"] = nh
-        # ingrowth: add annual recruits at threshold DBH (RD + origin model)
+            nd = np.where(nd > dbh_max, dbh, nd); nh = np.where(nh > ht_max, ht, nh)
+        dbh, ht = nd, nh
         if ingrowth:
-            from koa_ingrowth import ingrowth_annual
             n_rec = ingrowth_annual(sdi=sdi, planted=planted, byi=byi, byi_c=ingrowth_byi_c)
+            recs.append(n_rec)
             if n_rec > 1e-3:
                 rh = float(predict_HT(recruit_dbh, baph, max(qmd,1.0), byi))
-                t = pd.concat([t, pd.DataFrame([dict(dbh=recruit_dbh, ht=rh,
-                              cr=0.6, expf=n_rec)])], ignore_index=True)
-    baph = (t.dbh**2*0.00007854*t.expf).sum(); tph = t.expf.sum()
+                dbh = np.append(dbh, recruit_dbh); ht = np.append(ht, rh)
+                cr = np.append(cr, 0.6); expf = np.append(expf, n_rec)
+        else:
+            recs.append(0.0)
+        # cap list size: bin to 0.5 cm DBH classes when large (keeps it fast)
+        if len(dbh) > 300:
+            keyb = np.round(dbh*2)/2.0
+            uk = np.unique(keyb); ndbh=[]; nht=[]; ncr=[]; nexpf=[]
+            for k in uk:
+                m = keyb==k; e=expf[m].sum()
+                ndbh.append(np.average(dbh[m],weights=expf[m])); nexpf.append(e)
+                nht.append(np.average(ht[m],weights=expf[m])); ncr.append(np.average(cr[m],weights=expf[m]))
+            dbh=np.array(ndbh); ht=np.array(nht); cr=np.array(ncr); expf=np.array(nexpf)
+    baph = (dbh**2*0.00007854*expf).sum(); tph = expf.sum()
     qmd = np.sqrt(baph/(0.00007854*tph)) if tph > 0 else 0.0
-    return dict(QMD=qmd, BAPH=baph, TPH=tph, SDI=sdi_of(tph, qmd),
-                HTmax=t.ht.max(), VOL=baph*t.ht.mean()*FORM_FACTOR)
+    out = dict(QMD=qmd, BAPH=baph, TPH=tph, SDI=sdi_of(tph, qmd),
+               HTmax=ht.max() if len(ht) else 0.0, VOL=baph*ht.mean()*FORM_FACTOR)
+    if return_traj:
+        tj = pd.DataFrame(traj, columns=["BAPH","TPH","QMD","SDI"])
+        tj["ingrowth"] = recs[:len(tj)]
+        out["traj"] = tj
+    return out

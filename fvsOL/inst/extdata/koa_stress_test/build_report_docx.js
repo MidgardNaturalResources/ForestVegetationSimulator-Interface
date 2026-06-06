@@ -215,6 +215,18 @@ children.push(P("In 200-year projection the ingrowth model makes stands realisti
 children.push(H2("12.1 Maximum SDI by origin (data limitation)"));
 children.push(P("A higher maximum SDI for plantations is plausible but cannot be estimated here: plantations are sparse at high density (very few plantation records above 0.65 relative density), so a separate plantation SDImax is not identifiable. A single SDImax of 500 is used for both origins; this should be revisited as plantation remeasurements at high density accumulate. A sensitivity run with a higher plantation SDImax is straightforward to add if desired."));
 
+// 12.2 integrated 300-yr stress
+children.push(H2("12.2 Integrated system: 300-year adversarial stress test"));
+children.push(P("The full system (calibrated survival, size allocation, and ingrowth) was projected 300 years from five extreme starting states (dense small, sparse large, degraded, fully stocked, typical) crossed with both origins and three BYI levels, 30 scenarios. All 30 pass: no NaN or infinite values, no collapse, basal area bounded, quadratic mean diameter non-decreasing, and 100 percent reach a steady state. Stands initialized above the maximum SDI (the fully stocked start, up to 149 percent of SDImax) are drawn down to at or below the self-thinning line within 3 to 5 years and then settle, confirming the self-thinning mortality corrects overstocked inputs rather than letting them run away. Steady-state basal area is 21 to 26 m2/ha (SDI 69 to 82 percent of SDImax) across origin and site."));
+children.push(img("fig_final_stress.png", 470, 180));
+children.push(cap("Figure 8. Integrated 300-year behavior (typical start). Left: basal area converges to a stable steady state for every origin and BYI. Right: relative density stays below the self-thinning line after the initial correction."));
+
+// 12.3 ingrowth long-term behavior
+children.push(H2("12.3 Ingrowth behavior over long-term projections"));
+children.push(P("Tracking the annual recruitment rate over 300 years shows the expected pattern: ingrowth starts high in the open young stand (about 31 to 39 trees per hectare per year for natural stands), declines as relative density rises and the canopy closes, and then settles to a steady rate. At equilibrium the steady ingrowth almost exactly balances the steady mortality (recruitment of about 17.5 versus mortality of about 17.5 trees per hectare per year for natural stands; balance within 0.2), so the stand becomes self-replacing with stable basal area and density rather than accumulating or declining. Plantations recruit about five times less (about 5 per year) and balance their lower mortality. This turnover balance is the behavior expected of a sound long-term ingrowth and mortality system."));
+children.push(img("fig_ingrowth_behavior.png", 470, 180));
+children.push(cap("Figure 9. Ingrowth over 300 years. Left: recruitment starts high, declines with density, and settles to a steady rate (natural higher than plantation). Right (natural): steady ingrowth balances mortality at equilibrium (turnover)."));
+
 // 13 Code issues
 children.push(H1("13. Open code issues"));
 children.push(bullet("Unit-order bug in the first-cycle crown imputation in customRun_fvsRunHi.R: height is converted to feet before calc_hcb, which expects metres, biasing imputed crown ratios. Compute crown base while metric, convert to feet last."));
