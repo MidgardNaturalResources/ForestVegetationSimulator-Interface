@@ -1,0 +1,65 @@
+variant,link,term,estimate
+S1_published,cloglog,(Intercept),36.76722956
+S1_published,cloglog,HT.0,0.33587704
+S1_published,cloglog,I(log(HT.0)),-7.56618217
+S1_published,cloglog,rHT.0,7.37280889
+S1_published,cloglog,I(log(CR.0)),16.29480678
+S1_published,cloglog,I(log(HT.0/(DBH.0/100))),-3.59421243
+S1_published,cloglog,I(log(BYI/100)),3.19463068
+S1_published,cloglog,I(BYI/1000),-26.78161260
+S4_dbh_planted,cloglog,(Intercept),4234721043253883.00000000
+S4_dbh_planted,cloglog,DBH.0,67548009134844.94531250
+S4_dbh_planted,cloglog,I(log(DBH.0)),-813020913254684.25000000
+S4_dbh_planted,cloglog,I((BAL.0 + 1)/log(DBH.0 + 1)),29951561550632.25000000
+S4_dbh_planted,cloglog,I(log(CR.0)),-964021815670386.12500000
+S4_dbh_planted,cloglog,I(sqrt(BAPH.0 * DBH.0)),-12442423266931.83984375
+S4_dbh_planted,cloglog,I(log(HT.0/(DBH.0/100))),-455547898756613.00000000
+S4_dbh_planted,cloglog,I(Planted * DBH.0),5543176651712.56835938
+S3_dbh_planted_byi,cloglog,(Intercept),21.55646942
+S3_dbh_planted_byi,cloglog,DBH.0,-0.03441470
+S3_dbh_planted_byi,cloglog,I(log(DBH.0)),-3.22167310
+S3_dbh_planted_byi,cloglog,I((BAL.0 + 1)/log(DBH.0 + 1)),-0.09743512
+S3_dbh_planted_byi,cloglog,I(log(CR.0)),3.21501538
+S3_dbh_planted_byi,cloglog,I(sqrt(BAPH.0 * DBH.0)),0.13860465
+S3_dbh_planted_byi,cloglog,I(log(HT.0/(DBH.0/100))),-4.47936312
+S3_dbh_planted_byi,cloglog,I(Planted * DBH.0),-0.13490791
+S3_dbh_planted_byi,cloglog,log(BYI),2.99941464
+S3_dbh_planted_byi,cloglog,I(BYI/1000),-28.07384672
+Snew_logit,logit,(Intercept),43.90523419
+Snew_logit,logit,I(log(DBH.0)),-2.53208939
+Snew_logit,logit,DBH.0,0.11601841
+Snew_logit,logit,I((BAL.0 + 1)/log(DBH.0 + 1)),-0.08466383
+Snew_logit,logit,I(log(CR.0)),-6.06943163
+Snew_logit,logit,Planted,-24.28562743
+Snew_logit,logit,I(BYI/1000),-86.97347009
+Snew2_logit,logit,(Intercept),61.26252625
+Snew2_logit,logit,I(log(DBH.0)),-0.63970891
+Snew2_logit,logit,I(log(pmax(BAL.0, 0) + 1)),-1.34015315
+Snew2_logit,logit,I(log(CR.0)),0.99365810
+Snew2_logit,logit,Planted,-33.81775716
+Snew2_logit,logit,I(log(BYI/100)),-36.65787573
+Snew_cloglog,cloglog,(Intercept),23.17116027
+Snew_cloglog,cloglog,I(log(DBH.0)),-0.36920779
+Snew_cloglog,cloglog,DBH.0,-0.02265589
+Snew_cloglog,cloglog,I(log(pmax(BAL.0, 0) + 1)),-0.51006585
+Snew_cloglog,cloglog,I(log(CR.0)),-0.20248702
+Snew_cloglog,cloglog,Planted,-12.67665395
+Snew_cloglog,cloglog,I(BYI/1000),-46.56662629
+Snew2_cloglog,cloglog,(Intercept),2945480902272337.00000000
+Snew2_cloglog,cloglog,I(log(DBH.0)),101944594773484.48437500
+Snew2_cloglog,cloglog,I(log(pmax(BAL.0, 0) + 1)),-141626046570492.43750000
+Snew2_cloglog,cloglog,I(log(CR.0)),2970765276563208.00000000
+Snew2_cloglog,cloglog,Planted,1330896805452604.00000000
+Snew2_cloglog,cloglog,I(log(BYI/100)),-207502614672767.84375000
+Smin_cloglog,cloglog,(Intercept),1.86441072
+Smin_cloglog,cloglog,I(log(DBH.0)),-0.68123584
+Smin_cloglog,cloglog,I((BAL.0 + 1)/log(DBH.0 + 1)),-0.02819380
+Smin_cloglog,cloglog,Planted,0.96912853
+Smin2_cloglog,cloglog,(Intercept),1.75531401
+Smin2_cloglog,cloglog,I(log(DBH.0)),-0.67650264
+Smin2_cloglog,cloglog,Planted,1.02625700
+Smin3_cloglog,cloglog,(Intercept),2.02364782
+Smin3_cloglog,cloglog,I(log(DBH.0)),-0.44814154
+Smin3_cloglog,cloglog,I(log(pmax(BAL.0, 0) + 1)),-0.15413614
+Smin3_cloglog,cloglog,Planted,0.85782306
+Smin3_cloglog,cloglog,I(log(CR.0)),1.21722246
