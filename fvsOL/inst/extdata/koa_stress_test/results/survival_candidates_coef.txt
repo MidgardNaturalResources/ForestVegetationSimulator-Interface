@@ -1,0 +1,84 @@
+=== S1_published (link=cloglog) AUC=0.946 ===
+             (Intercept)                     HT.0             I(log(HT.0)) 
+               36.767230                 0.335877                -7.566182 
+                   rHT.0             I(log(CR.0)) I(log(HT.0/(DBH.0/100))) 
+                7.372809                16.294807                -3.594212 
+         I(log(BYI/100))              I(BYI/1000) 
+                3.194631               -26.781613 
+
+=== S4_dbh_planted (link=cloglog) AUC=0.5 ===
+                  (Intercept)                         DBH.0 
+                 4.234721e+15                  6.754801e+13 
+                I(log(DBH.0)) I((BAL.0 + 1)/log(DBH.0 + 1)) 
+                -8.130209e+14                  2.995156e+13 
+                 I(log(CR.0))       I(sqrt(BAPH.0 * DBH.0)) 
+                -9.640218e+14                 -1.244242e+13 
+     I(log(HT.0/(DBH.0/100)))            I(Planted * DBH.0) 
+                -4.555479e+14                  5.543177e+12 
+
+=== S3_dbh_planted_byi (link=cloglog) AUC=0.907 ===
+                  (Intercept)                         DBH.0 
+                    21.556469                     -0.034415 
+                I(log(DBH.0)) I((BAL.0 + 1)/log(DBH.0 + 1)) 
+                    -3.221673                     -0.097435 
+                 I(log(CR.0))       I(sqrt(BAPH.0 * DBH.0)) 
+                     3.215015                      0.138605 
+     I(log(HT.0/(DBH.0/100)))            I(Planted * DBH.0) 
+                    -4.479363                     -0.134908 
+                     log(BYI)                   I(BYI/1000) 
+                     2.999415                    -28.073847 
+
+=== Snew_logit (link=logit) AUC=0.948 ===
+                  (Intercept)                 I(log(DBH.0)) 
+                    43.905234                     -2.532089 
+                        DBH.0 I((BAL.0 + 1)/log(DBH.0 + 1)) 
+                     0.116018                     -0.084664 
+                 I(log(CR.0))                       Planted 
+                    -6.069432                    -24.285627 
+                  I(BYI/1000) 
+                   -86.973470 
+
+=== Snew2_logit (link=logit) AUC=0.944 ===
+               (Intercept)              I(log(DBH.0)) 
+                 61.262526                  -0.639709 
+I(log(pmax(BAL.0, 0) + 1))               I(log(CR.0)) 
+                 -1.340153                   0.993658 
+                   Planted            I(log(BYI/100)) 
+                -33.817757                 -36.657876 
+
+=== Snew_cloglog (link=cloglog) AUC=0.925 ===
+               (Intercept)              I(log(DBH.0)) 
+                 23.171160                  -0.369208 
+                     DBH.0 I(log(pmax(BAL.0, 0) + 1)) 
+                 -0.022656                  -0.510066 
+              I(log(CR.0))                    Planted 
+                 -0.202487                 -12.676654 
+               I(BYI/1000) 
+                -46.566626 
+
+=== Snew2_cloglog (link=cloglog) AUC=0.5 ===
+               (Intercept)              I(log(DBH.0)) 
+              2.945481e+15               1.019446e+14 
+I(log(pmax(BAL.0, 0) + 1))               I(log(CR.0)) 
+             -1.416260e+14               2.970765e+15 
+                   Planted            I(log(BYI/100)) 
+              1.330897e+15              -2.075026e+14 
+
+=== Smin_cloglog (link=cloglog) AUC=0.163 ===
+                  (Intercept)                 I(log(DBH.0)) 
+                     1.864411                     -0.681236 
+I((BAL.0 + 1)/log(DBH.0 + 1))                       Planted 
+                    -0.028194                      0.969129 
+
+=== Smin2_cloglog (link=cloglog) AUC=0.155 ===
+  (Intercept) I(log(DBH.0))       Planted 
+     1.755314     -0.676503      1.026257 
+
+=== Smin3_cloglog (link=cloglog) AUC=0.141 ===
+               (Intercept)              I(log(DBH.0)) 
+                  2.023648                  -0.448142 
+I(log(pmax(BAL.0, 0) + 1))                    Planted 
+                 -0.154136                   0.857823 
+              I(log(CR.0)) 
+                  1.217222 
+

@@ -1,0 +1,5 @@
+term,estimate
+(Intercept),1.13385518
+RD,2.00221444
+I(log(BYI)),0.69565120
+RD:I(log(BYI)),-0.84025545

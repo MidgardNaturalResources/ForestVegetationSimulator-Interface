@@ -1,0 +1,7 @@
+.libPaths("/sessions/elegant-lucid-cannon/mnt/outputs/.Rlib")
+options(repos = c(P3M = "https://packagemanager.posit.co/cran/__linux__/jammy/latest"))
+need <- c("dplyr","purrr","tidyr","readr")
+have <- rownames(installed.packages())
+todo <- setdiff(need, have)
+if(length(todo)) install.packages(todo, quiet=TRUE)
+ip<-rownames(installed.packages()); cat("installed:", paste(intersect(need,ip),collapse=", "), "\n")

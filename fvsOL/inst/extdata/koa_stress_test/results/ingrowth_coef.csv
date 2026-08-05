@@ -1,0 +1,7 @@
+part,term,estimate
+occur,(Intercept),-0.17976275
+occur,BAPH,-0.14194124
+occur,TPH,0.00007605
+amount,(Intercept),4.50619064
+amount,BAPH,-0.05280688
+amount,TPH,-0.00204125

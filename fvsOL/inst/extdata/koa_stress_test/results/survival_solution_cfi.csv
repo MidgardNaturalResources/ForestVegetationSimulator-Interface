@@ -1,0 +1,5 @@
+candidate,QMD_bias_pct,BAPH_bias_pct,TPH_bias_pct
+S1_raw(current),-13.3,-99.9,-99.9
+S1_stabilized,-27.5,-71.1,-9.3
+Snew_logit(refit),-31.4,-43.1,83.5
+S_calibrated,-30.6,-50.1,58.9

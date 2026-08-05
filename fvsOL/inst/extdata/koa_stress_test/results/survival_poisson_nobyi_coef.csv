@@ -1,0 +1,5 @@
+term,estimate
+(Intercept),-5.11518165
+I(log(DBH.0)),0.51807667
+Planted,-1.19965108
+RD,-0.56287613
