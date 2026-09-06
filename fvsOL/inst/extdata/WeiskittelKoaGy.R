@@ -1,552 +1,424 @@
-################################################################################
-# 2026-03-24
-#  koa_prediction_functions_FINAL.R
-#
-#  Acacia koa Individual-Tree Growth and Yield Model — Prediction Functions
-#  Weiskittel, A.R., Sprecher, I., Gottesman, A., Rice, B.
-#  Manuscript: "Development of individual-tree static and dynamic equations
-#               for Acacia koa in Hawaii for use in a growth and yield model"
-#  Target journal: Forest Ecosystems
-#
-#  PARAMETER SOURCE: Tables 3–6 of the submitted manuscript (v28 FINAL).
-#  All parameters and performance statistics are taken directly from the
-#  final fitted models; this file is the definitive version for archiving.
-#
-#  Units throughout:
-#    DBH  (cm), HT  (m), HCB (m), CR  (unitless, 0–1)
-#    BAPH (m² ha⁻¹), BAL (m² ha⁻¹), QMD (cm), SDI (trees/ha × (QMD/25)^1.6)
-#    BYI  (Mg ha⁻¹), dDBH (cm yr⁻¹), dHT (m yr⁻¹)
-#    TPH  (trees ha⁻¹), YIP (years)
-#
-#  Contact: aaron.weiskittel@maine.edu
-################################################################################
-
-options(encoding = "UTF-8")
-
 # ==============================================================================
-#  1. TOTAL HEIGHT — Chapman–Richards with BYI-modified asymptote (Eq. 2)
+# koa_prediction_functions.R
 #
-#  HT = (a0 + a1 × BYI/100) × [1 – exp(–b × DBH)]^c
-#       × exp(g1 × ln(BAPH+1) + g2 × rDBH)
+# Finalized prediction functions for the Acacia koa individual-tree
+# growth and survival model system.
+# Weiskittel, Sprecher, Gottesman & Rice (2025)
 #
-#  Fitted with nlme, random intercepts by Data/Installation.
-#  n = 10,060; R² = 0.803; RMSE = 2.29 m; Bias = +0.01 m
-#  All parameters p < 0.001
+# All functions use population-average fixed-effects parameters derived from
+# the best-fitting model variants selected during model development:
+#
+#   HT   -- Chapman-Richards with BYI and relative diameter (rDBH)
+#   HCB  -- Logistic with slenderness, stand density, and BYI
+#   dDBH -- Log-linear with BAL, CR, BAPH, Planted, BYI  (BYI variant)
+#   dHT  -- Log-linear with BAL, CR, BAPH, Planted, BYI  (BYI variant)
+#   SURV -- Complementary log-log GLM with HT, CR, rHT, BYI
+#   BAL  -- Logistic function of relative diameter (rDBH = DBH/QMD)
+#
+# Units: DBH in cm, HT/HCB in m, BAPH/BAL in m2 ha-1,
+#        TPH in trees ha-1, BYI in Mg ha-1, rain in mm, temp in deg C.
+#        YIP (years in period) is used only in the multi-year wrapper functions.
+#
+# Smearing bias correction is applied to both increment functions:
+#   CF_dDBH = 1.026  (exp(0.5 * s2) where s2 = WLS residual variance)
+#   CF_dHT  = 1.030
 # ==============================================================================
 
-#' Predict total height (m)
-#'
-#' @param DBH   Diameter at breast height (cm)
-#' @param BAPH  Stand basal area (m² ha⁻¹)
-#' @param QMD   Quadratic mean diameter (cm); used to compute rDBH = DBH/QMD
-#' @param BYI   Biomass Yield Index (Mg ha⁻¹). If NULL uses the basic model
-#'              without site-quality modifier (R² = 0.793, RMSE = 2.41 m).
-#' @return Predicted total height (m); minimum enforced at 1.37 m (breast height)
-predict_HT <- function(DBH, BAPH, QMD, BYI = NULL) {
+# ------------------------------------------------------------------------------
+# 1. STATIC HEIGHT MODEL
+#    Form: HT = (a0 + a1*BYI/100) * (1 - exp(-b*DBH))^c
+#               * exp(g1*log(BAPH+1) + g2*rDBH)
+#    Data: AK_HT.csv, n = 10,060; R2 = 0.787; RMSE = 2.47 m
+#    Note: rDBH = DBH/QMD; the negative g1 reflects stand-level density
+#          suppression rather than individual suppression (population-average
+#          formulation).
+# ------------------------------------------------------------------------------
 
-  rDBH <- DBH / QMD
+koa.HT <- function(DBH, BAPH, QMD, BYI = 264) {
+  # DBH  : subject tree DBH (cm)
+  # BAPH : stand basal area per hectare (m2 ha-1)
+  # QMD  : stand quadratic mean diameter (cm)
+  # BYI  : Biomass Yield Index (Mg ha-1); default = 264 (medium site)
 
-  if (is.null(BYI)) {
-    # ---- Basic model (no BYI; Table 3 footnote) ----
-    a0 <- 22.074;  b <- 0.041;  cc <- 0.851
-    g1 <- -0.214;  g2 <- 0.487
-    HT <- a0 * (1 - exp(-b * DBH))^cc *
-          exp(g1 * log(BAPH + 1) + g2 * rDBH)
-  } else {
-    # ---- BYI-enhanced model (Table 3) ----
-    a0 <- 19.832   # SE = 0.614  base asymptote
-    a1 <-  0.106   # SE = 0.018  BYI effect on asymptote
-    b  <-  0.044   # SE = 0.002  growth rate
-    cc <-  0.863   # SE = 0.019  shape
-    g1 <- -0.198   # SE = 0.0178 ln(BAPH+1) competition
-    g2 <-  0.345   # SE = 0.0312 rDBH relative position
+  a0 <- 19.832
+  a1 <-  0.106
+  b  <-  0.044
+  c  <-  0.863
+  g1 <- -0.198
+  g2 <-  0.479
 
-    HT <- (a0 + a1 * BYI / 100) * (1 - exp(-b * DBH))^cc *
-          exp(g1 * log(BAPH + 1) + g2 * rDBH)
-  }
-
-  return(pmax(HT, 1.37))
+  rDBH <- DBH / pmax(QMD, 0.1)
+  HT   <- (a0 + a1 * BYI / 100) *
+           (1 - exp(-b * DBH))^c *
+           exp(g1 * log(BAPH + 1) + g2 * rDBH)
+  return(pmax(HT, 1.37))   # minimum = breast height
 }
 
 
-# ==============================================================================
-#  2. HEIGHT TO CROWN BASE — logistic (Table 4)
-#
-#  HCB = HT / { 1 + exp[–(b0 + b1×√(HT/100) + b2×ln(HT/DBH)
-#                         + b3×√(BAL×BAPH+1) + b4×ln(BAPH+1)
-#                         + b5×ln(BYI/100))] }
-#
-#  n = 359; R² = 0.423; RMSE = 2.08 m; Bias = +0.05 m
-#  Note: b5 (BYI) is non-significant (p = 0.536); included for completeness.
-#  Application to high-density planted stands involves extrapolation
-#  (max training BAPH = 38 m² ha⁻¹).
-# ==============================================================================
+# ------------------------------------------------------------------------------
+# 2. HEIGHT TO CROWN BASE MODEL
+#    Form: HCB = HT / (1 + exp(-eta))
+#    eta  = b0 + b1*sqrt(HT/100) + b2*log(HT/DBH) + b3*sqrt(BAL*BAPH+1)
+#               + b4*log(BAPH+1) + b5*log(BYI)
+#    Data: AK_HCB.csv, n = 360; R2 = 0.763 (based on fitted vs observed CR)
+#    Note: slenderness encoded as log(HT/DBH); BYI effect (b5 < 0) reflects
+#          deeper crowns on more productive sites.
+# ------------------------------------------------------------------------------
 
-#' Predict height to live crown base (m)
-#'
-#' @param DBH   Diameter at breast height (cm)
-#' @param HT    Total height (m)
-#' @param BAPH  Stand basal area (m² ha⁻¹)
-#' @param BAL   Basal area in larger trees (m² ha⁻¹)
-#' @param BYI   Biomass Yield Index (Mg ha⁻¹). If NULL the BYI term is omitted.
-#' @return Predicted HCB (m); bounded to [0, 0.95 × HT]
-predict_HCB <- function(DBH, HT, BAPH, BAL, BYI = NULL) {
+koa.HCB <- function(DBH, HT, BAPH, BAL, BYI = 264) {
+  # DBH  : subject tree DBH (cm)
+  # HT   : total height (m)
+  # BAPH : stand basal area (m2 ha-1)
+  # BAL  : basal area of trees larger than subject tree (m2 ha-1)
+  # BYI  : Biomass Yield Index (Mg ha-1)
 
-  b0 <- -1.233   # SE = 0.446  intercept
-  b1 <- -0.222   # SE = 0.441  √(HT/100)
-  b2 <-  0.249   # SE = 0.123  ln(HT/DBH) slenderness
-  b3 <-  0.0015  # SE = 0.0009 √(BAL×BAPH+1) competition interaction
-  b4 <-  0.342   # SE = 0.099  ln(BAPH+1) stand density
+  b0 <-  1.162
+  b1 <- -0.520
+  b2 <- -0.257
+  b3 <- -0.0147
+  b4 <- -0.119
+  b5 <- -0.221
 
-  eta <- b0 +
-         b1 * sqrt(HT / 100) +
-         b2 * log(pmax(HT / DBH, 0.01)) +
-         b3 * sqrt(BAL * BAPH + 1) +
-         b4 * log(BAPH + 1)
-
-  if (!is.null(BYI)) {
-    b5 <- -0.221  # SE = 0.357  ln(BYI/100); p = 0.536
-    eta <- eta + b5 * log(pmax(BYI / 100, 0.01))
-  }
-
-  HCB <- HT / (1 + exp(-eta))
-  HCB <- pmin(HCB, 0.95 * HT)
-  HCB <- pmax(HCB, 0)
-  return(HCB)
+  slender <- log(pmax(HT / pmax(DBH, 0.1), 0.5))
+  eta     <- b0 + b1 * sqrt(pmax(HT / 100, 0)) + b2 * slender +
+             b3 * sqrt(pmax(BAL * BAPH, 0) + 1) +
+             b4 * log(BAPH + 1) + b5 * log(BYI)
+  HCB     <- HT / (1 + exp(-eta))
+  return(pmin(pmax(HCB, 0), 0.95 * HT))
 }
 
 
-# ==============================================================================
-#  3. DIAMETER INCREMENT — log-linear WLS (Table 5, ΔDBH column; Eq. 3)
-#
-#  log(dDBH_ann) = b0 + b1×log(DBH+1) + b2×DBH + b3×log(BAL+1)
-#                 + b4×log(CR×DBH) + b5×√SDI + b6×rHT
-#                 + b7×(Planted×DBH) + b8×ln(BYI) + b9×BYI/1000 + ε
-#
-#  Back-transformation: dDBH = exp(lp) × CF  where CF = 1.026 (Duan, 1983).
-#  Fitted with nlme WLS (weights = 1/√YIP), random effects by Data/Installation.
-#  n = 6,209; R² = 0.270; RMSE = 1.42 cm yr⁻¹; Bias = +0.04 cm / −0.03 cm
-#  (Natural/Planted); all parameters p < 0.001
-# ==============================================================================
+# ------------------------------------------------------------------------------
+# 3. BAL ALLOCATION MODEL
+#    Form: BAL_frac(rDBH) = 1 / (1 + exp(-1.842 + 3.956 * rDBH))
+#    where rDBH = DBH/QMD; BAL = BAPH * BAL_frac
+#    Data: AK_TREE_incr.csv, n = 13,492 tree-period records
+#    Interpretation:
+#      rDBH = 1.0 (average tree) -> BAL_frac = 0.108
+#      rDBH = 1.5 (dominant)     -> BAL_frac = 0.016
+# ------------------------------------------------------------------------------
 
-#' Predict annualised diameter increment (cm yr⁻¹)
-#'
-#' @param DBH     Diameter at breast height (cm)
-#' @param BAPH    Stand basal area (m² ha⁻¹)
-#' @param BAL     Basal area in larger trees (m² ha⁻¹)
-#' @param SDI     Stand density index = TPH × (QMD/25)^1.6
-#' @param CR      Live crown ratio (0–1)
-#' @param rHT     Relative height = HT / dominant height
-#' @param BYI     Biomass Yield Index (Mg ha⁻¹). If NULL uses basic model.
-#' @param Planted Origin indicator (1 = planted, 0 = natural)
-#' @return Predicted annual diameter increment (cm yr⁻¹); bounded [0, 8]
-predict_dDBH <- function(DBH, BAPH, BAL, SDI, CR, rHT, BYI = NULL,
-                          Planted = 0) {
+koa.BAL.fraction <- function(rDBH) {
+  # rDBH : relative diameter = DBH / QMD
+  return(1.0 / (1.0 + exp(-1.842 + 3.956 * rDBH)))
+}
 
-  if (is.null(BYI)) {
-    # ---- Basic model (no BYI; Table 5 footnote) ----
-    b0 <- -0.814;  b1 <-  0.623;  b2 <- -0.011;  b3 <- -0.419
-    b4 <-  0.402;  b5 <- -0.029;  b6 <- -0.453;  b7 <-  0.019
-    lp <- b0 + b1*log(DBH+1) + b2*DBH + b3*log(BAL+1) +
-          b4*log(CR*DBH) + b5*sqrt(SDI) + b6*rHT +
-          b7*Planted*DBH
+koa.BAL <- function(DBH, QMD, BAPH) {
+  # Convenience wrapper: returns BAL (m2 ha-1) for a single tree.
+  rDBH <- DBH / pmax(QMD, 0.1)
+  return(BAPH * koa.BAL.fraction(rDBH))
+}
 
-  } else {
-    # ---- BYI-enhanced model (Table 5) ----
-    b0 <- -3.421   # SE = 0.381  intercept
-    b1 <-  1.372   # SE = 0.142  log(DBH+1) positive limb
-    b2 <- -0.02148 # SE = 0.00315 DBH negative limb (hump shape)
-    b3 <- -0.1587  # SE = 0.0214 log(BAL+1) competition
-    b4 <-  0.4021  # SE = 0.0531 log(CR×DBH) crown-size interaction
-    b5 <- -0.02893 # SE = 0.00418 √SDI density
-    b6 <- -0.4532  # SE = 0.0621 rHT relative height
-    b7 <-  0.01889 # SE = 0.00341 Planted×DBH interaction
-    b8 <-  0.952   # SE = 0.089  ln(BYI/100) site quality
-    b9 <- -0.00112 # SE = 0.00021 BYI/1000 curvilinear (growth optimum ~850 Mg ha⁻¹)
 
-    lp <- b0 + b1*log(DBH+1) + b2*DBH + b3*log(BAL+1) +
-          b4*log(pmax(CR * DBH, 0.001)) + b5*sqrt(SDI) + b6*rHT +
-          b7*Planted*DBH + b8*log(BYI/100) + b9*(BYI/1000)
+# ------------------------------------------------------------------------------
+# 4. ANNUAL DIAMETER INCREMENT
+#    Form: dDBH_ann = exp(lp) * CF_dDBH
+#    lp   = b0 + b1*log(DBH+1) + b2*DBH + b3*BAL^2/log(DBH+5)
+#               + b4*log(BAL+1) + b5*log(CR) + b6*sqrt(BAPH*DBH)
+#               + b7*Planted*DBH + b8*log(BYI)
+#    Data: dDBH.csv, n = 6,209; WLS weights = 1/sqrt(YIP)
+#    Performance: RMSE = 1.424 cm yr-1, R2 = 0.298
+#    Note: Multi-year prediction -- use koa.dDBH.period() wrapper below.
+# ------------------------------------------------------------------------------
+
+CF_dDBH <- 1.026   # Duan smearing correction factor
+
+koa.dDBH.annual <- function(DBH, BAL, CR, BAPH, Planted = 0, BYI = 264) {
+  # DBH     : start-of-year DBH (cm)
+  # BAL     : basal area of larger trees at start of year (m2 ha-1)
+  # CR      : crown ratio (live crown length / total height), 0-1
+  # BAPH    : stand basal area (m2 ha-1)
+  # Planted : 1 if planted stand, 0 if natural
+  # BYI     : Biomass Yield Index (Mg ha-1)
+
+  b0 <- -2.4704737
+  b1 <-  0.2072221
+  b2 <- -0.0159616
+  b3 <- -0.0016893
+  b4 <- -0.2972574
+  b5 <- -0.4470330
+  b6 <- -0.0158403
+  b7 <-  0.0188938
+  b8 <-  0.4530166
+
+  lp <- b0 + b1 * log(DBH + 1) + b2 * DBH +
+        b3 * BAL^2 / log(DBH + 5) + b4 * log(BAL + 1) +
+        b5 * log(pmax(CR, 0.01)) + b6 * sqrt(BAPH * DBH) +
+        b7 * Planted * DBH + b8 * log(BYI)
+  return(pmin(exp(lp) * CF_dDBH, 6))   # upper clip at 6 cm yr-1
+}
+
+
+koa.dDBH.period <- function(DBH.0, BAL.0, BAL.1, CR.0, CR.1,
+                             BAPH.0, BAPH.1, Planted = 0, BYI = 264, YIP) {
+  # Multi-year diameter growth by annual stepping with linear interpolation
+  # of competition and crown variables across the period.
+  # Returns predicted total diameter growth (cm) over YIP years.
+  #
+  # DBH.0, BAL.0, BAL.1, CR.0, CR.1, BAPH.0, BAPH.1 :
+  #   Start- and end-of-period values (vectors OK).
+  # YIP : years in period (vector OK, may vary by observation).
+
+  n    <- length(DBH.0)
+  dDBH <- numeric(n)
+
+  for (i in seq_len(n)) {
+    d      <- DBH.0[i]
+    bal.c  <- BAL.0[i];  cr.c  <- CR.0[i];  bapa.c <- BAPH.0[i]
+    bal.gr <- (BAL.1[i]  - BAL.0[i])  / YIP[i]
+    cr.gr  <- (CR.1[i]   - CR.0[i])   / YIP[i]
+    bapa.gr<- (BAPH.1[i] - BAPH.0[i]) / YIP[i]
+    for (t in seq_len(YIP[i])) {
+      gr    <- koa.dDBH.annual(d, bal.c, cr.c, bapa.c, Planted[i], BYI[i])
+      d     <- d + gr
+      bal.c <- bal.c  + bal.gr
+      cr.c  <- cr.c   + cr.gr
+      bapa.c<- bapa.c + bapa.gr
+    }
+    dDBH[i] <- d - DBH.0[i]
   }
-
-  CF   <- 1.026   # Duan (1983) smearing correction factor
-  dDBH <- exp(lp) * CF
-  dDBH <- pmin(pmax(dDBH, 0), 8)
   return(dDBH)
 }
 
 
-# ==============================================================================
-#  4. HEIGHT INCREMENT — log-linear WLS (Table 5, ΔHT column; Eq. 3)
-#
-#  log(dHT_ann) = b0 + b1×log(HT+1) + b2×HT + b3×log(BAL+1)
-#                + b4×log(CR×HT) + b5×√SDI + b6×rHT
-#                + b7×(Planted×HT) + b8×ln(BYI) + b9×BYI/1000 + ε
-#
-#  Back-transformation: dHT = exp(lp) × CF  where CF = 0.863 (Duan, 1983).
-#  n = 5,012; R² = 0.220; RMSE = 1.08 m yr⁻¹; Bias = +0.02 m / −0.01 m
-# ==============================================================================
+# ------------------------------------------------------------------------------
+# 5. ANNUAL HEIGHT INCREMENT
+#    Form: dHT_ann = exp(lp) * CF_dHT
+#    lp   = b0 + b1*log(HT+1) + b2*HT + b3*BAL^2/log(HT+5)
+#               + b4*log(BAL+1) + b5*log(CR) + b6*sqrt(BAPH*HT)
+#               + b7*sqrt(Planted*HT) + b8*log(BYI)
+#    Data: dHT.csv, n = 5,012; WLS weights = 1/sqrt(YIP)
+#    Performance: RMSE = 1.082 m yr-1, R2 = 0.218
+#    Note: Multi-year prediction -- use koa.dHT.period() wrapper below.
+# ------------------------------------------------------------------------------
 
-#' Predict annualised height increment (m yr⁻¹)
-#'
-#' @param DBH     Diameter at breast height (cm)
-#' @param HT      Total height (m)
-#' @param BAPH    Stand basal area (m² ha⁻¹)
-#' @param BAL     Basal area in larger trees (m² ha⁻¹)
-#' @param SDI     Stand density index
-#' @param CR      Live crown ratio (0–1)
-#' @param rHT     Relative height = HT / dominant height
-#' @param BYI     Biomass Yield Index (Mg ha⁻¹). If NULL uses basic model.
-#' @param Planted Origin indicator (1 = planted, 0 = natural)
-#' @return Predicted annual height increment (m yr⁻¹); bounded [0, 6]
-predict_dHT <- function(DBH, HT, BAPH, BAL, SDI, CR, rHT, BYI = NULL,
-                         Planted = 0) {
+CF_dHT <- 1.030   # Duan smearing correction factor
 
-  if (is.null(BYI)) {
-    b0 <- -2.876;  b1 <-  1.108;  b2 <- -0.06722;  b3 <- -0.1234
-    b4 <-  0.3567; b5 <- -0.02145; b6 <- -0.3891;   b7 <-  0.0821
-    lp <- b0 + b1*log(HT+1) + b2*HT + b3*log(BAL+1) +
-          b4*log(pmax(CR * HT, 0.001)) + b5*sqrt(SDI) + b6*rHT +
-          b7*Planted*HT
+koa.dHT.annual <- function(HT, BAL, CR, BAPH, Planted = 0, BYI = 264) {
+  # HT      : start-of-year total height (m)
+  # BAL     : basal area of larger trees (m2 ha-1)
+  # CR      : crown ratio
+  # BAPH    : stand basal area (m2 ha-1)
+  # Planted : 1 if planted stand, 0 if natural
+  # BYI     : Biomass Yield Index (Mg ha-1)
 
-  } else {
-    # ---- BYI-enhanced model (Table 5) ----
-    b0 <- -2.876   # SE = 0.334  intercept
-    b1 <-  1.108   # SE = 0.118  log(HT+1)
-    b2 <- -0.06722 # SE = 0.00841 HT
-    b3 <- -0.1234  # SE = 0.0187 log(BAL+1)
-    b4 <-  0.3567  # SE = 0.0476 log(CR×HT)
-    b5 <- -0.02145 # SE = 0.00336 √SDI
-    b6 <- -0.3891  # SE = 0.0578 rHT
-    b7 <-  0.0821  # SE = 0.0213 Planted×HT interaction
-    b8 <-  0.869   # SE = 0.081  ln(BYI/100)
-    b9 <- -0.00103 # SE = 0.00019 BYI/1000
+  b0 <- -3.382162
+  b1 <-  0.272454
+  b2 <- -0.105319
+  b3 <- -0.000829
+  b4 <- -0.071718
+  b5 <- -1.483889
+  b6 <-  0.033035
+  b7 <-  0.017887
+  b8 <-  0.433224
 
-    lp <- b0 + b1*log(HT+1) + b2*HT + b3*log(BAL+1) +
-          b4*log(pmax(CR * HT, 0.001)) + b5*sqrt(SDI) + b6*rHT +
-          b7*Planted*HT + b8*log(BYI/100) + b9*(BYI/1000)
+  lp <- b0 + b1 * log(HT + 1) + b2 * HT +
+        b3 * BAL^2 / log(HT + 5) + b4 * log(BAL + 1) +
+        b5 * log(pmax(CR, 0.01)) + b6 * sqrt(BAPH * HT) +
+        b7 * sqrt(Planted * HT) + b8 * log(BYI)
+  return(pmin(exp(lp) * CF_dHT, 4))   # upper clip at 4 m yr-1
+}
+
+
+koa.dHT.period <- function(HT.0, BAL.0, BAL.1, CR.0, CR.1,
+                            BAPH.0, BAPH.1, Planted = 0, BYI = 264, YIP) {
+  # Multi-year height growth by annual stepping with linear interpolation.
+  # Returns predicted total height growth (m) over YIP years.
+
+  n   <- length(HT.0)
+  dHT <- numeric(n)
+
+  for (i in seq_len(n)) {
+    h      <- HT.0[i]
+    bal.c  <- BAL.0[i];  cr.c  <- CR.0[i];  bapa.c <- BAPH.0[i]
+    bal.gr <- (BAL.1[i]  - BAL.0[i])  / YIP[i]
+    cr.gr  <- (CR.1[i]   - CR.0[i])   / YIP[i]
+    bapa.gr<- (BAPH.1[i] - BAPH.0[i]) / YIP[i]
+    for (t in seq_len(YIP[i])) {
+      gr    <- koa.dHT.annual(h, bal.c, cr.c, bapa.c, Planted[i], BYI[i])
+      h     <- h + gr
+      bal.c <- bal.c  + bal.gr
+      cr.c  <- cr.c   + cr.gr
+      bapa.c<- bapa.c + bapa.gr
+    }
+    dHT[i] <- h - HT.0[i]
   }
-
-  CF  <- 0.863   # Duan (1983) smearing correction factor
-  dHT <- exp(lp) * CF
-  dHT <- pmin(pmax(dHT, 0), 6)
   return(dHT)
 }
 
 
+# ------------------------------------------------------------------------------
+# 6. TREE SURVIVAL MODEL
+#    Form: P(alive over YIP years) = exp(-exp(lp) * YIP)
+#          where lp = eta below (complementary log-log, population-average GLM)
+#    eta  = b0 + b1*HT + b2*log(HT) + b3*rHT + b4*log(CR)
+#               + b5*log(HT/DBH) + b6*log(BYI/100) + b7*(BYI/100)/1000
+#    Data: AK_SURV.csv, n = 6,489, Deaths = 162 (2.5%)
+#    Performance: AUC = 0.938; CV AUC = 0.931 (SD = 0.021)
+#    Reference: Weiskittel et al. (2025), fitted as GLM with cloglog link
+#               and log(YIP) offset. BYI variant (model S-B0, 8 parameters).
+# ------------------------------------------------------------------------------
+
+koa.surv <- function(DBH, HT, CR, rHT, BYI = 264, YIP = 1) {
+  # DBH : start-of-period DBH (cm); used for height:diameter ratio only
+  # HT  : total height (m)
+  # CR  : crown ratio
+  # rHT : relative height = HT / maximum stand height (set to 0.50 for
+  #       average-tree stand-level simulation)
+  # BYI : Biomass Yield Index (Mg ha-1)
+  # YIP : years in period; returns period-level survival probability
+
+  b0 <- 18.133
+  b1 <-  0.199
+  b2 <- -5.718
+  b3 <-  7.640
+  b4 <- 15.678
+  b5 <- -3.396
+  b6 <-  3.039
+  b7 <- -25.102
+
+  BYI.s <- BYI / 100
+  HD    <- HT / pmax(DBH / 100, 0.01)   # height:diameter ratio (m m-1)
+
+  eta   <- b0 + b1 * HT + b2 * log(pmax(HT, 0.5)) +
+           b3 * rHT + b4 * log(pmax(CR, 0.01)) +
+           b5 * log(pmax(HD, 1)) + b6 * log(BYI.s) + b7 * (BYI.s / 1000)
+
+  # Period-level survival: P = exp(-exp(eta) * YIP)
+  p.surv <- exp(-exp(eta) * YIP)
+  return(pmin(pmax(p.surv, 0), 1))
+}
+
+
 # ==============================================================================
-#  5. ANNUAL SURVIVAL — cloglog GLM with ln(YIP) offset (Table 6; Eq. 5)
-#
-#  η = b0 + b1×HT + b2×ln(HT) + b3×rHT + b4×CR
-#      + b5×ln(HT/DBH) + b6×ln(BYI/100) + b7×(BYI/1000)
-#
-#  P(alive | YIP) = exp(–exp(η) × YIP)   [i.e. annual: exp(–exp(η))]
-#
-#  Model B0 (population-average cloglog GLM); see Salas-Eljatib & Weiskittel
-#  (2020). Positive coefficients increase mortality hazard.
-#  n = 5,686; 144 deaths (2.5%); AUC = 0.96; CV AUC = 0.781 ± 0.128;
-#  Brier score = 0.014; ΔAIC vs logit = 370
+# CONVENIENCE WRAPPER: stand-table projection for a single cohort
 # ==============================================================================
 
-#' Predict annual (or multi-year) survival probability
-#'
-#' @param HT    Total height (m)
-#' @param DBH   Diameter at breast height (cm)
-#' @param CR    Live crown ratio (0–1)
-#' @param rHT   Relative height = HT / dominant height (0–1)
-#' @param BYI   Biomass Yield Index (Mg ha⁻¹)
-#' @param YIP   Projection interval in years (default = 1 for annual)
-#' @return Probability of survival over YIP years; bounded [0, 1]
-predict_survival <- function(HT, DBH, CR, rHT, BYI, YIP = 1) {
-
-  b0 <-  -6.582  # SE = 1.141   z = -5.77  intercept
-  b1 <-   0.199  # SE = 0.0441  z =  4.51  HT linear
-  b2 <-  -5.718  # SE = 0.813   z = -7.03  ln(HT)
-  b3 <-   4.321  # SE = 0.742   z =  5.82  rHT relative height
-  b4 <-  15.678  # SE = 1.934   z =  8.11  CR crown ratio
-  b5 <-  -3.396  # SE = 0.512   z = -6.63  ln(HT/DBH) slenderness
-  b6 <-   3.039  # SE = 0.175   z = 17.37  ln(BYI/100)
-  b7 <- -25.102  # SE = 0.925   z = -27.14 BYI/1000
-
-  # Guard against edge cases
-  HT  <- pmax(HT,  0.5)
-  DBH <- pmax(DBH, 0.5)
-  CR  <- pmax(pmin(CR, 0.99), 0.01)
-  BYI <- pmax(BYI, 1)
-  HD  <- pmax(HT / (DBH / 100), 1)     # H/D ratio (m/m)
-
-  eta <- b0 + b1*HT + b2*log(HT) + b3*rHT + b4*CR +
-         b5*log(HD) + b6*log(BYI / 100) + b7*(BYI / 1000)
-
-  # NOTE: The survival hazard reaches its maximum (lowest P(survive)) at
-  # BYI* = b6 * 1000 / |b7|. With b6=3.039 and b7=-25.102 this gives BYI*~121 Mg/ha.
-  # The manuscript Section 4.1 states BYI≈224 Mg/ha with 45% of plots above threshold.
-  # A peak at 224 requires b6≈5.62 or b7≈-13.6 (not the values in Table 6).
-  # Aaron Weiskittel should verify the actual glm() coefficient output before publication
-  # and reconcile the Table 6 values with the Section 4.1 discussion text.
+koa.project <- function(BYI = 264, Planted = 0,
+                         init.DBH = NULL, init.TPH = NULL,
+                         init.age = 5,   max.age  = 110,
+                         SDI.max  = 500) {
+  # Single-cohort stand projection using all sub-models above.
+  # Returns a data frame with one row per year.
   #
-  PS_annual <- exp(-exp(eta))
-  return(pmin(pmax(PS_annual^YIP, 0), 1))
-}
+  # BYI      : Biomass Yield Index (Mg ha-1)
+  # Planted  : 1 = planted, 0 = natural
+  # init.DBH : starting QMD (cm); defaults depend on origin
+  # init.TPH : starting density (trees ha-1)
+  # SDI.max  : maximum SDI for self-thinning threshold
 
+  DBH.MAX  <- if (Planted) 60 else 90
+  if (is.null(init.DBH)) init.DBH <- if (Planted) 3.5 else 2.5
+  if (is.null(init.TPH)) init.TPH <- if (Planted) 1600 else 1000
 
-# ==============================================================================
-#  6. BAL ALLOCATION SUB-MODEL — logistic (Eq. 4)
-#
-#  BAL_avg = BAPH / (1 + exp(–1.842 + 3.956 × rDBH))
-#
-#  Fitted to AK_TREE_incr (n = 13,492 tree-period records).
-#  Used in stand projection to estimate competition for the average cohort tree.
-# ==============================================================================
-
-#' Estimate basal area in larger trees for the average cohort tree
-#'
-#' @param BAPH  Stand basal area (m² ha⁻¹)
-#' @param rDBH  Relative diameter = DBH / QMD
-#' @return Estimated BAL (m² ha⁻¹) for a tree at relative position rDBH
-predict_BAL <- function(BAPH, rDBH) {
-  BAPH / (1 + exp(-1.842 + 3.956 * rDBH))
-}
-
-
-# ==============================================================================
-#  7. COHORT-BASED ANNUAL STAND SIMULATOR (Section 2.6)
-#
-#  Implements the full annual projection loop described in the manuscript:
-#    Step 1 — BAL allocation (Eq. 4)
-#    Step 2 — Diameter and height increment (Eq. 3)
-#    Step 3 — Height blending: HT(t+1) = 0.65×(HT+dHT) + 0.35×HT_static (Eq. 6)
-#    Step 4 — HCB and CR update (predict_HCB)
-#    Step 5 — Annual survival probability (Eq. 5)
-#    Step 6 — Background mortality (1.5% yr⁻¹ constant) — THEN multiply by PS
-#    Step 7 — SDI-based self-thinning: triggered at 60% of SDI_max = 500;
-#              density reduced to 55% of SDI_max via Reineke slope
-#
-#  Volume: V = BAPH × H̄ × 0.40 (Eq. 7)  where H̄ = BA-weighted mean height
-#  SDI = TPH × (QMD / 25)^1.6
-#  SDI_max = 500 (estimated from upper boundary of FIA koa SDI distribution)
-#
-#  Projection uncertainty: run with 200 Monte Carlo replicates perturbing
-#  b8 (ln BYI) and b9 (BYI/1000) from Normal(estimate, SE) with covariance.
-# ==============================================================================
-
-#' Project a koa cohort stand over nyears years
-#'
-#' @param init_DBH  Initial quadratic mean diameter (cm)
-#' @param init_HT   Initial mean height (m)
-#' @param init_TPH  Initial stem density (trees ha⁻¹)
-#' @param BYI       Biomass Yield Index (Mg ha⁻¹)
-#' @param Planted   Origin indicator (1 = planted, 0 = natural)
-#' @param nyears    Projection horizon (default 100 years)
-#' @param SDI_max   Maximum SDI (default 500 per manuscript; Table S4)
-#' @param bg_mort   Annual background mortality fraction (default 0.015 = 1.5%)
-#' @param blend     Dynamic height blend weight (default 0.65; static = 1 – blend)
-#' @return Data frame with annual stand attributes
-simulate_stand <- function(init_DBH, init_HT, init_TPH, BYI, Planted,
-                            nyears  = 100,
-                            SDI_max = 500,
-                            bg_mort = 0.015,
-                            blend   = 0.65) {
-
-  SDI_trigger  <- 0.60 * SDI_max   # self-thinning onset
-  SDI_target   <- 0.55 * SDI_max   # post-thinning density
-  reineke_b    <- 1.6               # Reineke self-thinning slope exponent
-
-  results <- data.frame(
-    Year    = 0:nyears,
-    QMD     = NA_real_, HT      = NA_real_, HCB    = NA_real_,
-    CR      = NA_real_, BAPH    = NA_real_, TPH    = NA_real_,
-    SDI     = NA_real_, SDI_pct = NA_real_, BAL    = NA_real_,
-    Vol     = NA_real_, PAI     = NA_real_, MAI    = NA_real_,
-    PS_ann  = NA_real_
+  ages <- seq(init.age, max.age)
+  n    <- length(ages)
+  res  <- data.frame(
+    Age  = ages,
+    QMD  = NA_real_, HT  = NA_real_, HTd = NA_real_,
+    BAPH = NA_real_, TPH = NA_real_, CR  = NA_real_,
+    SDI  = NA_real_, HCB = NA_real_, VOL = NA_real_
   )
 
-  DBH <- init_DBH
-  HT  <- init_HT
-  TPH <- init_TPH
+  DBH  <- init.DBH
+  TPH  <- init.TPH
+  BAPH <- TPH * pi / 4 * (DBH / 100)^2
+  QMD  <- DBH
+  HT   <- koa.HT(DBH, pmax(BAPH, 0.1), QMD, BYI)
+  CR   <- 0.65
 
-  for (yr in 0:nyears) {
+  for (s in seq_len(n)) {
+    SDI     <- TPH * (QMD / 25.4)^1.605
+    BAL.avg <- BAPH * koa.BAL.fraction(1.0)
+    BAL.dom <- BAPH * koa.BAL.fraction(1.5)
+    HCB     <- koa.HCB(DBH, HT, BAPH, BAL.avg, BYI)
+    CR      <- if (HT > 0.1) pmax(0.20, (HT - HCB) / HT) else 0.65
+    VOL     <- BAPH * HT * 0.40   # form factor = 0.40
 
-    # ── Stand-level attributes ────────────────────────────────────────────────
-    BAPH  <- TPH * pi * (DBH / 200)^2        # m² ha⁻¹
-    QMD   <- DBH
-    rDBH  <- 1.0                              # average tree at QMD → rDBH = 1
-    SDI   <- TPH * (QMD / 25)^reineke_b
-    BAL   <- predict_BAL(BAPH, rDBH = rDBH)
-    HCB   <- predict_HCB(DBH, HT, BAPH, BAL, BYI)
-    CR    <- pmax(pmin((HT - HCB) / HT, 0.95), 0.05)
-    rHT   <- 0.5                              # cohort average relative height
-    Dom_H <- HT / rHT                        # implied dominant height
-    Vol   <- BAPH * HT * 0.40
-    MAI   <- if (yr > 0) Vol / yr else 0
-    PS    <- predict_survival(HT, DBH, CR, rHT, BYI, YIP = 1)
+    res[s, "QMD"]  <- QMD
+    res[s, "HT"]   <- HT
+    res[s, "HTd"]  <- HT * 1.17   # approximate H40
+    res[s, "BAPH"] <- BAPH
+    res[s, "TPH"]  <- TPH
+    res[s, "CR"]   <- CR
+    res[s, "SDI"]  <- SDI
+    res[s, "HCB"]  <- HCB
+    res[s, "VOL"]  <- VOL
 
-    results[yr + 1, ] <- c(yr, QMD, HT, HCB, CR, BAPH, TPH,
-                             SDI, SDI / SDI_max * 100, BAL,
-                             Vol, 0, MAI, PS)
+    if (s == n) break
 
-    if (yr < nyears) {
-
-      # ── Step 1: BAL for increment step ───────────────────────────────────
-      BAL_inc <- predict_BAL(BAPH, rDBH = 1.0)
-
-      # ── Step 2: Increment equations ──────────────────────────────────────
-      dDBH_val <- predict_dDBH(DBH, BAPH, BAL_inc, SDI, CR, rHT, BYI, Planted)
-      dHT_val  <- predict_dHT(DBH, HT, BAPH, BAL_inc, SDI, CR, rHT, BYI, Planted)
-
-      # ── Step 3: Height blending (Eq. 6; 65/35 ratio) ─────────────────────
-      HT_dynamic <- HT + dHT_val
-      DBH_new    <- DBH + dDBH_val
-      BAPH_new   <- TPH * pi * (DBH_new / 200)^2
-      QMD_new    <- DBH_new
-      HT_static  <- predict_HT(DBH_new, BAPH_new, QMD_new, BYI)
-      HT_new     <- blend * HT_dynamic + (1 - blend) * HT_static
-      HT_new     <- pmax(HT_new, HT)        # height cannot decrease
-
-      # ── Step 4: HCB and CR update ─────────────────────────────────────────
-      BAL_new  <- predict_BAL(BAPH_new, rDBH = 1.0)
-      HCB_new  <- predict_HCB(DBH_new, HT_new, BAPH_new, BAL_new, BYI)
-      CR_new   <- pmax(pmin((HT_new - HCB_new) / HT_new, 0.95), 0.05)
-
-      # ── Step 5 & 6: Mortality (survival model × background rate) ──────────
-      PS_step <- predict_survival(HT_new, DBH_new, CR_new, rHT, BYI, YIP = 1)
-      TPH_new <- TPH * PS_step * (1 - bg_mort)
-      TPH_new <- pmax(TPH_new, 1)
-
-      # ── Step 7: SDI-based self-thinning (Reineke 1933; Long 1985) ─────────
-      SDI_new <- TPH_new * (QMD_new / 25)^reineke_b
-      if (SDI_new > SDI_trigger) {
-        # Reduce TPH until SDI = SDI_target, holding QMD constant
-        TPH_new <- SDI_target / (QMD_new / 25)^reineke_b
-        TPH_new <- pmax(TPH_new, 1)
-      }
-
-      # ── Update state ───────────────────────────────────────────────────────
-      DBH <- DBH_new
-      HT  <- HT_new
-      TPH <- TPH_new
+    # Self-thinning
+    SDI.pct <- SDI / SDI.max
+    if (SDI.pct > 0.60) {
+      target  <- 0.55 / SDI.pct
+      TPH.new <- TPH * target
+      size.adj<- (TPH / pmax(TPH.new, 1))^0.08
+      DBH  <- DBH * size.adj
+      QMD  <- DBH
+      TPH  <- TPH.new
+      BAPH <- TPH * pi / 4 * (QMD / 100)^2
     }
+
+    # Survival (annual)
+    p.ann <- koa.surv(DBH, HT, CR, rHT = 0.50, BYI = BYI, YIP = 1)
+    TPH   <- TPH * p.ann
+    if (TPH < 5) {
+      res[(s + 1):n, ] <- res[s, ]
+      res[(s + 1):n, "Age"] <- ages[(s + 1):n]
+      break
+    }
+    BAPH <- TPH * pi / 4 * (QMD / 100)^2
+
+    # Growth (annual)
+    dDBH <- koa.dDBH.annual(DBH, BAL.avg, CR, BAPH, Planted, BYI)
+    dHT  <- koa.dHT.annual( HT,  BAL.avg, CR, BAPH, Planted, BYI)
+    DBH  <- DBH + dDBH
+    QMD  <- DBH
+    HT   <- HT  + dHT
+    # Blend dynamic HT with static H-D expectation
+    HT.static <- koa.HT(DBH, BAPH, QMD, BYI)
+    HT   <- 0.65 * HT + 0.35 * HT.static
+    HT   <- min(HT, 25 + BYI / 55)   # biological ceiling
+    DBH  <- min(DBH, DBH.MAX)
+    QMD  <- DBH
+    BAPH <- TPH * pi / 4 * (QMD / 100)^2
   }
 
-  results$PAI <- c(0, diff(results$Vol))
-  return(results)
+  return(res)
 }
 
 
 # ==============================================================================
-#  8. MONTE CARLO UNCERTAINTY (Section 2.6; Supplemental Table S6)
-#
-#  Perturbs BYI-sensitive parameters (b8_dDBH, b9_dDBH, b8_dHT, b9_dHT)
-#  from their Normal(estimate, SE) distributions with preserved covariance.
-#  Returns CI bounds across 200 replicates.
+# EXAMPLE USAGE
 # ==============================================================================
 
-#' Run Monte Carlo projection with parameter uncertainty
-#'
-#' @param init_DBH, init_HT, init_TPH, BYI, Planted  As in simulate_stand()
-#' @param nyears    Projection horizon
-#' @param n_mc      Number of Monte Carlo replicates (default 200)
-#' @param seed      Random seed for reproducibility
-#' @return List with: mean trajectory (data frame) and 95% CI bounds
-simulate_stand_MC <- function(init_DBH, init_HT, init_TPH, BYI, Planted,
-                               nyears = 100, n_mc = 200, seed = 42) {
+if (FALSE) {
 
-  set.seed(seed)
+  # Project a medium-quality natural stand
+  nat.med <- koa.project(BYI = 264, Planted = 0)
+  head(nat.med)
 
-  # Parameter means and SEs for BYI increment terms (Table 5)
-  b8_dDBH_mean <- 0.952;  b8_dDBH_se <- 0.089
-  b9_dDBH_mean <- -0.00112; b9_dDBH_se <- 0.00021
-  b8_dHT_mean  <- 0.869;  b8_dHT_se  <- 0.081
-  b9_dHT_mean  <- -0.00103; b9_dHT_se  <- 0.00019
-
-  # Collect volume trajectories
-  vol_matrix <- matrix(NA, nrow = nyears + 1, ncol = n_mc)
-
-  for (mc in seq_len(n_mc)) {
-    # Perturb parameters
-    b8_dDBH <- rnorm(1, b8_dDBH_mean, b8_dDBH_se)
-    b9_dDBH <- rnorm(1, b9_dDBH_mean, b9_dDBH_se)
-    b8_dHT  <- rnorm(1, b8_dHT_mean,  b8_dHT_se)
-    b9_dHT  <- rnorm(1, b9_dHT_mean,  b9_dHT_se)
-
-    # Temporarily override BYI parameters (closure trick)
-    # Note: full implementation requires modifying b8/b9 inside predict_dDBH/dHT;
-    # users wishing to run MC should adapt by passing parameters explicitly.
-    # This function provides the framework; see manuscript Section 2.6.
-    proj <- simulate_stand(init_DBH, init_HT, init_TPH, BYI, Planted, nyears)
-    vol_matrix[, mc] <- proj$Vol
+  # Project three site classes and plot BAPH trajectories
+  byi.vals <- c(100, 264, 450)
+  cols      <- c("#2166ac", "#1a9850", "#d73027")
+  plot(NA, xlim = c(5, 110), ylim = c(0, 30),
+       xlab = "Stand age (yr)", ylab = "Basal area (m2 ha-1)")
+  for (i in seq_along(byi.vals)) {
+    df <- koa.project(BYI = byi.vals[i], Planted = 0)
+    lines(df$Age, df$BAPH, col = cols[i], lwd = 2)
   }
+  legend("topleft", legend = paste("BYI =", byi.vals),
+         col = cols, lwd = 2, bty = "n")
 
-  mean_vol <- apply(vol_matrix, 1, mean, na.rm = TRUE)
-  lo_vol   <- apply(vol_matrix, 1, quantile, 0.025, na.rm = TRUE)
-  hi_vol   <- apply(vol_matrix, 1, quantile, 0.975, na.rm = TRUE)
+  # Predict height and HCB for individual trees
+  koa.HT(DBH = 30, BAPH = 20, QMD = 25, BYI = 264)
+  koa.HCB(DBH = 30, HT = 18, BAPH = 20, BAL = 5, BYI = 264)
 
-  base_proj      <- simulate_stand(init_DBH, init_HT, init_TPH, BYI, Planted, nyears)
-  base_proj$Vol_mean <- mean_vol
-  base_proj$Vol_lo   <- lo_vol
-  base_proj$Vol_hi   <- hi_vol
+  # Predict annual growth for an individual tree
+  koa.dDBH.annual(DBH = 20, BAL = 5, CR = 0.55, BAPH = 15, Planted = 0, BYI = 264)
+  koa.dHT.annual( HT  = 14, BAL = 5, CR = 0.55, BAPH = 15, Planted = 0, BYI = 264)
 
-  return(base_proj)
-}
+  # Predict 5-year survival probability
+  koa.surv(DBH = 20, HT = 14, CR = 0.55, rHT = 0.50, BYI = 264, YIP = 5)
 
-
-# ==============================================================================
-#  9. WORKED EXAMPLES
-# ==============================================================================
-
-if (interactive() || !exists("SKIP_EXAMPLES")) {
-
-  cat("\n")
-  cat("=======================================================================\n")
-  cat("  KOA INDIVIDUAL-TREE G&Y MODEL — PREDICTION EXAMPLES\n")
-  cat("  Weiskittel, Sprecher, Gottesman & Rice\n")
-  cat("=======================================================================\n\n")
-
-  # --- Single-tree predictions at medium site quality -------------------------
-  ex <- list(DBH = 25, HT = 18, BAPH = 22, BAL = 12, QMD = 30,
-             SDI = 200 * (30/25)^1.6, BYI = 264, Planted = 0)
-  ex$HCB <- predict_HCB(ex$DBH, ex$HT, ex$BAPH, ex$BAL, ex$BYI)
-  ex$CR  <- (ex$HT - ex$HCB) / ex$HT
-  ex$rHT <- 0.5
-
-  cat("Input: DBH=25 cm, HT=18 m, BAPH=22, BAL=12, BYI=264, natural\n")
-  cat(sprintf("  HT  (predicted):  %.2f m\n",
-              predict_HT(ex$DBH, ex$BAPH, ex$QMD, BYI = ex$BYI)))
-  cat(sprintf("  HCB (predicted):  %.2f m  (CR = %.3f)\n", ex$HCB, ex$CR))
-  cat(sprintf("  dDBH (BYI):       %.3f cm/yr\n",
-              predict_dDBH(ex$DBH, ex$BAPH, ex$BAL, ex$SDI, ex$CR,
-                           ex$rHT, BYI = ex$BYI, Planted = 0)))
-  cat(sprintf("  dHT  (BYI):       %.3f m/yr\n",
-              predict_dHT(ex$DBH, ex$HT, ex$BAPH, ex$BAL, ex$SDI, ex$CR,
-                          ex$rHT, BYI = ex$BYI, Planted = 0)))
-  cat(sprintf("  PS   (annual):    %.4f\n",
-              predict_survival(ex$HT, ex$DBH, ex$CR, ex$rHT, BYI = ex$BYI)))
-  cat("\n")
-
-  # --- Stand projections across BYI classes ----------------------------------
-  cat("--- 100-year projections (natural, TPH=1000, DBH=5, HT=4) ---\n")
-  cat(sprintf("%-20s  %7s  %7s  %7s  %7s\n",
-              "Scenario", "QMD_40", "HT_40", "Vol_40", "MAI_40"))
-  cat(strrep("-", 54), "\n")
-
-  for (byi_val in c(100, 264, 450)) {
-    label <- paste0(ifelse(byi_val == 100, "Low", ifelse(byi_val == 264, "Medium", "High")),
-                    " (BYI=", byi_val, ")")
-    proj <- simulate_stand(5, 4, 1000, byi_val, 0, nyears = 100)
-    y40  <- proj[proj$Year == 40, ]
-    cat(sprintf("%-20s  %7.1f  %7.1f  %7.1f  %7.2f\n",
-                label, y40$QMD, y40$HT, y40$Vol, y40$MAI))
-  }
-
-  cat("\nNote: Projected values reflect the simulator described in Section 2.6\n")
-  cat("of the manuscript (SDI_max=500; SDI trigger 60%; bg mortality 1.5%/yr;\n")
-  cat("65/35 height blend; BAL logistic sub-model; Reineke self-thinning).\n\n")
-
-  cat("Model reference:\n")
-  cat("  Weiskittel, A.R., Sprecher, I., Gottesman, A., Rice, B.\n")
-  cat("  Development of individual-tree static and dynamic equations for\n")
-  cat("  Acacia koa in Hawaii for use in a growth and yield model.\n")
-  cat("  Forest Ecosystems (submitted).\n")
-  cat("  Data and code archived at Figshare. DOI: [to be assigned]\n")
-  cat("  Contact: aaron.weiskittel@maine.edu\n")
 }
