@@ -93,7 +93,7 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
   .GlobalEnv$stand=make_stand(stand.id=std.id[['standid']],
                               elev = stdInfo[['elev']], 
                               byi =  site[['byi']], 
-                              planted = site[['stdorgcd']])
+                              as.numeric(site[['stdorgcd']]))
   
   ## fetch the fvs tree list and form the HiGY tree dataframe
   orgtree = fvsGetTreeAttrs(c("plot","species","tpa","dbh","ht","cratio", "mgmtcd",
