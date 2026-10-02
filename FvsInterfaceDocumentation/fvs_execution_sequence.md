@@ -10,7 +10,7 @@ The Forest Vegetation Simulator (FVS) follows a structured execution sequence th
 
 FVS begins execution in the main `FVS()` subroutine, which serves as the primary entry point. The initialization phase consists of several critical steps:
 
-**Command Line Processing**: FVS first processes command line parameters through `fvsSetCmdLine`.
+**Command Line Processing**: FVS first processes command line parameters through `fvsSetCmdLine`, which parses options like `--keywordfile` and `--stoppoint`. If restart functionality is enabled, the system checks for existing restart files and sets appropriate restart codes.
 
 **Restart Logic**: The `fvsRestart` function determines whether this is a fresh run or a continuation from a previous stop point. Restart codes can be positive (indicating the stop point to resume from) or negative (signaling that the calling program should make another FVS call to continue).
 
@@ -132,9 +132,13 @@ This cycle repeats for each projection period until the specified end year is re
 
 ## Stop Point Implementation Details
 
-### Memory-based stop points
+### File-Based vs. Memory-Based Stop Points
 
-Stop points are set using the API function `fvsSetStoppointCodes()`. These maintain the stand state in memory and generate positive restart codes (1 through 7) that allow immediate continuation.
+Stop points can be implemented in two ways:
+
+**File-Based Stop Points**: Created using command line syntax like `--stoppoint=7,2025,restart.dat`. These create restart files that save the complete stand state, allowing FVS to be completely shut down and restarted later. File-based stop points generate negative restart codes (-1 through -7) that require two calls to FVS: the first returns the negative code, and the second performs the actual restart.
+
+**Memory-Based Stop Points**: Created using the API function `fvsSetStoppointCodes()`. These maintain the stand state in memory and generate positive restart codes (1 through 7) that allow immediate continuation without file I/O.
 
 ### Practical Applications
 
