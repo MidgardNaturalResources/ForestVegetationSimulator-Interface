@@ -49,7 +49,6 @@ rfvs.exec.funcs=dplyr::tribble(
 
 ```
 
-# rFVS Overview and User Guide
 
 ## Introduction
 
@@ -700,7 +699,7 @@ Read-only extraction from tree arrays maintains array integrity, does not alter 
 
 
 
-### Send  Information to (Set) FVS Functions
+### Send Information to (Set) FVS Functions
 
 These functions modify data within FVS during simulation.
 
