@@ -786,9 +786,13 @@ Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) on
 ```{r Ex_fvsGetEventMonitorVariables, echo=TRUE, eval=FALSE}
 #edit fvsLoad to reflect where FVSbin is stored on your system.
 fvsLoad(bin="FVSbin",fvsProgram="FVSie")
-fvsGetEventMonitorVariables(c("year","atpa","aba","mybba","myaba"))
-fvsSetEventMonitorVariables(c("myaba"=100,"another"=40))
-fvsGetEventMonitorVariables(c("myaba","another"))
+fvsSetCmdLine("--keywordfile=base.key")
+# run to stop point code 2 (after the first event monitor call) so that
+# the before-thinning variables are loaded
+fvsRun(stopPointCode = 2, stopPointYear = -1)
+fvsGetEventMonitorVariables(c("year","btpa","bba"))
+# a name that is not defined returns NA
+fvsGetEventMonitorVariables("myaba")
 ```
 
 #### fvsGetRestartcode
@@ -1266,9 +1270,10 @@ Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) on
 ```{r Ex_fvsSetEventMonitorVariables, echo=TRUE, eval=FALSE}
 #edit fvsLoad to reflect where FVSbin is stored on your system.
 fvsLoad(bin="FVSbin",fvsProgram="FVSie")
-fvsGetEventMonitorVariables(c("year","atpa","aba","mybba","myaba"))
+fvsSetCmdLine("--keywordfile=base.key")
+fvsRun(stopPointCode = 2, stopPointYear = -1)
+# create (or change) user-defined event monitor variables
 fvsSetEventMonitorVariables(c("myaba"=100,"another"=40))
-fvsGetEventMonitorVariables(c("myaba","another"))
 ```
 
 #### fvsSetSpeciesAttrs
