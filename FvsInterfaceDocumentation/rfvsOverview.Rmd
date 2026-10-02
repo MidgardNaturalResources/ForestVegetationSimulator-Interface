@@ -54,11 +54,11 @@ rfvs.exec.funcs=dplyr::tribble(
 
 rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a dynamic load library (.dll on Windows, .dylib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time access to and modification of FVS predictions during simulation runs.
 
-This document assumes familiarity with R, growth and yield modeling concepts, and FVS operations. For additional information about FVS, refer to [Essential FVS](https://www.fs.usda.gov/sites/default/files/forest-management/essential-fvs.pdf).
+This document assumes familiarity with R, growth and yield modeling concepts, and FVS operations. For additional information about FVS, refer to [Essential FVS](https://www.fs.usda.gov/sites/default/files/forest-management/essential-fvs.pdf) (Dixon 2002).
 
 ## Purpose
 
-rFVS serves as a bridge between FVS's forest growth and yield simulation capabilities and R's statistical computing environment. The system is part of the ForestVegetationSimulator-Interface GitHub repository, which provides R and Shiny interfaces for the USFS Forest Vegetation Simulator (USDA Forest Service 2025d). The primary purposes include:
+rFVS serves as a bridge between FVS's forest growth and yield simulation capabilities and R's statistical computing environment. The system is part of the ForestVegetationSimulator-Interface GitHub repository, which provides R and Shiny interfaces for the USFS Forest Vegetation Simulator. The primary purposes include:
 
 - **Model Integration**: Incorporating external R-based growth and yield models into FVS simulations
 - **Custom Analytics**: Leveraging R's statistical and program integration capabilities within FVS workflows
@@ -157,7 +157,7 @@ FVS stops at every defined stop point (1 through 7) it encounters in the process
 
 **Stop point code 7: After input read, before missing value imputation**
 
-*Invoked from:* subroutine INITRE, after subroutine INTREE has finished reading tree records and before subroutine CRATET is called.
+*Invoked from:* subroutine FVS, after subroutine NOTRE has loaded the tree records and before subroutine CRATET is called.
 
 Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, WK1, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The ARRAYS COMMON block is partially populated.
 
@@ -380,17 +380,20 @@ Loads the desired FVS program as a shared library and creates a global environme
 **Usage**
 
 
-fvsLoad(fvsProgram, bin = "../../bin")
+fvsLoad(fvsProgram, bin = "../../trunk/bin")
 
 
 **Value**
+
+Invisibly returns the path of the loaded library file. Stops with an error if `fvsProgram` is missing, the library file does not exist, or the library cannot be loaded.
+
 **Implementation**
 
-Uses system-specific dynamic library loading (dlopen on Unix, LoadLibrary on Windows) to load FVS variant shared libraries into the R process space.
+Strips any suffix from `fvsProgram`, appends the platform's shared library extension, and prefixes the `bin` directory. If an FVS library is already loaded, it is unloaded first. The library is loaded with R's `dyn.load`.
 
-Calls FVS subroutine INITRE which initializes variant-specific arrays including species parameter arrays (SPGRMO, SPDBMO, SPHTMO), coefficient matrices for growth equations, and location-specific parameters stored in common blocks CONTRL, PLOT, VARCOM.
+Checks that the routines required by the rFVS API are present in the library (for example `fvs`, `fvsSetCmdLine`, `fvsGetRestartCode`, `fvsSetStoppointCodes`, `fvsAddActivity`, `fvsAddTrees`, `fvsSummary` and the `CfvsTreeAttr`, `CfvsSpeciesAttr`, `CfvsEvmonAttr` entry points). If any are missing, the library is unloaded and an error lists them.
 
-Populates FISPEC array with species codes, initializes MGMTID and NPLT variables, loads coefficient arrays for diameter and height growth models into variant-specific storage locations.
+Records the loaded library path and program name in the global object `.FVSLOADEDLIBRARY`, which the other rFVS functions use to find the library. `fvsLoad` does not run FVS or call any FVS initialization routines; initialization occurs when `fvsRun` first calls subroutine FVS.
 
 #### fvsRun
 
@@ -437,12 +440,12 @@ If one argument to fvsRun() is left as NA (default), then both are ignored. You 
  
 **Implementation**
 
-Calls Fortran subroutine FVS through rFVS interface with stop point parameters, manages execution state through return codes.
+If both `stopPointCode` and `stopPointYear` are provided, calls Fortran subroutine `fvsSetStoppointCodes` to set the requested stop point.
 
-Invokes main FVS processing loop in subroutine FVS, which calls GROCOM for growth calculations, MORCOM for mortality, and ESTAB for regeneration. Stop points implemented through CALL OPLIST statements and conditional branches controlled by ISTOPT and ITRN variables.
+Then repeatedly calls Fortran subroutine `fvs` and, after each call, retrieves the restart code with `fvsGetRestartCode`. The loop ends when the FVS return code is nonzero or when the restart code is nonzero (FVS stopped at a stop point or between stands). The FVS return code is returned invisibly.
 
-Advances IY(ICYC) cycle counter, updates tree arrays PROB, DG, HTG in growth routines, modifies ITGL mortality flags, preserves processor state in IACTK activity tracking array when stopped.
- 
+Stop points are checked by subroutine `fvsStopPoint`, which is called from subroutines FVS (stop point 7), GRINCR (stop points 1 through 4) and GRADD (stop points 5 and 6).
+
 
 #### fvsUnitConversion
 
@@ -798,6 +801,8 @@ Custom models can provide FVSOnline interface elements through UI functions that
 
 ## References
 
+
+Dixon, Gary E. comp. 2002. Essential FVS: A user's guide to the Forest Vegetation Simulator. Internal Report. Fort Collins, CO: U.S. Department of Agriculture, Forest Service, Forest Management Service Center. 240p. (Revised: June 11, 2026)
 
 USDA Forest Service. 2025a. FVS API. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/FVS-API. Accessed July 2025.
 
