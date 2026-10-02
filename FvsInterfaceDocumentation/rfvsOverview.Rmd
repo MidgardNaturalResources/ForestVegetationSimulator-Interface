@@ -396,6 +396,13 @@ Checks that the routines required by the rFVS API are present in the library (fo
 
 Records the loaded library path and program name in the global object `.FVSLOADEDLIBRARY`, which the other rFVS functions use to find the library. `fvsLoad` does not run FVS or call any FVS initialization routines; initialization occurs when `fvsRun` first calls subroutine FVS.
 
+**Example**
+
+```{r Ex_fvsLoad, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+```
+
 #### fvsMakeKeyFile
 
 **Description**
@@ -429,6 +436,14 @@ An existing file with the same name is replaced. The file starts with `!!title:`
 
 Pure R; it writes the file and calls no FVS routine. FVS reads the file when its name is passed through `fvsSetCmdLine("--keywordfile=<file>")`.
 
+**Example**
+
+```{r Ex_fvsMakeKeyFile, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsMakeKeyFile(runTitle="Test",standIDs=c("01100202010142","01100201010056"))
+```
+
 #### fvsSetCmdLine
 
 **Description**
@@ -460,6 +475,14 @@ Stop points set with `--stoppoint=` are "major" stop points. They are separate f
 **Implementation**
 
 Calls the C entry `CfvsSetCmdLine`, which calls Fortran subroutine `fvsSetCmdLine(theCmdLine, lenCL, IRTNCD)` through `fvsSetCmdLineC`. The subroutine resets the control variables in common block `GLBLCNTL`, parses `--keywordfile=`, `--stoppoint=` and `--restart=`, opens the stop point and restart files when requested, opens the keyword and output files (`FILOPN`), and returns the FVS return code. When a major stop point is reached and a stop point file is open, `fvsStopPoint` writes the stand state with `PUTSTD`.
+
+**Example**
+
+```{r Ex_fvsSetCmdLine, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsSetCmdLine("--keywordfile=base.key")
+```
 
 #### fvsRun
 
@@ -512,6 +535,14 @@ Then repeatedly calls Fortran subroutine `fvs` and, after each call, retrieves t
 
 Stop points are checked by subroutine `fvsStopPoint`, which is called from subroutines FVS (stop point 7), GRINCR (stop points 1 through 4) and GRADD (stop points 5 and 6).
 
+**Example**
+
+```{r Ex_fvsRun, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsSetCmdLine("--keywordfile=base.key")
+fvsRun()
+```
 
 #### fvsInteractRun
 
@@ -551,6 +582,27 @@ Only stop points with a supplied block are requested, at every cycle (stop point
 
 R function. It sets the next stop point with Fortran subroutine `fvsSetStoppointCodes`, then repeatedly calls Fortran subroutine `fvs`, reads the restart code with `fvsGetRestartCode`, and runs the block for that stop point. Stand IDs come from `fvsGetStandIDs` and the year from `fvsGetEventMonitorVariables`.
 
+**Example**
+
+```{r Ex_fvsInteractRun, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsSetCmdLine("--keywordfile=base.key")
+test.interact <- function(msg)
+{
+  cat("msg=",msg," ids=",unlist(fvsGetStandIDs()),
+      " year=",fvsGetEventMonitorVariables("year"),"\n")
+  fvsGetRestartcode()
+}
+fvsInteractRun(BeforeEM1  = 'test.interact("BeforeEM1  ")',
+               AfterEM1   = 'test.interact("AfterEM1   ")',
+               BeforeEM2  = 'test.interact("BeforeEM2  ")',
+               AfterEM2   = 'test.interact("AfterEM2   ")',
+               BeforeAdd  = 'test.interact("BeforeAdd  ")',
+               BeforeEstab= 'test.interact("BeforeEstab")',
+               SimEnd     = 'test.interact("SimEnd     ")')
+```
+
 #### fvsUnitConversion
 
 **Description**
@@ -579,6 +631,17 @@ Numeric value of conversion factor, or NA if FVS does not contain the desired fa
 
 Conversion values contained in currently loaded DLL but shared across all variants. Conversions contained in FVS METRIC.F77 file.
 
+**Example**
+
+```{r Ex_fvsUnitConversion, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsUnitConversion("BTUtoKJ")
+fvsUnitConversion("M2pHAtoFT2pACR")
+fvsUnitConversion("M2pHAtoFT2pACR")*fvsUnitConversion("FT2pACRtoM2pHA")
+# [1] 0.9999998
+```
+
 #### fvsGetSpeciesCodes
 
 **Description**
@@ -597,6 +660,14 @@ A character matrix with one row per species index (`maxspecies` from `fvsGetDims
 **Implementation**
 
 Calls the C entry `CfvsSpeciesCode` once for each species index; it calls Fortran subroutine `fvsSpeciesCode` through `fvsSpeciesCodeC`, which returns `JSP`, `FIAJSP` and `PLNJSP` for the index.
+
+**Example**
+
+```{r Ex_fvsGetSpeciesCodes, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetSpeciesCodes()
+```
 
 ### Get information from FVS functions
 
@@ -646,6 +717,13 @@ Stops if `allsum` is not a list or the tables share no years. Warns when removal
 
 Pure R; it calls no FVS routine.
 
+**Example**
+
+```{r Ex_fvsCompositeSum, echo=TRUE, eval=FALSE}
+all.sum = list(stand.1.sum, stand.2.sum)   # tables from fvsGetSummary, one per stand
+fvsCompositeSum(all.sum)
+```
+
 #### fvsGetDims
 
 **Description**
@@ -672,6 +750,14 @@ Named numeric vector containing:
 
 The maximum values are compile-time settings of the loaded FVS variant; the values shown are for the Northeast (NE) variant.
 
+**Example**
+
+```{r Ex_fvsGetDims, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetDims()
+```
+
 #### fvsGetEventMonitorVariables
 
 **Description**
@@ -695,6 +781,15 @@ a named numeric vector of the variables, NA if the variable name does not exist
 
 Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) once for each name, with action "get". Predefined Event Monitor variables (for example `year`, `age`, `btpa`, `bba`, `cycle`, `sampwt`) are read from the Event Monitor variable arrays `TSTV1` through `TSTV4`. Other names are looked up among user-defined variables (`TSTV5`, with names in `CTSTV5`). Return codes: 0 (OK), 1 (variable is undefined at this point), 2 (name not found). R returns `NA` for codes 1 and 2.
 
+**Example**
+
+```{r Ex_fvsGetEventMonitorVariables, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetEventMonitorVariables(c("year","atpa","aba","mybba","myaba"))
+fvsSetEventMonitorVariables(c("myaba"=100,"another"=40))
+fvsGetEventMonitorVariables(c("myaba","another"))
+```
 
 #### fvsGetRestartcode
 
@@ -730,6 +825,12 @@ Returns current value of stop/restart code indicating the point within FVS seque
 
 Calls Fortran subroutine `fvsGetRestartCode`, which returns the value of `restartcode` held in common block `GLBLCNTL` when the FVS return code is 0, and 0 otherwise. Read-only.
 
+**Example**
+
+```{r Ex_fvsGetRestartcode, echo=TRUE, eval=FALSE}
+fvsRun(stopPointCode = 5, stopPointYear = -1)
+fvsGetRestartcode()   # 5
+```
 
 #### fvsGetSpeciesAttrs
 
@@ -785,6 +886,14 @@ action="set" or "get" (case sensitive),
 attr=vector of length data (always double), 
 rtnCode: 0=OK, 1=name not found, 4=name string length invalid.
 
+**Example**
+
+```{r Ex_fvsGetSpeciesAttrs, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetSpeciesAttrs(vars=c("spccf","spsiteindx"))
+```
+
 #### fvsGetStandIDs
 
 **Description**
@@ -803,6 +912,14 @@ A named list with `standid`, `standcn` (stand control number), `mgmtid` and `cas
 **Implementation**
 
 Calls the C entry `CfvsStandID`, which calls Fortran subroutine `fvsStandIDC` and returns `NPLT`, `DBCN`, `MGMID` and `CASEID`.
+
+**Example**
+
+```{r Ex_fvsGetStandIDs, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetStandIDs()  # will be blank until a run is started
+```
 
 #### fvsGetSummary
 
@@ -823,6 +940,14 @@ A matrix with one row per cycle boundary (`ncycles + 1` rows) and these columns:
 
 Calls Fortran subroutine `fvsSummary` once for each cycle boundary; it copies the stored summary row `IOSUM(:, icycle)` from common block `OUTCOM` and returns 1 if the cycle is out of range.
 
+**Example**
+
+```{r Ex_fvsGetSummary, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetSummary()  # will be NULL until a run is made
+```
+
 #### fvsGetSVSDims
 
 **Description**
@@ -841,6 +966,14 @@ Named numeric vector: `nsvsobjs` (SVS objects), `ndeadobjs` (snag objects), `ncw
 **Implementation**
 
 Calls Fortran subroutine `fvsSVSDimSizes`, which returns `NSVOBJ`, `NDEAD`, `NCWD`, `MXSVOB`, `MXDEAD` and `MXCWD`.
+
+**Example**
+
+```{r Ex_fvsGetSVSDims, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetSVSDims()
+```
 
 #### fvsGetSVSObjectSet
 
@@ -868,6 +1001,12 @@ Snag weights `snagwt0` to `snagwt3` are reduced for the years since each snag fe
 **Implementation**
 
 Reads the object types and locations (`objtype`, `objindex`, `xloc`, `yloc`) and the snag and debris attributes by calling the C entry `CfvsSVSObjData` (Fortran `fvsSVSObjData`; return codes 0 OK, 1 name not found, 2 more objects than the maximum, 3 count differs from the current number, 4 invalid name length). Tree attributes come from `fvsGetTreeAttrs`, species codes from `fvsGetSpeciesCodes`, and fall years from the C entry `CfvsFFEAttrs`.
+
+**Example**
+
+```{r Ex_fvsGetSVSObjectSet, echo=TRUE, eval=FALSE}
+fvsGetSVSObjectSet() # return list of empty data frames until a run is made using SVS.
+```
 
 #### fvsGetTreeAttrs
 
@@ -938,7 +1077,13 @@ Read-only extraction from tree arrays maintains array integrity, does not alter 
 | - | DAMAGE3 | Tertiary damage code (not accessible via rFVS) |
 | - | SEVERITY3 | Tertiary damage severity (not accessible via rFVS) |
 
+**Example**
 
+```{r Ex_fvsGetTreeAttrs, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetTreeAttrs(vars=c("dbh","ht","tpa")) # return an empty data frame until a run is made.
+```
 
 #### fvsSetupSummary
 
@@ -962,6 +1107,14 @@ The summary table with the added rows and four new columns, `TPrdTpa`, `TPrdTCuF
 **Implementation**
 
 Pure R; it calls no FVS routine.
+
+**Example**
+
+```{r Ex_fvsSetupSummary, echo=TRUE, eval=FALSE}
+# fvsLoad and fvsSetCmdLine must already have been called
+fvsRun()   # run FVS so that a summary is available
+fvsSetupSummary(fvsGetSummary())
+```
 
 ### Send information to (set) FVS functions
 
@@ -1002,8 +1155,15 @@ Invisibly returns 0 if the activity was added and 1 if there was an error. With 
 
 Calls Fortran subroutine `fvsAddActivity`, which copies the parameters and calls `OPADD` to post the activity to the activity schedule, then calls `OPINCR`.
 
+**Example**
 
-
+```{r Ex_fvsAddActivity, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsAddActivity()  # a list of all possible activities is return
+fvsAddActivity(1993,"base_yardloss",c(0.50, 0.70, 0.50))
+fvsAddActivity(1993,"base_thindbh",c(0.00,12.00,1.00,0.00,0.00))
+```
 
 #### fvsAddTrees
 
@@ -1032,6 +1192,14 @@ The rFVS help states that this function should be called only at stop point code
 
 Calls Fortran subroutine `fvsAddTrees`, which returns 1 if `ntrees` is 0 or the records do not fit. Otherwise, for each new record it sets `DBH`, `ISP`, `HT`, `ICR`, `ITRE` (plot) and `PROB`, computes the crown width (`CWCALC`), sets the management code `IMC` to 2, age (`ABIRTH`) to 5 and `IDTREE` to 10000000 plus the cycle times 10000 plus the record number, and sets growth, volume and other tree variables to zero. It then rebuilds the species and diameter sorts (`SPESRT`, `RDPSRT`).
 
+**Example**
+
+```{r Ex_fvsAddTrees, echo=TRUE, eval=FALSE}
+fvsRun(stopPointCode = 6, stopPointYear = -1)
+new.trees = data.frame(dbh = 0.5, species = 1, ht = 4.5, cratio = 80, plot = 1, tpa = 20)
+fvsAddTrees(new.trees)
+```
+
 #### fvsCutNow
 
 **Description**
@@ -1058,6 +1226,13 @@ Can only be used at stop point code 2 (just after the first Event Monitor call);
 **Implementation**
 
 R function. It adds the activity `base_thinprsc` (parameters 1 and -1) for the current year with `fvsAddActivity`, then writes `propcut` to the tree attribute `wk6` with `fvsSetTreeAttrs` (Fortran `fvsTreeAttr`, array `WK6`).
+
+**Example**
+
+```{r Ex_fvsCutNow, echo=TRUE, eval=FALSE}
+fvsRun(stopPointCode = 2, stopPointYear = -1)
+fvsCutNow(0.25)   # cut 25 percent of every tree record
+```
 
 #### fvsSetEventMonitorVariables
 
@@ -1086,6 +1261,16 @@ Predefined Event Monitor variables can be set, and new user-defined variables ar
 
 Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) once for each name, with action "set". Predefined variables are written to the arrays `TSTV1` through `TSTV4`. Other names are written to the user-defined variable arrays (`TSTV5`, with names in `CTSTV5`); a new name is added if there is room (`MXTST5`), otherwise the return code is 1.
 
+**Example**
+
+```{r Ex_fvsSetEventMonitorVariables, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+fvsGetEventMonitorVariables(c("year","atpa","aba","mybba","myaba"))
+fvsSetEventMonitorVariables(c("myaba"=100,"another"=40))
+fvsGetEventMonitorVariables(c("myaba","another"))
+```
+
 #### fvsSetSpeciesAttrs
 
 **Description**
@@ -1108,6 +1293,15 @@ Invisibly returns 0 if all attributes were set, or the largest return code from 
 **Implementation**
 
 Calls Fortran subroutine `fvsSpeciesAttr` (through the C entry `CfvsSpeciesAttr`) once for each attribute, with action "set", and writes the vector to the corresponding species array. The attributes `bfmeth` and `mcmeth` are truncated to integers.
+
+**Example**
+
+```{r Ex_fvsSetSpeciesAttrs, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+vars = fvsGetSpeciesAttrs(vars=c("spccf","spsdi","spsiteindx"))
+fvsSetSpeciesAttrs(vars=vars)
+```
 
 #### fvsSetTreeAttrs
 
@@ -1142,6 +1336,14 @@ Writes each vector to the array that corresponds to the attribute name (see the 
 
 Overwrites existing values in specific tree attribute arrays, modified values used in subsequent growth calculations, volume computations, and mortality processing without additional validation or constraint checking.
 
+**Example**
+
+```{r Ex_fvsSetTreeAttrs, echo=TRUE, eval=FALSE}
+#edit fvsLoad to reflect where FVSbin is stored on your system.
+fvsLoad(bin="FVSbin",fvsProgram="FVSie")
+vars = fvsGetTreeAttrs(vars=c("dbh","ht","tpa"))
+fvsSetTreeAttrs(vars)
+```
 
 ## FVSOnline graphic interface
 
