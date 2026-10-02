@@ -605,6 +605,7 @@ These functions retrieve data and status information from FVS during simulation.
 
 | Function | Description |
 |----------|-------------|
+| fvsCompositeSum | Builds a composite summary statistics table from a list of summary tables |
 | fvsGetDims | Returns the max dimensions of important FVS data storage |
 | fvsGetEventMonitorVariables | Gets Event Monitor variables |
 | fvsGetRestartcode | Gets the current FVS restart code |
@@ -612,7 +613,39 @@ These functions retrieve data and status information from FVS during simulation.
 | fvsGetStandIDs | Returns stand identification codes |
 | fvsGetSummary | Returns a data frame of the summary statistics |
 | fvsGetSVSDims | Returns the max dimensions of important Stand Visualization System data storage |
+| fvsGetSVSObjectSet | Returns the Stand Visualization System objects (trees, snags, coarse woody debris) |
 | fvsGetTreeAttrs | Gets attributes of trees |
+| fvsSetupSummary | Reorganizes summary statistics so they are ready to plot |
+
+#### fvsCompositeSum
+
+**Description**
+
+Builds a composite summary statistics table from a list of summary tables, as a weighted average for the years common to all tables.
+
+**Usage**
+
+
+fvsCompositeSum(allsum)
+
+**Arguments**
+
+- `allsum` - A list of summary tables as returned by `fvsGetSummary`
+
+**Value**
+
+`NULL` if the list is empty. Otherwise a list with:
+
+- `sumTable` - Weighted averages (weighted by `SampWt`) of the first 16 summary columns for the common years, plus `SampWt` (the summed weights)
+- `ForType`, `SizeCls`, `StkCls` - Matrices (years by class) of the summed sample weights for each forest type, size class and stocking class
+
+**Details**
+
+Stops if `allsum` is not a list or the tables share no years. Warns when removals occur in years that are not common to all tables, because those removals are not included in the composite.
+
+**Implementation**
+
+Pure R; it calls no FVS routine.
 
 #### fvsGetDims
 
@@ -753,6 +786,90 @@ action="set" or "get" (case sensitive),
 attr=vector of length data (always double), 
 rtnCode: 0=OK, 1=name not found, 4=name string length invalid.
 
+#### fvsGetStandIDs
+
+**Description**
+
+Returns the identification codes of the stand being simulated.
+
+**Usage**
+
+
+fvsGetStandIDs()
+
+**Value**
+
+A named list with `standid`, `standcn` (stand control number), `mgmtid` and `caseID`. The values are blank until a run is started.
+
+**Implementation**
+
+Calls the C entry `CfvsStandID`, which calls Fortran subroutine `fvsStandIDC` and returns `NPLT`, `DBCN`, `MGMID` and `CASEID`.
+
+#### fvsGetSummary
+
+**Description**
+
+Returns the summary statistics of the stand being simulated.
+
+**Usage**
+
+
+fvsGetSummary()
+
+**Value**
+
+A matrix with one row per cycle boundary (`ncycles + 1` rows) and these columns: `Year`, `Age`, `Tpa`, `TCuFt`, `MCuFt`, `BdFt`, `RTpa`, `RTCuFt`, `RMCuFt`, `RBdFt`, `ATBA`, `ATCCF`, `ATTopHt`, `PrdLen`, `Acc`, `Mort`, `SampWt`, `ForTyp`, `SizeCls`, `StkCls`. `NULL` until a run is made.
+
+**Implementation**
+
+Calls Fortran subroutine `fvsSummary` once for each cycle boundary; it copies the stored summary row `IOSUM(:, icycle)` from common block `OUTCOM` and returns 1 if the cycle is out of range.
+
+#### fvsGetSVSDims
+
+**Description**
+
+Returns the current and maximum dimensions of the Stand Visualization System (SVS) data storage.
+
+**Usage**
+
+
+fvsGetSVSDims()
+
+**Value**
+
+Named numeric vector: `nsvsobjs` (SVS objects), `ndeadobjs` (snag objects), `ncwdobjs` (coarse woody debris objects), and the corresponding maxima `mxsvsobjs`, `mxdeadobjs`, `mxcwdobjs`.
+
+**Implementation**
+
+Calls Fortran subroutine `fvsSVSDimSizes`, which returns `NSVOBJ`, `NDEAD`, `NCWD`, `MXSVOB`, `MXDEAD` and `MXCWD`.
+
+#### fvsGetSVSObjectSet
+
+**Description**
+
+Returns the Stand Visualization System objects: live trees, snags and coarse woody debris.
+
+**Usage**
+
+
+fvsGetSVSObjectSet()
+
+**Value**
+
+A list with elements `trees`, `snags` and `cwd`, each a data.frame, or `NULL` when there are no objects of that type (for example, when the run did not use SVS). Each has `xloc` and `yloc` columns.
+
+- `trees`: `species` (Plants code), `dbh`, `ht`, `crwdth`, `cratio`, `crownwt0` to `crownwt3`
+- `snags`: `snagspp` (Plants code), `snagdbh`, `snaglen`, `snagfdir`, `snagstat`, `snagyear`, `snagwt0` to `snagwt3`
+- `cwd`: `cwddia`, `cwdlen`, `cwdpil`, `cwddir`, `cwdwt`
+
+**Details**
+
+Snag weights `snagwt0` to `snagwt3` are reduced for the years since each snag fell, using the species fall-years attributes `fallyrs0` to `fallyrs3`.
+
+**Implementation**
+
+Reads the object types and locations (`objtype`, `objindex`, `xloc`, `yloc`) and the snag and debris attributes by calling the C entry `CfvsSVSObjData` (Fortran `fvsSVSObjData`; return codes 0 OK, 1 name not found, 2 more objects than the maximum, 3 count differs from the current number, 4 invalid name length). Tree attributes come from `fvsGetTreeAttrs`, species codes from `fvsGetSpeciesCodes`, and fall years from the C entry `CfvsFFEAttrs`.
+
 #### fvsGetTreeAttrs
 
 **Description**
@@ -823,6 +940,29 @@ Read-only extraction from tree arrays maintains array integrity, does not alter 
 | - | SEVERITY3 | Tertiary damage severity (not accessible via rFVS) |
 
 
+
+#### fvsSetupSummary
+
+**Description**
+
+Modifies the summary statistics so they are ready to plot. For each cycle with removals, a post-thin row is added so that variables such as `Tpa` show the removals as a vertical drop to the post-thin level.
+
+**Usage**
+
+
+fvsSetupSummary(asum)
+
+**Arguments**
+
+- `asum` - A summary table as returned by `fvsGetSummary`, or the list returned by `fvsCompositeSum` (its `sumTable` is used)
+
+**Value**
+
+The summary table with the added rows and four new columns, `TPrdTpa`, `TPrdTCuFt`, `TPrdMCuFt` and `TPrdBdFt` (the cumulative removals plus the standing amount, that is, total production). In the added post-thin rows, the removals are subtracted from the standing values. In the pre-thin rows, the removal columns are set to 0 and the columns from `ATBA` onward are set to `NA`.
+
+**Implementation**
+
+Pure R; it calls no FVS routine.
 
 ### Send information to (set) FVS functions
 
