@@ -271,14 +271,14 @@ library(fvsOL)
 fvsLoad("FVSie", "../../bin")
 
 # Set command line parameters
-fvsSetCmdLine("--keywordfile=example.key")`
+fvsSetCmdLine("--keywordfile=example.key")
 ```
 
 ### Tree attribute manipulation
 
 ```{r TreeModEx, echo=TRUE, eval=FALSE}
 # Define tree attributes to retrieve
-treeAttrs = c("id", "species", "mort", "tpa", "dbh", "dg", "ht",
+tree.attrs = c("id", "species", "mort", "tpa", "dbh", "dg", "ht",
               "htg", "crwdth", "cratio", "age", "plot",
               "tcuft", "mcuft", "bdft", "plotsize", "mgmtcd")
 
@@ -286,7 +286,7 @@ treeAttrs = c("id", "species", "mort", "tpa", "dbh", "dg", "ht",
 fvsRun(5, 2060)
 
 # Get tree data
-trees = fvsGetTreeAttrs(treeAttrs)
+trees = fvsGetTreeAttrs(tree.attrs)
 
 # Modify mortality- increase by 25%
 trees$mort = trees$mort*1.25
@@ -316,6 +316,9 @@ Event monitor variables can be used to incorporate external data. For example, q
 
 
 ```{r ExtDataEx, echo=TRUE, eval=FALSE}
+require(sf)
+require(RSQLite)
+
 # Run FVS until stop point 1 (before thinning)
 fvsRun(stopPointCode = 1, stopPointYear = -1)
 
@@ -327,25 +330,25 @@ em.vars = fvsGetEventMonitorVariables(c('year', 'HarvestOperation'))
 current.year = em.vars$year
 
 # Load the stand shapefile using sf package (dsn=Stands)
-stands = st_read("Stands/Stands.shp", quiet = TRUE)
+stands.sf = st_read("Stands/Stands.shp", quiet = TRUE)
 
 # Fetch the StandID values of adjacent polygons
-current.poly = stands[stands_sf$StandID == current_stand, ]
-touching = st_touches(current_poly, stands, sparse = FALSE)
+current.poly = stands.sf[stands.sf$StandID == current.stand, ]
+touching = st_touches(current.poly, stands.sf, sparse = FALSE)
 adjacent.ids = stands.sf$StandID[touching[1, ]]
-adjacent.ids = adjacent.ids[adjacent.ids != current_stand]
+adjacent.ids = adjacent.ids[adjacent.ids != current.stand]
 
 # Query the output database (FVSOut.db)
 fvsout.con = dbConnect(SQLite(), "FVSOut.db")
 
-results = dbGetQuery(con, glue_sql("
+results = dbGetQuery(fvsout.con, glue_sql("
   SELECT StandID, Year 
   FROM FVS_EventMonitor 
-  WHERE StandID IN ({adjacent_ids*}) AND 
+  WHERE StandID IN ({adjacent.ids*}) AND 
     Year >= {current.year - 5} AND 
     HarvestOperation = 1", .con = fvsout.con))
     
-dbDisconnect(con)
+dbDisconnect(fvsout.con)
 
 # If n > 0, set AvailableHarvest = 0, otherwise = 1
 if (nrow(results) > 0) {
