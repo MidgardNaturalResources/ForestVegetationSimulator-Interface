@@ -35,6 +35,7 @@ theme_set(theme_bw())
 rfvs.exec.funcs=dplyr::tribble(
  ~Function, ~Description,
  "fvsLoad", "Loads the desired FVS program as a shared library",
+ "fvsMakeKeyFile", "Creates an FVS keyword file for use with fvsSetCmdLine and fvsRun",
  "fvsSetCmdLine", "Sets the command line arguments (keyword file)",
  "fvsRun", "Runs FVS up to a designated stop point, year, or both",
  "fvsInteractRun", "Runs FVS where FVS and R interact",
@@ -396,6 +397,71 @@ Checks that the routines required by the rFVS API are present in the library (fo
 
 Records the loaded library path and program name in the global object `.FVSLOADEDLIBRARY`, which the other rFVS functions use to find the library. `fvsLoad` does not run FVS or call any FVS initialization routines; initialization occurs when `fvsRun` first calls subroutine FVS.
 
+#### fvsMakeKeyFile
+
+**Description**
+
+Creates an FVS keyword file suitable for running FVS with `fvsLoad`, `fvsSetCmdLine` and `fvsRun`.
+
+**Usage**
+
+
+fvsMakeKeyFile(keyFileName = NULL, runTitle = NULL, standIDs = NULL, inDataBase = "FVS_Data.db", outDataBase = "FVSOut.db", ncycles = 10, moreKeywords = NULL)
+
+**Arguments**
+
+- `keyFileName` - Keyword file name. If `NULL`, a unique name (prefix `fvs`, suffix `.key`) is created in the working directory.
+- `runTitle` - Name of the run
+- `standIDs` - Character vector of one or more stand IDs (required); keywords are generated for each stand
+- `inDataBase` - Input database name; if `NULL`, the input database keywords are omitted
+- `outDataBase` - Output database name; if `NULL`, the output database keywords are omitted
+- `ncycles` - Number of FVS cycles
+- `moreKeywords` - Keywords added to every stand: either a character vector of formatted keyword records, or a data.frame whose first column is the keyword and whose other columns are the keyword fields
+
+**Value**
+
+The keyword file name.
+
+**Details**
+
+An existing file with the same name is replaced. The file starts with `!!title:` and `!!built:` comment lines. For each stand it writes `StdIdent` and `NumCycle`, then the input database keywords (`DSNin`, `StandSQL` reading `FVS_StandInit` and `TreeSQL` reading `FVS_TreeInit`, both selecting where `Stand_ID` equals the stand ID), then the output database keywords (`DSNOut`, `Summary`, `Computdb`), then `moreKeywords`, then `Process`. When `moreKeywords` is `NULL`, `DelOTab` keywords for tables 1, 2 and 4 are written. The file ends with `Stop`.
+
+**Implementation**
+
+Pure R; it writes the file and calls no FVS routine. FVS reads the file when its name is passed through `fvsSetCmdLine("--keywordfile=<file>")`.
+
+#### fvsSetCmdLine
+
+**Description**
+
+Sets the FVS command line, which identifies the keyword file and optional stop point and restart options, and prepares FVS to run.
+
+**Usage**
+
+
+fvsSetCmdLine(cl = NULL)
+
+**Arguments**
+
+- `cl` - Character string with the FVS command line (at most 255 characters). If `NULL`, the arguments passed to R when it started (also from Rscript) are used. Options:
+  - `--keywordfile=<file>` - Keyword file to run.
+  - `--stoppoint=<code>,<year>[,<file>]` - Stop point code (-1 to 7; values outside that range are set to the nearest limit) and the year to stop in. If a file name is given, FVS saves the stand state to that file at the stop point (stop with store). If not, FVS stops without saving data.
+  - `--restart=<file>` - Resume from a stop point file. The keyword file name is read from the restart file, and any `--keywordfile=` option is ignored with a message.
+
+**Value**
+
+Invisibly returns the FVS return code, or `NULL` if there is no command line.
+
+**Details**
+
+Call after `fvsLoad` and before `fvsRun`. Calling it again resets FVS: the return code, restart code and stop point codes are cleared, and files from a previous run that ended with a nonzero return or restart code are closed. The keyword and output files are opened. If a stop point or restart file cannot be opened (or a restart file ends early), FVS sets its return code to 1.
+
+Stop points set with `--stoppoint=` are "major" stop points. They are separate from the "memory" stop points set by `fvsRun` (through `fvsSetStoppointCodes`), which keep the stand state in memory and save nothing.
+
+**Implementation**
+
+Calls the C entry `CfvsSetCmdLine`, which calls Fortran subroutine `fvsSetCmdLine(theCmdLine, lenCL, IRTNCD)` through `fvsSetCmdLineC`. The subroutine resets the control variables in common block `GLBLCNTL`, parses `--keywordfile=`, `--stoppoint=` and `--restart=`, opens the stop point and restart files when requested, opens the keyword and output files (`FILOPN`), and returns the FVS return code. When a major stop point is reached and a stop point file is open, `fvsStopPoint` writes the stand state with `PUTSTD`.
+
 #### fvsRun
 
 **Description**
@@ -448,6 +514,44 @@ Then repeatedly calls Fortran subroutine `fvs` and, after each call, retrieves t
 Stop points are checked by subroutine `fvsStopPoint`, which is called from subroutines FVS (stop point 7), GRINCR (stop points 1 through 4) and GRADD (stop points 5 and 6).
 
 
+#### fvsInteractRun
+
+**Description**
+
+Runs FVS where FVS and R interact: FVS runs to each stop point for which a code block is supplied, the block runs in R, and FVS then continues.
+
+**Usage**
+
+
+fvsInteractRun(...)
+
+**Arguments**
+
+All arguments are optional and named. Each code block is a character string of R code or a function.
+
+- `trace` - `TRUE` prints informative messages
+- `BeforeEM1` - Stop point code 1 (before the first Event Monitor call)
+- `AfterEM1` - Stop point code 2 (after the first Event Monitor call)
+- `BeforeEM2` - Stop point code 3 (before the second Event Monitor call)
+- `AfterEM2` - Stop point code 4 (after the second Event Monitor call)
+- `BeforeAdd` - Stop point code 5 (after growth and mortality are computed, before they are applied)
+- `BeforeEstab` - Stop point code 6 (before the regeneration establishment model)
+- `SimEnd` - End of each stand's simulation (restart code 100)
+
+Other arguments are ignored with a warning. There is no block for stop point code 7.
+
+**Value**
+
+A named list of the non-`NULL` results returned by the code blocks. Names have the form `standid:mgmtid:year`, or `standid:mgmtid:SimEnd` for the `SimEnd` block.
+
+**Details**
+
+Only stop points with a supplied block are requested, at every cycle (stop point year -1). Processing ends when FVS returns a nonzero return code.
+
+**Implementation**
+
+R function. It sets the next stop point with Fortran subroutine `fvsSetStoppointCodes`, then repeatedly calls Fortran subroutine `fvs`, reads the restart code with `fvsGetRestartCode`, and runs the block for that stop point. Stand IDs come from `fvsGetStandIDs` and the year from `fvsGetEventMonitorVariables`.
+
 #### fvsUnitConversion
 
 **Description**
@@ -475,6 +579,25 @@ Numeric value of conversion factor, or NA if FVS does not contain the desired fa
 **Details**
 
 Conversion values contained in currently loaded DLL but shared across all variants. Conversions contained in FVS METRIC.F77 file.
+
+#### fvsGetSpeciesCodes
+
+**Description**
+
+Returns the species codes for the loaded FVS variant.
+
+**Usage**
+
+
+fvsGetSpeciesCodes()
+
+**Value**
+
+A character matrix with one row per species index (`maxspecies` from `fvsGetDims`). Row names are the internal FVS species index. Columns: `fvs` (FVS species code), `fia` (FIA numeric species code), `plant` (Plants code).
+
+**Implementation**
+
+Calls the C entry `CfvsSpeciesCode` once for each species index; it calls Fortran subroutine `fvsSpeciesCode` through `fvsSpeciesCodeC`, which returns `JSP`, `FIAJSP` and `PLNJSP` for the index.
 
 ### Get information from FVS functions
 
