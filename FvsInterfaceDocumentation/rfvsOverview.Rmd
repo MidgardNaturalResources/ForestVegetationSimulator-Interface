@@ -318,6 +318,7 @@ Event monitor variables can be used to incorporate external data. For example, q
 ```{r ExtDataEx, echo=TRUE, eval=FALSE}
 require(sf)
 require(RSQLite)
+require(glue)
 
 # Run FVS until stop point 1 (before thinning)
 fvsRun(stopPointCode = 1, stopPointYear = -1)
