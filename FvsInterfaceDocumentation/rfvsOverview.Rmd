@@ -1383,9 +1383,9 @@ Custom models can provide FVSOnline interface elements through UI functions that
 
 Dixon, Gary E. comp. 2002. Essential FVS: A user's guide to the Forest Vegetation Simulator. Internal Report. Fort Collins, CO: U.S. Department of Agriculture, Forest Service, Forest Management Service Center. 240p. (Revised: June 11, 2026)
 
-USDA Forest Service. 2025a. FVS API. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/FVS-API. Accessed July 2025.
+USDA Forest Service. 2025a. FVS API. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/FVS-API. Accessed October 2026.
 
-USDA Forest Service. 2025b. rFVS. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/rFVS. Accessed July 2025.
+USDA Forest Service. 2025b. rFVS. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/rFVS. Accessed October 2026.
 
-USDA Forest Service. 2025c. Stop Restart. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/Stop-Restart. Accessed July 2025.
+USDA Forest Service. 2025c. Stop Restart. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/Stop-Restart. Accessed October 2026.
 
