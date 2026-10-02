@@ -221,7 +221,7 @@ At this stop point DG(*i*) holds the cycle-length diameter growth estimate for e
 
 This is the primary stop point for replacing or modifying FVS growth and mortality estimates before they are committed to the tree arrays. The Acadian integration uses this stop point to fetch DG, HTG and WK2, replace them with Acadian-computed values, and push them back before resuming. Setting dg=0, htg=0, and mort=0 suppresses all FVS-computed growth and mortality for the cycle.
 
-*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa, dbh, ht, cratio, dg, htg, mort, age, plot, ptbal, bapctile — all meaningful here; volumes reflect start of cycle values). fvsGetDims (ntrees includes tripled records if tripling is active). fvsGetEventMonitorVariables.
+*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa, dbh, ht, cratio, dg, htg, mort, age, plot, ptbalt, bapctile — all meaningful here; volumes reflect start of cycle values). fvsGetDims (ntrees includes tripled records if tripling is active). fvsGetEventMonitorVariables.
 
 *rFVS Set calls:* fvsSetTreeAttrs (mort/WK2, dg/DG, htg/HTG are the primary targets; setting dbh or ht here modifies the starting value that UPDATE will then increment by dg/htg respectively). fvsSetEventMonitorVariables.
 
@@ -508,12 +508,14 @@ fvsGetDims()
 Named numeric vector containing:
 
 - `ntrees` - Number of tree records in current tree list
-- `ncycles` - Current cycle number
+- `ncycles` - Total number of projection cycles
 - `nplots` - Current number of plots (equivalent to FVS_TreeInit.Num_Plots)
 - `maxtrees` - Maximum tree records allowed (currently 3000)
 - `maxspecies` - Maximum species allowed (currently 108)
 - `maxplots` - Maximum plots allowed (currently 500)
 - `maxcycles` - Maximum cycles allowed (currently 40)
+
+The maximum values are compile-time settings of the loaded FVS variant; the values shown are for the Northeast (NE) variant.
 
 #### fvsGetEventMonitorVariables
 
@@ -536,11 +538,7 @@ a named numeric vector of the variables, NA if the variable name does not exist
 
 **Implementation**
 
-Calls Fortran subroutine FVSEMGET with variable name strings, retrieves values from Event Monitor storage arrays.
-
-Accesses Event Monitor arrays EVENTV(500) for computed variables and PARMS(100) for parameter storage. Variable names mapped through EVNTNM character array to index positions, predefined variables stored in fixed locations (e.g., EVENTV(104) = basal area).
-
-Read-only access to current values in EVENTV and PARMS arrays, does not modify FVS computational state or trigger recalculation of derived variables.
+Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) once for each name, with action "get". Predefined Event Monitor variables (for example `year`, `age`, `btpa`, `bba`, `cycle`, `sampwt`) are read from the Event Monitor variable arrays `TSTV1` through `TSTV4`. Other names are looked up among user-defined variables (`TSTV5`, with names in `CTSTV5`). Return codes: 0 (OK), 1 (variable is undefined at this point), 2 (name not found). R returns `NA` for codes 1 and 2.
 
 
 #### fvsGetRestartcode
@@ -560,6 +558,7 @@ fvsGetRestartcode()
 
 Integer restart code:
 
+- `0` - FVS is not stopped at a stop point (also returned when the FVS return code is not 0)
 - `1` - Stop before first Event Monitor call
 - `2` - Stop after first Event Monitor call
 - `3` - Stop before second Event Monitor call
@@ -570,15 +569,11 @@ Integer restart code:
 
 **Details**
 
-Returns current value of stop/restart code indicating the point within FVS sequence where program will start when subroutine FVS is called next. Stopping between simulation of stands in multi-stand simulation occurs even when no stop request scheduled. This R function is wrapper for Fortran function fvsGetStoppointCodes(spptcd,spptyr).
+Returns current value of stop/restart code indicating the point within FVS sequence where program will start when subroutine FVS is called next. Stopping between simulation of stands in multi-stand simulation occurs even when no stop request scheduled. This R function is a wrapper for Fortran subroutine `fvsGetRestartCode(restrtcd)`.
 
 **Implementation**
 
-Calls Fortran subroutine FVSGETSTOPPOINTCODES to retrieve current stop point status from FVS internal variables.
-
-Accesses ISTOPT variable in common block CONTRL which tracks current execution position. Values correspond to processing phases: 1=before first Event Monitor, 5=after growth computation, 6=before ESTAB, 100=between stands.
-
-Read-only access to ISTOPT execution state variable, enables R code to determine  location within FVS processing sequence for appropriate response logic.
+Calls Fortran subroutine `fvsGetRestartCode`, which returns the value of `restartcode` held in common block `GLBLCNTL` when the FVS return code is 0, and 0 otherwise. Read-only.
 
 
 #### fvsGetSpeciesAttrs
@@ -655,7 +650,7 @@ The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) 
 
 Calls Fortran subroutine FVSTREEATTR with attribute name and action parameters, extracts data from FVS tree storage arrays.
 
-Accesses main tree arrays: PROB(expansion factor), DBH(diameter), HT(height), ICR(crown ratio), DG(diameter growth), HTG(height growth), ITRE(tree index), IMC(mortality code). Data extracted for ITRN trees currently in tree list.
+Reads the array that corresponds to the attribute name: for example `PROB` (tpa), `DBH`, `HT`, `ICR` (cratio), `DG`, `HTG`, `WK2` (mort), `ABIRTH` (age), `ITRE` (plot) and `IMC` (mgmtcd), for the current number of tree records (`IREC1` during initialization, `ITRN` afterward).
 
 Read-only extraction from tree arrays maintains array integrity, does not alter ITRN tree counter or modify tree attribute values stored in primary tree data structures.
 
@@ -673,12 +668,12 @@ Read-only extraction from tree arrays maintains array integrity, does not alter 
 | htg | HTG | Height growth scaled to cycle length (feet) |
 | crwdth | CRWDTH | Crown width (feet) |
 | cratio | ICR | Crown ratio (proportion of height in live crown) |
-| age | IAGE | Tree age |
-| plot | IPLOT | FVS numeric plot index |
+| age | ABIRTH | Tree age |
+| plot | ITRE | FVS numeric plot index |
 | tcuft | CFV | Total cubic volume |
-| mcuft | WK1 | Merchantable cubic volume |
+| mcuft | MCFV | Merchantable cubic volume |
 | bdft | BFV | Board foot volume |
-| ptbal | PTBALT | Point basal area in larger trees (sq ft/acre) |
+| ptbalt | PTBALT | Point basal area in larger trees (sq ft/acre) |
 | bapctile | PCT | Percentile in the distribution of tree basal area |
 | defect | DEFECT | Defect coded as 11223344 |
 | mgmtcd | IMC | Tree value class or management code (1, 2, or 3) |
@@ -690,6 +685,9 @@ Read-only extraction from tree arrays maintains array integrity, does not alter 
 | crownwt4 | CROWNWT(4) | Weight of 3-6 inch crown material (pounds) |
 | crownwt5 | CROWNWT(5) | Weight of 6-12 inch crown material (pounds) |
 | special | ISPECL | Special values stored as ispecl |
+| scuft | SCFV | Sawlog cubic volume |
+| kutkod | KUTKOD | Flag designating tree status when a prescription thinning (ThinPrsc) is used |
+| wk6 | WK6 | Work array holding the proportion of each tree record to cut (see `fvsCutNow`) |
 | - | ITGL | Mortality flag (not accessible via rFVS) |
 | - | ISCT | Species change code (not accessible via rFVS) |
 | - | ISTATUS | Tree status code (not accessible via rFVS) |
@@ -724,16 +722,22 @@ Adds an FVS Activity to the activity schedule.
 **Usage**
 
 
-fvsAddActivity(activity_data)
+fvsAddActivity(year, activity, parms = NULL)
+
+**Arguments**
+
+- `year` - Year the activity is scheduled
+- `activity` - Activity code, or an activity name matched case-insensitively that must identify exactly one activity (for example `"base_thindbh"`)
+- `parms` - Numeric vector of activity parameters without `NA`; at most 20 values are passed to FVS
+
+**Value**
+
+Invisibly returns 0 if the activity was added and 1 if there was an error. With no arguments, returns a named vector of all activity codes.
 
 
 **Implementation**
 
-Calls Fortran subroutine OPFIND to locate activity in OPLIST array, then OPADD to insert activity with specified parameters into activity scheduling system.
-
-Modifies IACTK activity array and NACTK counter, updates IY activity year scheduling in CONTRL common block. Activities inserted according to chronological order in IACT(7,MAXACT) activity storage matrix.
-
-Increments NACTK activity counter, populates IACT scheduling matrix with activity codes and parameters, activities executed through standard OPLIST processing during main FVS cycle.
+Calls Fortran subroutine `fvsAddActivity`, which copies the parameters and calls `OPADD` to post the activity to the activity schedule, then calls `OPINCR`.
 
 
 
@@ -757,7 +761,7 @@ fvsSetTreeAttrs(vars)
 
 **Value**
 
-Integer return code where `0` indicates success and `1` indicates error or warnings. Columns/vectors with unrecognized names are skipped.
+Invisibly returns 0, or the largest return code from FVS when an attribute is rejected (1 name not found, 2 more trees than `maxtrees`, 3 length differs from the number of tree records, 4 invalid name length). Vectors with the wrong length or containing `NA` are skipped by R with a warning and do not change the return code.
 
 **Details**
 
@@ -767,7 +771,7 @@ Uses same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,actio
 
 Calls Fortran subroutine FVSTREEATTR with "set" action parameter, updates specified tree attribute arrays with values from R data structures.
 
-Directly modifies individual tree attribute arrays: PROB(expansion factors), DBH(diameters), HT(heights), DG(diameter increments), HTG(height increments), IMC(mortality codes). Updates applied to positions 1 through ITRN corresponding to current tree records.
+Writes each vector to the array that corresponds to the attribute name (see the tree attributes table). Integer attributes (`species`, `plot`, `cratio`, `mgmtcd`, `plotsize`, `bapctile`, `id`, `special`, `kutkod`, `defect`) are truncated to integers. No range checking is done.
 
 Overwrites existing values in specific tree attribute arrays, modified values used in subsequent growth calculations, volume computations, and mortality processing without additional validation or constraint checking.
 
