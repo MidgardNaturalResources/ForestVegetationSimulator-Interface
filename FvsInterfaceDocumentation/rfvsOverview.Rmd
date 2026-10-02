@@ -240,11 +240,10 @@ Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before E
 
 ### Stop point years
 
-The stop point year parameter controls timing (USDAForestService 2025a):
+The stop point year (`stopPointYear` in `fvsRun`) controls in which projection cycles the requested stop point is used. It is given together with the stop point code; the code alone decides whether FVS stops (code 0 never stops).
 
-- **0**: Never stop
-- **-1**: Stop at every cycle
-- **[year]**: Stop at specified year
+- **Year greater than 0**: stop only in the cycle that contains that year, that is, the cycle that starts on or before the year and ends after it
+- **0 or -1**: no year restriction; stop at the requested stop point in every cycle
 
 
 ### Memory state management
