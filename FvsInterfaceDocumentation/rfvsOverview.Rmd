@@ -1,0 +1,808 @@
+---
+title: "rFVS overview and user guide"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    mathjax: "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+  word_document:
+    toc: yes
+  pdf_document: default
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning = FALSE)
+
+  require(dplyr)
+  require(glue)
+  require(ggplot2)
+  require(flextable)
+  require(officer)
+
+#### options ####
+options(stringsAsFactors = FALSE, 
+        scipen=21,
+        dplyr.print_max = 100)
+theme_set(theme_bw())
+
+
+```
+
+```{r tables, echo=FALSE}
+
+# Tables 
+rfvs.exec.funcs=dplyr::tribble(
+ ~Function, ~Description,
+ "fvsLoad", "Loads the desired FVS program as a shared library",
+ "fvsSetCmdLine", "Sets the command line arguments (keyword file)",
+ "fvsRun", "Runs FVS up to a designated stop point, year, or both",
+ "fvsInteractRun", "Runs FVS where FVS and R interact",
+ "fvsUnitConversion", "Gets FVS units conversion factors",
+ "fvsGetSpeciesCodes", "Returns a data frame of species codes") %>% 
+  flextable() %>% 
+  set_caption(caption = 'rFVS execution functions',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab1")) %>%
+  autofit()
+
+
+```
+
+# rFVS Overview and User Guide
+
+## 1. Introduction
+
+rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a dynamic load library (.dll on Windows, .dynlib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time ccess to and modification of FVS predictions during simulation runs.
+
+This document assumes familiarity with R, growth and yield modeling concepts, and FVS operations. For additional information about FVS, refer to Essential FVS.
+
+## 2. Purpose
+
+rFVS serves as a bridge between FVS's forest growth and yield simulation capabilities and R's statistical computing environment. The system is part of the ForestVegetationSimulator-Interface GitHub repository, which provides R and Shiny interfaces for the USFS Forest Vegetation Simulator (USDA Forest Service 2025d). The primary purposes include:
+
+- **Model Integration**: Incorporating external R-based growth and yield models into FVS simulations
+- **Custom Analytics**: Leveraging R's statistical and program integration capabilities within FVS workflows
+- **Research and development**: Enabling experimental modifications to FVS behavior for research and development purposes
+- **FVSOnline Interface Support**: Providing the underlying R functionality for FVSOnline, the Shiny-based FVS interface
+
+## 3. History
+
+rFVS was developed as part of the broader FVS Application Program Interface (API) initiative to enable interaction between FVS and external programming languages (USDA Forest Service 2025a). The most notable early application of rFVS was the integration of the Acadian growth model, FVS-ACD, which integrates the Acadian growth, ingrowth and mortality calculations with the FVS Northeast variant (FVS-NE; Crookston 2021). 
+
+The rFVS system is currently housed in a GitHub repository maintained by the USDA Forest Service, Forest Management Service Center (USDA Forest Service 2025a). This integration approach has since been adopted for other regional models and custom applications. The official rFVS package is distributed through the Forest Vegetation Simulator-Interface repository and is built using standard R package development tools including devtools for documentation, building and installation processes.
+
+## 4. Use Cases and Applications
+
+### 4.1 Regional Model Integration
+The advantages of using FVS integration rather than creating a novel growth and yield framework include:
+- Selectively substituting regional growth model calculations for FVS calculations
+- Maintaining FVS management capabilities while using specialized growth predictions
+- Leveraging existing FVS growth and mortality infrastructure during model development
+- Providing users with a well-known and supported modeling platform
+
+### 4.2 Research and development applications
+Using the rFVS framework researchers can test new equations and tools, such as
+- Testing experimental growth or mortality equations
+- Developing novel modifiers, such as forest health or post-harvest modifiers
+- Developing novel regeneration algorithms
+- Prototyping new volume estimation methods
+
+
+### 4.3 FVSOnline integration
+
+- Users interact with FVS via the R Shiny framework
+- The underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results
+
+
+## 5. FVS Model Architecture and Processing Flow
+
+### 5.1 Processing Phases
+
+FVS processes a stand in three sequential phases: the projection initialization phase, the projection cycling phase, and the projection summarization phase. The initialization phase prepares the stand for simulation; the cycling phase projects the stand through time; and the summarization phase produces output reports. FVS can process a single stand or many stands in one run. In a serial run each stand is processed to completion before the next stand begins. In a parallel run all stands are processed to a common stopping year, external processes may run and produce information FVS can use, and simulation then resumes to the next stopping point or end of projection.
+
+### 5.2 Input Data and the Activity Schedule
+
+FVS requires three types of input: parameter and user control data communicated via keyword records, stand-level data, and individual tree inventory data. Stand and tree data can come from a database or from external files; the keyword record file is always required and controls basic input even when a database is used. The one exception is a restart run — when FVS starts from a stop point file, no keyword record file is needed.
+
+Management activities are scheduled by year, projection cycle, or by condition using IF-THEN-ENDIF keyword sequences. Internally FVS maintains an activity schedule table where each row represents a scheduled activity and columns hold associated parameters including the scheduled year. As keyword records are processed during initialization, activities are posted to this table. During cycling, conditions are evaluated each cycle and any condition-based activities that are satisfied are posted. Each cycle the table is consulted and due activities are executed. Activities are tagged as DONE, NOT DONE, or CANCELLED depending on their disposition. The fvsAddActivity function adds activities to this table from R at a stop point.
+
+### 5.3 Tree Data Storage and Access
+
+Individual tree record data is stored in arrays within the ARRAYS labeled COMMON block and updated as the projection progresses. Tree records are stored in input order, not sorted order. The number of tree records currently in the simulation is carried in the variable ITRN in the CONTRL labeled COMMON block. Each tree record has an internal sequence number from 1 to ITRN that serves as the storage index into all tree arrays. For example, the diameter for the tree at position 5 is in DBH(5), its height in HT(5) and its expansion factor in PROB(5).
+
+PROB(*i*) — the number of trees per acre that tree record *i* represents — is the key per-tree scalar used throughout the model. Mortality reduces PROB(*i*); harvesting also reduces it. Stand-level statistics are computed by summing across all ITRN tree records weighted by PROB(*i*). In rFVS this variable is exposed as the `tpa` tree attribute.
+
+Three arrays support access patterns beyond simple 1-to-ITRN loops:
+
+- **IND(*i*)**: integer pointers to tree data array locations, sorted in descending diameter order. IND(1) points to the record of the largest diameter tree.
+- **IND1(*k*)**: partitioned into contiguous species sectors where each sector contains the internal sequence numbers for all records of one species.
+- **ISCT(*i*,*j*)**: companion to IND1; ISCT(*i*,1) and ISCT(*i*,2) give the first and last positions within IND1 for species *i*. If no records exist for species *i*, both values are zero. This structure allows growth loops to retrieve species-specific coefficients once and then iterate only over records of that species.
+
+### 5.4 The Main FVS Subroutine
+
+The top-level routine PROGRAM MAIN calls fvsSetCmdLine to retrieve command line options (keyword file name, restart file name, stop point parameters) and then calls subroutine FVS, which orchestrates all other subroutines. PROGRAM MAIN contains the only FORTRAN STOP statement in the program. This structure, separating MAIN from subroutine FVS, was introduced around 2010 specifically to support use of FVS as a shared library callable by external programs such as rFVS.
+
+During the projection initialization phase, subroutine FVS: checks command line options and return/restart codes; opens required input and output files; initializes parameters to defaults; processes all keyword records; sets up the projection cycling array; initializes extension files; establishes the initial species sort; expands tree data to a per-acre basis based on the sample design; calibrates internal equations to the input data; flags best trees for the regeneration establishment model; computes initial tree-level variables (volumes, crown width); computes initial stand-level variables (basal area per acre); computes initial percentile distributions; assigns example trees to output arrays; and writes initial output data. A logical variable LSTART is set to .TRUE. during initialization and .FALSE. upon completion; it is used extensively during model calibration to control program logic flow.
+
+During the projection cycling phase, subroutine FVS calls subroutines to estimate tree growth and mortality, process management requests, establish regeneration, and write output. During the summarization phase it produces final reports and checks whether additional stands remain to be processed, branching back to the initialization phase for the next stand.
+
+## Start-Stop Logic
+
+rFVS leverages the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
+
+rFVS supports two primary operation modes (USDAForestService 2025b):
+
+1. **Simple Mode**: FVS runs from beginning to end without R interaction
+2. **Interactive Mode**: FVS stops at specified points, returns control to R, then continues
+
+When running as a shared library (the rFVS case), all essential projection state is maintained in COMMON block memory within the loaded library. FVS returns up the call stack to R without writing anything to disk, and the caller is free to use the FVS API to read or modify variables before calling FVS to continue. 
+
+
+![FVS Stop Points](FVS%20stop-points.png)
+
+*Figure 1: FVS processing sequence showing available stop points for rFVS interaction*
+
+
+### Stop Point Codes and Processing Sequence
+
+FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed, and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadain variant to provide examples, as this is the most mature usage of FVS stop points. 
+
+**Code 0 — Never stop**
+
+FVS runs from beginning to end without stopping. Equivalent to Simple Mode. fvsRun returns when all stands in the keyword file are complete (return code 2).
+
+**Code -1 — Stop at every stop location**
+
+FVS stops at every defined stop point (1 through 7) it encounters in the processing sequence.
+
+**Stop point code 7: After input read, before missing value imputation**
+
+*Invoked from:* subroutine INITRE, after subroutine INTREE has finished reading tree records and before subroutine CRATET is called.
+
+Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, WK1, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The ARRAYS COMMON block is partially populated.
+
+Dubbed heights and crown ratios, calibrated growth multipliers, percentile arrays PCT and PTBALT, stand density metrics, volumes are not yet available. Setting volumes, growth increments, or percentile-dependent attributes at this point has no effect as they are overwritten by subsequent initialization.
+
+The Acadian variant integration uses stop point 7 to identify trees requiring height and crown ratio imputation, fetching those records before FVS attempts its own dubbing, then supplying R-computed values at stop point 1. This is the only stop point that occurs during the projection initialization phase.
+
+
+**Stop point code 1: Before first Event Monitor call (before-thinning phase)**
+
+*Invoked from:* subroutine GRINCR, after subroutine CRATET completes model calibration and before subroutine EVMON is called with IPHASE=1.
+
+Full initialization is complete. All tree attributes are defined including dubbed heights, crown ratios calibrated to input data, and volume estimates (CFV, WK1, BFV) computed by subroutine VOLS. Stand density variables including basal area per acre, crown competition factor (CCF), and SDI are current. Percentile arrays PCT(*i*) and PTBALT(*i*) are populated. The IND, IND1 and ISCT sort arrays are established. Before-thinning event monitor variables in TSTV1 (Groups 1, 3, 4) have not yet been loaded for this cycle — that occurs inside EVMON.
+
+Before-thinning event monitor variables (TSTV1) are not yet computed for cycle ≥ 1. Growth increments DG and HTG contain zero or prior-cycle values, as they have not been estimated for the current cycle. Mortality (WK2) is not yet computed.
+
+Supplying imputed heights and crown ratios to replace FVS dubbing (as in Acadian), inspecting the calibrated tree list, setting species-level multipliers before growth begins, adding or modifying activities via fvsAddActivity before the event monitor evaluates conditions. Note that at stop point 1 the initial tree list has already been written to the database. This means that height and crown ratios imputed outside of FVS are used in subsequent FVS calculations but the user doesn't see those values in the output database.
+
+*rFVS Get calls:* fvsGetTreeAttrs (all attributes). fvsGetSpeciesAttrs. fvsGetDims. fvsGetStandIDs. fvsGetEventMonitorVariables returns before-thinning variables only if cycle ≥ 2 (populated from previous cycle); values are not yet refreshed for the current cycle at this point.
+
+*rFVS Set calls:* fvsSetTreeAttrs (ht, cratio, tpa, dbh, age, mgmtcd). fvsSetSpeciesAttrs (growth multipliers, SDI maxima, site indices take effect before calibration-derived growth runs). fvsSetEventMonitorVariables (user-defined TSTV5 variables). fvsAddActivity.
+
+**Stop point code 2: After first Event Monitor call, before thinning**
+
+*Invoked from:* subroutine GRINCR, after EVMON returns from the before-thinning phase (IPHASE=1) and before subroutine CUTS is called.
+
+At this stop point before-thinning event monitor variables in TSTV1 (Groups 1, 3, 4, 5) are now loaded and evaluated. Condition-based activities triggered by the before-thinning event monitor have been posted to the activity schedule. The tree list still reflects the beginning-of-cycle composition; no thinning has occurred. Growth increments and mortality not yet computed. After-thinning stand density statistics not yet updated.
+
+This stop point can be used for inspecting or overriding event monitor variable values before thinning executes; conditionally adding or canceling activities based on external logic before CUTS runs.
+
+*rFVS Get calls:* fvsGetTreeAttrs (all attributes). fvsGetEventMonitorVariables (before-thinning TSTV1 variables: year, atpa, aba, sdi, ccf, structural stage variables, user-defined).
+
+*rFVS Set calls:* fvsSetEventMonitorVariables (TSTV5 user-defined variables). fvsSetTreeAttrs. fvsAddActivity (activities posted here are visible to CUTS for this cycle).
+
+**Code 3 — Before second Event Monitor call (after-thinning phase)**
+
+*Invoked from:* subroutine GRINCR, after subroutine CUTS and the post-thinning density update complete, and before EVMON is called with IPHASE=2.
+
+At this stop point thinning has been applied. PROB(*i*) values are reduced for cut trees; records thinned to zero have been deleted by TREDEL and the IND, IND1, ISCT arrays rebuilt by SPESRT and RDPSRT. Post-thinning stand density metrics (basal area, CCF, SDI via SDICLS, structural stage via SSTAGE) have been recomputed by DENSE. Removed volume tallies and cut tree lists are finalized. The event monitor has not yet loaded after-thinning variables (TSTV2). After-thinning event monitor variables (TSTV2) not yet loaded. Growth increments and mortality not yet computed.
+
+Stop point 3 is useful for inspecting the post-harvest tree list before the after-thinning event monitor evaluates conditions; applying custom post-harvest adjustments to PROB or other tree attributes before growth estimation.
+
+*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa — reflects post-harvest expansion factors, dbh, ht, cratio, crwdth, volumes, plot, plotsize, mgmtcd). fvsGetDims (ntrees reflects post-harvest count). fvsGetEventMonitorVariables (before-thinning TSTV1 variables remain available; TSTV2 not yet loaded).
+
+*rFVS Set calls:* fvsSetTreeAttrs (tpa, dbh, ht, cratio, mgmtcd). fvsSetEventMonitorVariables (TSTV5). fvsAddActivity.
+
+**Code 4 — After second Event Monitor call, before growth estimation**
+
+*Invoked from:* subroutine GRINCR, after EVMON returns from the after-thinning phase (IPHASE=2) and before subroutine DGDRIV is called to begin large-tree diameter growth estimation.
+
+At this stop point after-thinning event monitor variables in TSTV2 (Group 2, Group 5) are now loaded and evaluated. Any condition-based activities triggered by the after-thinning event monitor have been posted. Tree list and stand density reflect post-harvest conditions. Growth increments (DG, HTG) not yet estimated for the current cycle. Mortality (WK2) not yet computed. WK2 currently holds values from the previous cycle or zero.
+
+Stop point 4 is the final opportunity to adjust species-level growth multipliers or tree attributes before diameter and height growth estimation begins. Useful for injecting climate-based or disturbance-based growth modifiers that should apply to the current cycle's growth calculation.
+
+*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dg and htg reflect prior-cycle or zero values). fvsGetEventMonitorVariables (TSTV1 and TSTV2 variables). fvsGetSpeciesAttrs.
+
+*rFVS Set calls:* fvsSetSpeciesAttrs (baimult, htgmult, mortmult, regdmult, reghmult — these multipliers are applied inside DGDRIV, HTGF, REGENT, and MORTS which have not yet run). fvsSetTreeAttrs (dbh, ht, cratio, tpa before growth runs). fvsSetEventMonitorVariables.
+
+**Code 5 — After growth and mortality computation, before application**
+
+*Invoked from:* subroutine GRADD, after subroutine GRINCR returns (growth and mortality estimation complete, record tripling and fertilizer adjustments applied) and before subroutine UPDATE is called to apply increments to the tree arrays.
+
+At this stop point DG(*i*) holds the cycle-length diameter growth estimate for each tree record. HTG(*i*) holds the cycle-length height growth estimate. WK2(*i*) holds trees per acre predicted to die (mortality) for each tree record. DBH(*i*) and HT(*i*) still reflect beginning-of-cycle values; UPDATE has not yet been called to add DG and HTG. Volumes (CFV, WK1, BFV) reflect beginning-of-cycle conditions. If record tripling has occurred, ITRN is expanded and the additional triple records are present in the tree arrays. End-of-cycle DBH, HT, PROB values are not updated until UPDATE runs. Crown ratio change has not yet been computed. Regeneration has not been added.
+
+This is the primary stop point for replacing or modifying FVS growth and mortality estimates before they are committed to the tree arrays. The Acadian integration uses this stop point to fetch DG, HTG and WK2, replace them with Acadian-computed values, and push them back before resuming. Setting dg=0, htg=0, and mort=0 suppresses all FVS-computed growth and mortality for the cycle.
+
+*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa, dbh, ht, cratio, dg, htg, mort, age, plot, ptbal, bapctile — all meaningful here; volumes reflect start of cycle values). fvsGetDims (ntrees includes tripled records if tripling is active). fvsGetEventMonitorVariables.
+
+*rFVS Set calls:* fvsSetTreeAttrs (mort/WK2, dg/DG, htg/HTG are the primary targets; setting dbh or ht here modifies the starting value that UPDATE will then increment by dg/htg respectively). fvsSetEventMonitorVariables.
+
+**Code 6 — Before regeneration establishment (ESTAB)**
+
+*Invoked from:* subroutine GRADD, after subroutine UPDATE has applied growth and mortality increments and recomputed stand statistics, and before subroutine ESNUTR calls ESTAB to run the regeneration establishment model.
+
+At this stop point DBH(*i*) and HT(*i*) now reflect end of cycle values with growth applied. PROB(*i*) has been reduced by mortality. Volumes (CFV, WK1, BFV) are recomputed by UPDATE via VOLS. Stand density statistics (basal area, CCF, SDI, PCT, PTBALT) are current for end-of-cycle conditions. Disturbance extension adjustments (insect, disease, fire effects via FMMAIN, MPBCUP, etc.) have been applied to growth and mortality estimates before UPDATE ran. Regeneration tree records are not available. ESTAB has not yet run. Crown ratio change has not yet been applied (CROWN is called after ESTAB). End-of-cycle crown widths are not yet updated.
+
+Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before ESTAB runs; modifying post-growth tree attributes or volumes; inspecting end of cycle stand conditions before regeneration is added. The Acadian integration uses this stop point to add ingrowth records and optionally override volume estimates.
+
+*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dbh, ht, tpa, volumes reflect end-of-cycle post-UPDATE values). fvsGetDims. fvsGetSummary (end of cycle summary statistics are available). fvsGetEventMonitorVariables.
+
+*rFVS Set calls:* fvsAddTrees (add ingrowth records before ESTAB runs). fvsSetTreeAttrs (volumes via tcuft/mcuft/bdft can be overridden here; tpa, dbh, ht). fvsSetEventMonitorVariables.
+
+### Stop Point Years
+
+The stop point year parameter controls timing (USDAForestService 2025a):
+
+- **0**: Never stop
+- **-1**: Stop at every cycle
+- **[year]**: Stop at specified year
+
+
+### Memory State Management
+
+When FVS stops and returns control to R, the entire FVS memory state is preserved in COMMON blocks, allowing seamless continuation from the exact stopping point (USDAForestService 2025a). This enables modification of tree attributes, stand conditions, or other FVS variables before resuming simulation. Any variable whose value must survive across a stop/restart boundary must reside in a COMMON block; local subroutine variables are not preserved.
+
+Stop/restart control variables are stored in the labeled COMMON block GLBLCNTL. The key internal subroutines governing stop/restart flow are:
+
+- **fvsStopPoint**: Called from within FVS (e.g., subroutine GRADD) with a location code corresponding to the current stop point. Compares that code against the requested stop point and returns a flag indicating whether stopping was requested. If stopping is requested and a stop point file name was specified, calls PUTSTD before returning up the call stack.
+- **fvsGetRestartCode**: Called at the beginning of subroutines that contain stop points (GRINCR, TREGRO, GRADD) to retrieve the prior stop point code, allowing the subroutine to jump ahead to where it previously left off rather than re-executing already-completed calculations.
+- **getAmStopping**: An entry point within CMDLINE called by a subroutine (e.g., TREGRO) after a called subroutine (e.g., GRINCR) returns, to determine whether that return was caused by a stop point rather than normal completion.
+- **fvsGetRtnCode**: Returns the current integer return code stored in GLBLCNTL. Subroutines use this to detect fatal error states and propagate returns up the call stack without executing a FORTRAN STOP. At the R level, fvsRun exposes an extended version of this code that includes -1 (FVS not yet started), in addition to the three Fortran-level codes.
+- **fvsSetRtnCode**: Sets the return code in GLBLCNTL to one of three values: 0 (all OK), 1 (error — FVS should not be called again until reset with new input), or 2 (run has ended — new input can be specified). No other values are valid. Fatal errors detected anywhere in the call stack set the code to 1 via fvsSetRtnCode and then return rather than calling FORTRAN STOP, which would terminate the host R session.
+
+## Examples
+
+### Basic Library Loading and Initialization
+
+```{r LoadLibEx, echo=TRUE, eval=FALSE}
+# load fvsOL
+library(fvsOL)
+# this will also load the dependent rFVS package
+
+# Load FVS-IE library
+fvsLoad("FVSie", "../../bin")
+
+# Set command line parameters
+fvsSetCmdLine("--keywordfile=example.key")`
+```
+
+### Tree Attribute Manipulation
+
+```{r TreeModEx, echo=TRUE, eval=FALSE}
+# Define tree attributes to retrieve
+treeAttrs = c("id", "species", "mort", "tpa", "dbh", "dg", "ht",
+              "htg", "crwdth", "cratio", "age", "plot",
+              "tcuft", "mcuft", "bdft", "plotsize", "mgmtcd")
+
+# Run to specific stop point
+fvsRun(5, 2060)
+
+# Get tree data
+trees = fvsGetTreeAttrs(treeAttrs)
+
+# Modify mortality- increase by 25%
+trees$mort = trees$mort*1.25
+
+# Modify height growth- decrease by 10%
+trees$htg = trees$htg * 0.9
+
+# Apply modifications
+fvsSetTreeAttrs(trees[,c(3,6,8)])
+
+# Continue simulation
+fvsRun(0, 0)
+```
+
+### Event Monitor Integration
+
+#### Get and set event monitor variables
+Event monitor variables can be queried and assigned at a stop point.
+
+```{r EmModEx, echo=TRUE, eval=FALSE}
+em.vars = fvsGetEventMonitorVariables(c("year", "atpa", "aba"))
+fvsSetEventMonitorVariables(c("myaba"=100, "another"=40))
+```
+
+#### Access external data to set event monitor variables
+Event monitor variables can be used to incorporate external data. For example, querying database variables or GIS data.
+
+
+```{r ExtDataEx, echo=TRUE, eval=FALSE}
+# Run FVS until stop point 1 (before thinning)
+fvsRun(stopPointCode = 1, stopPointYear = -1)
+
+# Fetch the FVS StandID
+current.stand = fvsGetStandIDs()$standid
+
+# Fetch current FVS year and HarvestOperation indicator variable
+em.vars = fvsGetEventMonitorVariables(c('year', 'HarvestOperation'))
+current.year = em.vars$year
+
+# Load the stand shapefile using sf package (dsn=Stands)
+stands = st_read("Stands/Stands.shp", quiet = TRUE)
+
+# Fetch the StandID values of adjacent polygons
+current.poly = stands[stands_sf$StandID == current_stand, ]
+touching = st_touches(current_poly, stands, sparse = FALSE)
+adjacent.ids = stands.sf$StandID[touching[1, ]]
+adjacent.ids = adjacent.ids[adjacent.ids != current_stand]
+
+# Query the output database (FVSOut.db)
+fvsout.con = dbConnect(SQLite(), "FVSOut.db")
+
+results = dbGetQuery(con, glue_sql("
+  SELECT StandID, Year 
+  FROM FVS_EventMonitor 
+  WHERE StandID IN ({adjacent_ids*}) AND 
+    Year >= {current.year - 5} AND 
+    HarvestOperation = 1", .con = fvsout.con))
+    
+dbDisconnect(con)
+
+# If n > 0, set AvailableHarvest = 0, otherwise = 1
+if (nrow(results) > 0) {
+  fvsSetEventMonitorVariables(c('AvailableHarvest' = 0))
+} else {
+  fvsSetEventMonitorVariables(c('AvailableHarvest' = 1))
+}
+```
+
+## Function Reference
+
+rFVS functions are organized into three basic groups based on their primary purpose: FVS execution, getting information from FVS, and sending information to FVS.
+
+### 8.1 FVS Execution Functions
+
+These functions control the loading and execution of FVS simulations.
+
+`r rfvs.exec.funcs`
+
+
+#### fvsLoad
+
+**Description**
+
+Loads the desired FVS program as a shared library and creates a global environment object to track loaded libraries.
+
+
+
+**Usage**
+
+
+fvsLoad(fvsProgram, bin = "../../bin")
+
+
+**Value**
+**Implementation**
+
+Uses system-specific dynamic library loading (dlopen on Unix, LoadLibrary on Windows) to load FVS variant shared libraries into the R process space.
+
+Calls FVS subroutine INITRE which initializes variant-specific arrays including species parameter arrays (SPGRMO, SPDBMO, SPHTMO), coefficient matrices for growth equations, and location-specific parameters stored in common blocks CONTRL, PLOT, VARCOM.
+
+Populates FISPEC array with species codes, initializes MGMTID and NPLT variables, loads coefficient arrays for diameter and height growth models into variant-specific storage locations.
+
+#### fvsRun
+
+**Description**
+
+Runs FVS up to a designated stop point, year, or both. This is the primary function for executing FVS simulations.
+
+
+**Usage**
+
+
+fvsRun(stopPointCode = NA, stopPointYear = NA)
+
+**Arguments**
+stopPointCode
+- `0` - Never stop
+- `-1` - Stop at every stop location
+- `1` - Stop before first Event Monitor call (before thinning)
+- `2` - Stop after first Event Monitor call (before thinning)
+- `3` - Stop before second Event Monitor call (after thinning)
+- `4` - Stop after second Event Monitor call (after thinning)
+- `5` - Stop after growth and mortality computation, before applying them
+- `6` - Stop before ESTAB routines
+- `7` - Stop after input read but before missing value imputation and model calibration (stopPointYear ignored)
+
+stopPointYear
+- Integer value of cycle boundary year within projection period
+- `-1` stop at each cycle boundary
+
+**Value**
+
+Integer return code:
+
+- `-1` indicates FVS has not been started
+- `0` indicates FVS is in good running state
+- `1` indicates FVS detected an error and should not be used until reset by specifying new input
+- `2` indicates FVS finished processing all stands; new input can be specified
+
+**Details**
+
+fvsRun executes a single stand in the current keyword file. When valid stopPointCode and StopPointYear are provided, the FVS run is suspended and users can interact with FVS data in R session via rFVS functions. When fvsRun() is called again, FVS continues processing where it left off.
+
+If one argument to fvsRun() is left as NA (default), then both are ignored. You must code both or neither.
+ 
+**Implementation**
+
+Calls Fortran subroutine FVS through rFVS interface with stop point parameters, manages execution state through return codes.
+
+Invokes main FVS processing loop in subroutine FVS, which calls GROCOM for growth calculations, MORCOM for mortality, and ESTAB for regeneration. Stop points implemented through CALL OPLIST statements and conditional branches controlled by ISTOPT and ITRN variables.
+
+Advances IY(ICYC) cycle counter, updates tree arrays PROB, DG, HTG in growth routines, modifies ITGL mortality flags, preserves processor state in IACTK activity tracking array when stopped.
+ 
+
+#### fvsUnitConversion
+
+**Description**
+
+Get FVS Units Conversion Factor.
+
+**Usage**
+
+
+fvsUnitConversion(name)
+
+
+**Arguments**
+
+- name - Character string (case sensitive) name of desired conversion factor
+
+**Available Conversion Factors**
+
+CMtoIN, CMtoFT, MtoIN, MtoFT, KMtoMI, M2toFT2, HAtoACR, M3toFT3, KGtoLB, TMtoTI, CtoF1, CtoF2, INtoCM, FTtoCM, INtoM, FTtoM, MItoKM, FT2toM2, ACRtoHA, FT3toM3, LBtoKG, TItoTM, FtoC1, FtoC2, BTUtoKJ, M2pHAtoFT2pACR, M3pHAtoFT3pACR, FT2pACRtoM2pHA, FT3pACRtoM3pHA
+
+**Value**
+
+Numeric value of conversion factor, or NA if FVS does not contain the desired factor.
+
+**Details**
+
+Conversion values contained in currently loaded DLL but shared across all variants. Conversions contained in FVS METRIC.F77 file.
+
+### 8.2 Get Information from FVS Functions
+
+These functions retrieve data and status information from FVS during simulation.
+
+| Function | Description |
+|----------|-------------|
+| fvsGetDims | Returns the max dimensions of important FVS data storage |
+| fvsGetEventMonitorVariables | Gets Event Monitor variables |
+| fvsGetRestartcode | Gets the current FVS restart code |
+| fvsGetSpeciesAttrs | Returns the values of species-specific data |
+| fvsGetStandIDs | Returns stand identification codes |
+| fvsGetSummary | Returns a data frame of the summary statistics |
+| fvsGetSVSDims | Returns the max dimensions of important Stand Visualization System data storage |
+| fvsGetTreeAttrs | Gets attributes of trees |
+
+#### fvsGetDims
+
+**Description**
+
+Return the dimensions of FVS data storage in the current stand being projected in FVS.
+
+**Usage**
+
+
+fvsGetDims()
+
+
+**Value**
+
+Named numeric vector containing:
+
+- `ntrees` - Number of tree records in current tree list
+- `ncycles` - Current cycle number
+- `nplots` - Current number of plots (equivalent to FVS_TreeInit.Num_Plots)
+- `maxtrees` - Maximum tree records allowed (currently 3000)
+- `maxspecies` - Maximum species allowed (currently 108)
+- `maxplots` - Maximum plots allowed (currently 500)
+- `maxcycles` - Maximum cycles allowed (currently 40)
+
+#### fvsGetEventMonitorVariables
+
+**Description**
+
+Gets values of FVS Event Monitor variables by name.
+
+
+**Usage**
+
+
+fvsGetEventMonitorVariables(vars)
+
+**Arguments**
+vars	
+a character vector of Event Monitor names. Consult FVS documentation for the possible variable names.
+
+**Value**
+a named numeric vector of the variables, NA if the variable name does not exist
+
+**Implementation**
+
+Calls Fortran subroutine FVSEMGET with variable name strings, retrieves values from Event Monitor storage arrays.
+
+Accesses Event Monitor arrays EVENTV(500) for computed variables and PARMS(100) for parameter storage. Variable names mapped through EVNTNM character array to index positions, predefined variables stored in fixed locations (e.g., EVENTV(104) = basal area).
+
+Read-only access to current values in EVENTV and PARMS arrays, does not modify FVS computational state or trigger recalculation of derived variables.
+
+
+#### fvsGetRestartcode
+
+**Description**
+
+Get the current FVS restart code indicating the point within FVS processing sequence.
+
+
+**Usage**
+
+
+fvsGetRestartcode()
+
+
+**Value**
+
+Integer restart code:
+
+- `1` - Stop before first Event Monitor call
+- `2` - Stop after first Event Monitor call
+- `3` - Stop before second Event Monitor call
+- `4` - Stop after second Event Monitor call
+- `5` - Stop after growth and mortality computation, before applying them
+- `6` - Stop before ESTAB routines
+- `100` - Stop after stand simulation completed, before starting subsequent stand
+
+**Details**
+
+Returns current value of stop/restart code indicating the point within FVS sequence where program will start when subroutine FVS is called next. Stopping between simulation of stands in multi-stand simulation occurs even when no stop request scheduled. This R function is wrapper for Fortran function fvsGetStoppointCodes(spptcd,spptyr).
+
+**Implementation**
+
+Calls Fortran subroutine FVSGETSTOPPOINTCODES to retrieve current stop point status from FVS internal variables.
+
+Accesses ISTOPT variable in common block CONTRL which tracks current execution position. Values correspond to processing phases: 1=before first Event Monitor, 5=after growth computation, 6=before ESTAB, 100=between stands.
+
+Read-only access to ISTOPT execution state variable, enables R code to determine  location within FVS processing sequence for appropriate response logic.
+
+
+#### fvsGetSpeciesAttrs
+
+**Description**
+
+Returns the values of species-specific data.
+
+**Usage**
+
+
+fvsGetSpeciesAttrs(vars)
+
+
+**Arguments**
+
+- `vars` - Character vector of species attribute names
+
+**Available Species Attributes**
+
+| Attribute | Description |
+|-----------|-------------|
+| spccf | CCF for each species, recomputed in FVS so setting may have no effect |
+| spsdi | SDI maximums for each species |
+| spsiteindx | Species site indices |
+| bfmind | Board foot minimum dbh for each species |
+| bftopd | Board foot top diameter for each species |
+| bfstmp | Board foot stump height for each species |
+| frmcls | Board foot form class for each species |
+| bfmeth | Board foot calculation method for each species |
+| mcmind | Merchantable cubic volume minimum dbh for each species |
+| mctopd | Merchantable cubic volume top diameter for each species |
+| mcstmp | Merchantable cubic volume stump height for each species |
+| mcmeth | Merchantable cubic volume calculation method for each species |
+| baimult | Basal area increment multiplier for each species |
+| htgmult | Height growth multiplier for each species |
+| mortmult | Mortality rate multiplier for each species |
+| mortdia1 | Lower diameter limit to apply the multiplier for each species |
+| mortdia2 | Upper diameter limit to apply the multiplier for each species |
+| regdmult | Multiplier for diameter growth of regeneration for each species |
+| reghmult | Multiplier for height growth of regeneration for each species |
+| maxdbh | Morphological maximum diameter for each species from TreeSZCp keyword |
+| minmort | Minimum proportion of tree record killed for each species from TreeSZCp keyword |
+| maxdbhcd | Morphological maximum diameter use code for each species from TreeSZCp keyword |
+| maxht | Morphological maximum height for each species from TreeSZCp keyword |
+
+**Details**
+
+fvsGetSpeciesAttrs() calls the underlying FVS function: fvsSpeciesAttr(name,nch,action,attr,rtnCode) 
+where 
+name=variable name (case sensitive), 
+nch=number of characters in name, 
+action="set" or "get" (case sensitive), 
+attr=vector of length data (always double), 
+rtnCode: 0=OK, 1=name not found, 4=name string length invalid.
+
+#### fvsGetTreeAttrs
+
+**Description**
+
+Gets attributes of trees in the current FVS stand.
+
+**Details**
+
+This function returns tree attributes at the current cycle stop point. If FVS encounters an error, nothing is returned. If there are no records in the tree list, an empty dataframe is returned.
+
+The defect value is an 8-digit code comprised of four 2-digit segments: first two digits=input merchantable cubic volume defect percent, third and fourth digits=input board foot defect percent, fifth and sixth digits=applied merchantable cubic volume defect percent, seventh and eighth digits=applied board foot defect percent.
+
+The ispecl variable is a special tree status code used to flag trees for specific reasons such as wildlife trees. The code can be used in setting cut priority via multiplier on tcondmlt keyword. Also used in organon swo and nwo/smc to define the value "user" in the organon code. Also used to hold the form and risk class (Used in the Acadian model) when damage code 54 is coded.
+
+The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) where name=variable name (case sensitive), nch=number of characters in name, action="set" or "get" (case sensitive), ntrees=number of trees (length of attr), attr=vector of length ntrees (always double), rtnCode: 0=OK, 1=name not found, 2=ntrees greater than maxtrees (not all data transferred), 3=more/fewer than ntrees, 4=name string length invalid.
+
+**Implementation**
+
+Calls Fortran subroutine FVSTREEATTR with attribute name and action parameters, extracts data from FVS tree storage arrays.
+
+Accesses main tree arrays: PROB(expansion factor), DBH(diameter), HT(height), ICR(crown ratio), DG(diameter growth), HTG(height growth), ITRE(tree index), IMC(mortality code). Data extracted for ITRN trees currently in tree list.
+
+Read-only extraction from tree arrays maintains array integrity, does not alter ITRN tree counter or modify tree attribute values stored in primary tree data structures.
+
+**Tree Attributes**
+
+| R Variable | Fortran Array | Description |
+|------------|---------------|-------------|
+| id | IDTREE | Tree identification number (may not be unique) |
+| species | ISP | FVS numeric species code |
+| tpa | PROB | Trees per acre (expansion factor) |
+| mort | WK2 | Trees per acre predicted to die |
+| dbh | DBH | Diameter breast height (inches) |
+| dg | DG | Diameter growth scaled to cycle length (inches) |
+| ht | HT | Height (feet) |
+| htg | HTG | Height growth scaled to cycle length (feet) |
+| crwdth | CRWDTH | Crown width (feet) |
+| cratio | ICR | Crown ratio (proportion of height in live crown) |
+| age | IAGE | Tree age |
+| plot | IPLOT | FVS numeric plot index |
+| tcuft | CFV | Total cubic volume |
+| mcuft | WK1 | Merchantable cubic volume |
+| bdft | BFV | Board foot volume |
+| ptbal | PTBALT | Point basal area in larger trees (sq ft/acre) |
+| bapctile | PCT | Percentile in the distribution of tree basal area |
+| defect | DEFECT | Defect coded as 11223344 |
+| mgmtcd | IMC | Tree value class or management code (1, 2, or 3) |
+| plotsize | PLTSIZE | Size of plot tree was sampled from |
+| crownwt0 | CROWNWT(0) | Weight of foliage (pounds) |
+| crownwt1 | CROWNWT(1) | Weight of 0-.25 inch crown material (pounds) |
+| crownwt2 | CROWNWT(2) | Weight of .25-1 inch crown material (pounds) |
+| crownwt3 | CROWNWT(3) | Weight of 1-3 inch crown material (pounds) |
+| crownwt4 | CROWNWT(4) | Weight of 3-6 inch crown material (pounds) |
+| crownwt5 | CROWNWT(5) | Weight of 6-12 inch crown material (pounds) |
+| special | ISPECL | Special values stored as ispecl |
+| - | ITGL | Mortality flag (not accessible via rFVS) |
+| - | ISCT | Species change code (not accessible via rFVS) |
+| - | ISTATUS | Tree status code (not accessible via rFVS) |
+| - | HISTORY | Tree history code (not accessible via rFVS) |
+| - | DAMAGE1 | Primary damage code (not accessible via rFVS) |
+| - | SEVERITY1 | Primary damage severity (not accessible via rFVS) |
+| - | DAMAGE2 | Secondary damage code (not accessible via rFVS) |
+| - | SEVERITY2 | Secondary damage severity (not accessible via rFVS) |
+| - | DAMAGE3 | Tertiary damage code (not accessible via rFVS) |
+| - | SEVERITY3 | Tertiary damage severity (not accessible via rFVS) |
+
+
+
+### 8.3 Send  Information to (Set) FVS Functions
+
+These functions modify data within FVS during simulation.
+
+| Function | Description |
+|----------|-------------|
+| fvsAddActivity | Adds an FVS Activity to the activity schedule |
+| fvsAddTrees | Adds new tree records to the simulation |
+| fvsSetEventMonitorVariables | Sets Event Monitor variables |
+| fvsSetSpeciesAttrs | Sets the values of species-specific data |
+| fvsSetTreeAttrs | Sets attributes of trees |
+
+#### fvsAddActivity
+
+**Description**
+
+Adds an FVS Activity to the activity schedule.
+
+**Usage**
+
+
+fvsAddActivity(activity_data)
+
+
+**Implementation**
+
+Calls Fortran subroutine OPFIND to locate activity in OPLIST array, then OPADD to insert activity with specified parameters into activity scheduling system.
+
+Modifies IACTK activity array and NACTK counter, updates IY activity year scheduling in CONTRL common block. Activities inserted according to chronological order in IACT(7,MAXACT) activity storage matrix.
+
+Increments NACTK activity counter, populates IACT scheduling matrix with activity codes and parameters, activities executed through standard OPLIST processing during main FVS cycle.
+
+
+
+
+#### fvsSetTreeAttrs
+
+**Description**
+
+Sets attributes of trees in the current simulation.
+
+
+**Usage**
+
+
+fvsSetTreeAttrs(vars)
+
+
+**Arguments**
+
+- `vars` - Data frame or named list where each column/element is numeric vector with no NAs and length equal to current number of trees (ntrees from fvsGetDims()). Column/element names must match valid tree attribute names.
+
+**Value**
+
+Integer return code where `0` indicates success and `1` indicates error or warnings. Columns/vectors with unrecognized names are skipped.
+
+**Details**
+
+Uses same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) but with action="set".
+
+**Implementation**
+
+Calls Fortran subroutine FVSTREEATTR with "set" action parameter, updates specified tree attribute arrays with values from R data structures.
+
+Directly modifies individual tree attribute arrays: PROB(expansion factors), DBH(diameters), HT(heights), DG(diameter increments), HTG(height increments), IMC(mortality codes). Updates applied to positions 1 through ITRN corresponding to current tree records.
+
+Overwrites existing values in specific tree attribute arrays, modified values used in subsequent growth calculations, volume computations, and mortality processing without additional validation or constraint checking.
+
+
+## 9. FVSOnline graphic interface
+
+### 9.1 Package Dependencies and Architecture
+
+rFVS serves as the foundational package for FVSOnline, a Shiny web application framework interface to FVS. The fvsOL package  requires rFVS as a dependency, with rFVS containing the R functions that directly interact with FVS shared libraries while fvsOL provides the interface layer.
+
+### 9.4 Custom Run Scripts
+
+rFVS integrates with FVSOnline through custom run scripts that follow specific naming conventions:
+
+- Script files named: `customRun_[name].R`
+- Registration in `runScripts.R` configuration file
+
+FVSOnline automatically discovers custom scripts when:
+
+- Filenames conform to naming conventions
+- Scripts are properly registered
+- Required functions are implemented
+
+### User Interface Elements
+
+Custom models can provide FVSOnline interface elements through UI functions that define:
+
+- Radio button groups for model options
+- Text input fields for parameters
+- Default value management
+
+
+## References
+
+
+USDA Forest Service. 2025a. FVS API. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/FVS-API. Accessed July 2025.
+
+USDA Forest Service. 2025b. rFVS. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/rFVS. Accessed July 2025.
+
+USDA Forest Service. 2025c. Stop Restart. GitHub Wiki. Forest Vegetation Simulator Repository. Available at: https://github.com/USDAForestService/ForestVegetationSimulator/wiki/Stop-Restart. Accessed July 2025.
+
