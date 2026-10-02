@@ -157,32 +157,32 @@ FVS stops at every defined stop point (1 through 7) it encounters in the process
 
 *Invoked from:* subroutine FVS, after subroutine NOTRE has loaded the tree records and before subroutine CRATET is called.
 
-Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, WK1, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The ARRAYS COMMON block is partially populated.
+Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, MCFV, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The ARRAYS COMMON block is partially populated.
 
 Dubbed heights and crown ratios, calibrated growth multipliers, percentile arrays PCT and PTBALT, stand density metrics, volumes are not yet available. Setting volumes, growth increments, or percentile-dependent attributes at this point has no effect as they are overwritten by subsequent initialization.
 
 The Acadian variant integration uses stop point 7 to identify trees requiring height and crown ratio imputation, fetching those records before FVS attempts its own dubbing, then supplying R-computed values at stop point 1. This is the only stop point that occurs during the projection initialization phase.
 
 
-**Stop point code 1: Before first Event Monitor call (before-thinning phase)**
+**Stop point code 1: Before first event monitor call (before-thinning phase)**
 
 *Invoked from:* subroutine GRINCR, after subroutine CRATET completes model calibration and before subroutine EVMON is called with IPHASE=1.
 
-Full initialization is complete. All tree attributes are defined including dubbed heights, crown ratios calibrated to input data, and volume estimates (CFV, WK1, BFV) computed by subroutine VOLS. Stand density variables including basal area per acre, crown competition factor (CCF), and SDI are current. Percentile arrays PCT(*i*) and PTBALT(*i*) are populated. The IND, IND1 and ISCT sort arrays are established. Before-thinning event monitor variables in TSTV1 (Groups 1, 3, 4) have not yet been loaded for this cycle — that occurs inside EVMON.
+Full initialization is complete. All tree attributes are defined including dubbed heights, crown ratios calibrated to input data, and volume estimates (CFV, MCFV, BFV) computed by subroutine VOLS. Stand density variables including basal area per acre, crown competition factor (CCF), and SDI are current. Percentile arrays PCT(*i*) and PTBALT(*i*) are populated. The IND, IND1 and ISCT sort arrays are established. Before-thinning event monitor variables in groups 1, 3 and 4 (TSTV1, TSTV3 and TSTV4) have not yet been loaded for this cycle — that occurs inside EVMON.
 
-Before-thinning event monitor variables (TSTV1) are not yet computed for cycle ≥ 1. Growth increments DG and HTG contain zero or prior-cycle values, as they have not been estimated for the current cycle. Mortality (WK2) is not yet computed.
+In cycle 1 the before-thinning variables (TSTV1) have not been loaded; in later cycles they hold the previous cycle's values. Growth increments DG and HTG contain zero or prior-cycle values, as they have not been estimated for the current cycle. Mortality (WK2) is not yet computed.
 
-Supplying imputed heights and crown ratios to replace FVS dubbing (as in Acadian), inspecting the calibrated tree list, setting species-level multipliers before growth begins, adding or modifying activities via fvsAddActivity before the event monitor evaluates conditions. Note that at stop point 1 the initial tree list has already been written to the database. This means that height and crown ratios imputed outside of FVS are used in subsequent FVS calculations but the user doesn't see those values in the output database.
+This stop point can be used to supply imputed heights and crown ratios to replace FVS dubbing (as in Acadian), inspect the calibrated tree list, set species-level multipliers before growth begins, and add or modify activities with fvsAddActivity before the event monitor evaluates conditions. Note that at stop point 1 the initial tree list has already been written to the database. Heights and crown ratios imputed outside of FVS are therefore used in subsequent FVS calculations, but those values do not appear in the output database.
 
 *rFVS Get calls:* fvsGetTreeAttrs (all attributes). fvsGetSpeciesAttrs. fvsGetDims. fvsGetStandIDs. fvsGetEventMonitorVariables returns before-thinning variables only if cycle ≥ 2 (populated from previous cycle); values are not yet refreshed for the current cycle at this point.
 
 *rFVS Set calls:* fvsSetTreeAttrs (ht, cratio, tpa, dbh, age, mgmtcd). fvsSetSpeciesAttrs (growth multipliers, SDI maxima, site indices take effect before calibration-derived growth runs). fvsSetEventMonitorVariables (user-defined TSTV5 variables). fvsAddActivity.
 
-**Stop point code 2: After first Event Monitor call, before thinning**
+**Stop point code 2: After first event monitor call, before thinning**
 
 *Invoked from:* subroutine GRINCR, after EVMON returns from the before-thinning phase (IPHASE=1) and before subroutine CUTS is called.
 
-At this stop point before-thinning event monitor variables in TSTV1 (Groups 1, 3, 4, 5) are now loaded and evaluated. Condition-based activities triggered by the before-thinning event monitor have been posted to the activity schedule. The tree list still reflects the beginning-of-cycle composition; no thinning has occurred. Growth increments and mortality not yet computed. After-thinning stand density statistics not yet updated.
+At this stop point before-thinning event monitor variables in groups 1, 3, 4 and 5 (TSTV1, TSTV3, TSTV4 and TSTV5) are now loaded and evaluated. Condition-based activities triggered by the before-thinning event monitor have been posted to the activity schedule. The tree list still reflects the beginning-of-cycle composition; no thinning has occurred. Growth increments and mortality not yet computed. After-thinning stand density statistics not yet updated.
 
 This stop point can be used for inspecting or overriding event monitor variable values before thinning executes; conditionally adding or canceling activities based on external logic before CUTS runs.
 
@@ -190,23 +190,23 @@ This stop point can be used for inspecting or overriding event monitor variable 
 
 *rFVS Set calls:* fvsSetEventMonitorVariables (TSTV5 user-defined variables). fvsSetTreeAttrs. fvsAddActivity (activities posted here are visible to CUTS for this cycle).
 
-**Stop point code 3: Before second Event Monitor call (after-thinning phase)**
+**Stop point code 3: Before second event monitor call (after-thinning phase)**
 
 *Invoked from:* subroutine GRINCR, after subroutine CUTS and the post-thinning density update complete, and before EVMON is called with IPHASE=2.
 
-At this stop point thinning has been applied. PROB(*i*) values are reduced for cut trees; records thinned to zero have been deleted by TREDEL and the IND, IND1, ISCT arrays rebuilt by SPESRT and RDPSRT. Post-thinning stand density metrics (basal area, CCF, SDI via SDICLS, structural stage via SSTAGE) have been recomputed by DENSE. Removed volume tallies and cut tree lists are finalized. The event monitor has not yet loaded after-thinning variables (TSTV2). After-thinning event monitor variables (TSTV2) not yet loaded. Growth increments and mortality not yet computed.
+At this stop point thinning has been applied. PROB(*i*) values are reduced for cut trees; records thinned to zero have been deleted by TREDEL and the IND, IND1, ISCT arrays rebuilt by SPESRT and RDPSRT. Post-thinning stand density metrics (basal area, CCF, SDI via SDICLS, structural stage via SSTAGE) have been recomputed by DENSE. Removed volume tallies and cut tree lists are finalized. The event monitor has not yet loaded the after-thinning variables (TSTV2). Growth increments and mortality have not yet been computed.
 
 Stop point 3 is useful for inspecting the post-harvest tree list before the after-thinning event monitor evaluates conditions; applying custom post-harvest adjustments to PROB or other tree attributes before growth estimation.
 
-*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa — reflects post-harvest expansion factors, dbh, ht, cratio, crwdth, volumes, plot, plotsize, mgmtcd). fvsGetDims (ntrees reflects post-harvest count). fvsGetEventMonitorVariables (before-thinning TSTV1 variables remain available; TSTV2 not yet loaded).
+*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa, dbh, ht, cratio, crwdth, volumes, plot, plotsize, mgmtcd); tpa reflects the post-harvest expansion factors. fvsGetDims (ntrees reflects post-harvest count). fvsGetEventMonitorVariables (before-thinning TSTV1 variables remain available; TSTV2 not yet loaded).
 
 *rFVS Set calls:* fvsSetTreeAttrs (tpa, dbh, ht, cratio, mgmtcd). fvsSetEventMonitorVariables (TSTV5). fvsAddActivity.
 
-**Stop point code 4: After second Event Monitor call, before growth estimation**
+**Stop point code 4: After second event monitor call, before growth estimation**
 
 *Invoked from:* subroutine GRINCR, after EVMON returns from the after-thinning phase (IPHASE=2) and before subroutine DGDRIV is called to begin large-tree diameter growth estimation.
 
-At this stop point after-thinning event monitor variables in TSTV2 (Group 2, Group 5) are now loaded and evaluated. Any condition-based activities triggered by the after-thinning event monitor have been posted. Tree list and stand density reflect post-harvest conditions. Growth increments (DG, HTG) not yet estimated for the current cycle. Mortality (WK2) not yet computed. WK2 currently holds values from the previous cycle or zero.
+At this stop point after-thinning event monitor variables in groups 2 and 5 (TSTV2 and TSTV5) are now loaded and evaluated. Any condition-based activities triggered by the after-thinning event monitor have been posted. Tree list and stand density reflect post-harvest conditions. Growth increments (DG, HTG) not yet estimated for the current cycle. Mortality (WK2) not yet computed. WK2 currently holds values from the previous cycle or zero.
 
 Stop point 4 is the final opportunity to adjust species-level growth multipliers or tree attributes before diameter and height growth estimation begins. Useful for injecting climate-based or disturbance-based growth modifiers that should apply to the current cycle's growth calculation.
 
@@ -218,7 +218,7 @@ Stop point 4 is the final opportunity to adjust species-level growth multipliers
 
 *Invoked from:* subroutine GRADD, after subroutine GRINCR returns (growth and mortality estimation complete, record tripling and fertilizer adjustments applied) and before subroutine UPDATE is called to apply increments to the tree arrays.
 
-At this stop point DG(*i*) holds the cycle-length diameter growth estimate for each tree record. HTG(*i*) holds the cycle-length height growth estimate. WK2(*i*) holds trees per acre predicted to die (mortality) for each tree record. DBH(*i*) and HT(*i*) still reflect beginning-of-cycle values; UPDATE has not yet been called to add DG and HTG. Volumes (CFV, WK1, BFV) reflect beginning-of-cycle conditions. If record tripling has occurred, ITRN is expanded and the additional triple records are present in the tree arrays. End-of-cycle DBH, HT, PROB values are not updated until UPDATE runs. Crown ratio change has not yet been computed. Regeneration has not been added.
+At this stop point DG(*i*) holds the cycle-length diameter growth estimate for each tree record. HTG(*i*) holds the cycle-length height growth estimate. WK2(*i*) holds trees per acre predicted to die (mortality) for each tree record. DBH(*i*) and HT(*i*) still reflect beginning-of-cycle values; UPDATE has not yet been called to add DG and HTG. Volumes (CFV, MCFV, BFV) reflect beginning-of-cycle conditions. If record tripling has occurred, ITRN is expanded and the additional triple records are present in the tree arrays. End-of-cycle DBH, HT, PROB values are not updated until UPDATE runs. Crown ratio change has not yet been computed. Regeneration has not been added.
 
 This is the primary stop point for replacing or modifying FVS growth and mortality estimates before they are committed to the tree arrays. The Acadian integration uses this stop point to fetch DG, HTG and WK2, replace them with Acadian-computed values, and push them back before resuming. Setting dg=0, htg=0, and mort=0 suppresses all FVS-computed growth and mortality for the cycle.
 
@@ -230,7 +230,7 @@ This is the primary stop point for replacing or modifying FVS growth and mortali
 
 *Invoked from:* subroutine GRADD, after subroutine UPDATE has applied growth and mortality increments and recomputed stand statistics, and before subroutine ESNUTR calls ESTAB to run the regeneration establishment model.
 
-At this stop point DBH(*i*) and HT(*i*) now reflect end of cycle values with growth applied. PROB(*i*) has been reduced by mortality. Volumes (CFV, WK1, BFV) are recomputed by UPDATE via VOLS. Stand density statistics (basal area, CCF, SDI, PCT, PTBALT) are current for end-of-cycle conditions. Disturbance extension adjustments (insect, disease, fire effects via FMMAIN, MPBCUP, etc.) have been applied to growth and mortality estimates before UPDATE ran. Regeneration tree records are not available. ESTAB has not yet run. Crown ratio change has not yet been applied (CROWN is called after ESTAB). End-of-cycle crown widths are not yet updated.
+At this stop point DBH(*i*) and HT(*i*) now reflect end of cycle values with growth applied. PROB(*i*) has been reduced by mortality. Volumes (CFV, MCFV, BFV) are recomputed by UPDATE via VOLS. Stand density statistics (basal area, CCF, SDI, PCT, PTBALT) are current for end-of-cycle conditions. Disturbance extension adjustments (insect, disease, fire effects via FMMAIN, MPBCUP, etc.) have been applied to growth and mortality estimates before UPDATE ran. Regeneration tree records are not available. ESTAB has not yet run. Crown ratio change has not yet been applied (CROWN is called after ESTAB). End-of-cycle crown widths are not yet updated.
 
 Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before ESTAB runs; modifying post-growth tree attributes or volumes; inspecting end of cycle stand conditions before regeneration is added. The Acadian integration uses this stop point to add ingrowth records and optionally override volume estimates.
 
