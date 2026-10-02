@@ -102,7 +102,7 @@ FVS processes a stand in three sequential phases: the projection initialization 
 
 ### Input data and the activity schedule
 
-FVS requires three types of input: parameter and user control data communicated via keyword records, stand-level data, and individual tree inventory data. Stand and tree data can come from a database or from external files; the keyword record file is always required and controls basic input even when a database is used. The one exception is a restart run — when FVS starts from a stop point file, no keyword record file is needed.
+FVS requires three types of input: parameter and user control data communicated via keyword records, stand-level data, and individual tree inventory data. Stand and tree data can come from a database or from external files; the keyword record file is always required and controls basic input even when a database is used.
 
 Management activities are scheduled by year, projection cycle, or by condition using IF-THEN-ENDIF keyword sequences. Internally FVS maintains an activity schedule table where each row represents a scheduled activity and columns hold associated parameters including the scheduled year. As keyword records are processed during initialization, activities are posted to this table. During cycling, conditions are evaluated each cycle and any condition-based activities that are satisfied are posted. Each cycle the table is consulted and due activities are executed. Activities are tagged as DONE, NOT DONE, or CANCELLED depending on their disposition. The fvsAddActivity function adds activities to this table from R at a stop point.
 
@@ -130,10 +130,7 @@ During the projection cycling phase, subroutine FVS calls subroutines to estimat
 
 rFVS leverages the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
 
-rFVS supports two primary operation modes (USDAForestService 2025b):
-
-1. **Simple Mode**: FVS runs from beginning to end without R interaction
-2. **Interactive Mode**: FVS stops at specified points, returns control to R, then continues
+FVS can run from beginning to end without stopping, or stop at specified points, return control to R, and then continue (USDAForestService 2025b).
 
 When running as a shared library (the rFVS case), all essential projection state is maintained in COMMON block memory within the loaded library. FVS returns up the call stack to R without writing anything to disk, and the caller is free to use the FVS API to read or modify variables before calling FVS to continue. 
 
@@ -149,7 +146,7 @@ FVS can be instructed to stop at specific computational stages within the proces
 
 **Stop point code 0: Never stop**
 
-FVS runs from beginning to end without stopping. Equivalent to Simple Mode. fvsRun returns when all stands in the keyword file are complete (return code 2).
+FVS runs from beginning to end without stopping. fvsRun returns when all stands in the keyword file are complete (return code 2).
 
 **Stop point code -1: Stop at every stop location**
 
@@ -255,7 +252,7 @@ When FVS stops and returns control to R, the entire FVS memory state is preserve
 
 Stop/restart control variables are stored in the labeled COMMON block GLBLCNTL. The key internal subroutines governing stop/restart flow are:
 
-- **fvsStopPoint**: Called from within FVS (e.g., subroutine GRADD) with a location code corresponding to the current stop point. Compares that code against the requested stop point and returns a flag indicating whether stopping was requested. If stopping is requested and a stop point file name was specified, calls PUTSTD before returning up the call stack.
+- **fvsStopPoint**: Called from within FVS (e.g., subroutine GRADD) with a location code corresponding to the current stop point. Compares that code against the requested stop point and returns a flag indicating whether stopping was requested.
 - **fvsGetRestartCode**: Called at the beginning of subroutines that contain stop points (GRINCR, TREGRO, GRADD) to retrieve the prior stop point code, allowing the subroutine to jump ahead to where it previously left off rather than re-executing already-completed calculations.
 - **getAmStopping**: An entry point within CMDLINE called by a subroutine (e.g., TREGRO) after a called subroutine (e.g., GRINCR) returns, to determine whether that return was caused by a stop point rather than normal completion.
 - **fvsGetRtnCode**: Returns the current integer return code stored in GLBLCNTL. Subroutines use this to detect fatal error states and propagate returns up the call stack without executing a FORTRAN STOP. At the R level, fvsRun exposes an extended version of this code that includes -1 (FVS not yet started), in addition to the three Fortran-level codes.
