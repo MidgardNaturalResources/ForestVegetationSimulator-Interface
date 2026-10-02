@@ -51,13 +51,13 @@ rfvs.exec.funcs=dplyr::tribble(
 
 # rFVS Overview and User Guide
 
-## 1. Introduction
+## Introduction
 
 rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a dynamic load library (.dll on Windows, .dynlib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time ccess to and modification of FVS predictions during simulation runs.
 
 This document assumes familiarity with R, growth and yield modeling concepts, and FVS operations. For additional information about FVS, refer to Essential FVS.
 
-## 2. Purpose
+## Purpose
 
 rFVS serves as a bridge between FVS's forest growth and yield simulation capabilities and R's statistical computing environment. The system is part of the ForestVegetationSimulator-Interface GitHub repository, which provides R and Shiny interfaces for the USFS Forest Vegetation Simulator (USDA Forest Service 2025d). The primary purposes include:
 
@@ -66,22 +66,22 @@ rFVS serves as a bridge between FVS's forest growth and yield simulation capabil
 - **Research and development**: Enabling experimental modifications to FVS behavior for research and development purposes
 - **FVSOnline Interface Support**: Providing the underlying R functionality for FVSOnline, the Shiny-based FVS interface
 
-## 3. History
+## History
 
 rFVS was developed as part of the broader FVS Application Program Interface (API) initiative to enable interaction between FVS and external programming languages (USDA Forest Service 2025a). The most notable early application of rFVS was the integration of the Acadian growth model, FVS-ACD, which integrates the Acadian growth, ingrowth and mortality calculations with the FVS Northeast variant (FVS-NE; Crookston 2021). 
 
 The rFVS system is currently housed in a GitHub repository maintained by the USDA Forest Service, Forest Management Service Center (USDA Forest Service 2025a). This integration approach has since been adopted for other regional models and custom applications. The official rFVS package is distributed through the Forest Vegetation Simulator-Interface repository and is built using standard R package development tools including devtools for documentation, building and installation processes.
 
-## 4. Use Cases and Applications
+## Use Cases and Applications
 
-### 4.1 Regional Model Integration
+### Regional Model Integration
 The advantages of using FVS integration rather than creating a novel growth and yield framework include:
 - Selectively substituting regional growth model calculations for FVS calculations
 - Maintaining FVS management capabilities while using specialized growth predictions
 - Leveraging existing FVS growth and mortality infrastructure during model development
 - Providing users with a well-known and supported modeling platform
 
-### 4.2 Research and development applications
+### Research and development applications
 Using the rFVS framework researchers can test new equations and tools, such as
 - Testing experimental growth or mortality equations
 - Developing novel modifiers, such as forest health or post-harvest modifiers
@@ -89,25 +89,25 @@ Using the rFVS framework researchers can test new equations and tools, such as
 - Prototyping new volume estimation methods
 
 
-### 4.3 FVSOnline integration
+### FVSOnline integration
 
 - Users interact with FVS via the R Shiny framework
 - The underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results
 
 
-## 5. FVS Model Architecture and Processing Flow
+## FVS Model Architecture and Processing Flow
 
-### 5.1 Processing Phases
+### Processing Phases
 
 FVS processes a stand in three sequential phases: the projection initialization phase, the projection cycling phase, and the projection summarization phase. The initialization phase prepares the stand for simulation; the cycling phase projects the stand through time; and the summarization phase produces output reports. FVS can process a single stand or many stands in one run. In a serial run each stand is processed to completion before the next stand begins. In a parallel run all stands are processed to a common stopping year, external processes may run and produce information FVS can use, and simulation then resumes to the next stopping point or end of projection.
 
-### 5.2 Input Data and the Activity Schedule
+### Input Data and the Activity Schedule
 
 FVS requires three types of input: parameter and user control data communicated via keyword records, stand-level data, and individual tree inventory data. Stand and tree data can come from a database or from external files; the keyword record file is always required and controls basic input even when a database is used. The one exception is a restart run — when FVS starts from a stop point file, no keyword record file is needed.
 
 Management activities are scheduled by year, projection cycle, or by condition using IF-THEN-ENDIF keyword sequences. Internally FVS maintains an activity schedule table where each row represents a scheduled activity and columns hold associated parameters including the scheduled year. As keyword records are processed during initialization, activities are posted to this table. During cycling, conditions are evaluated each cycle and any condition-based activities that are satisfied are posted. Each cycle the table is consulted and due activities are executed. Activities are tagged as DONE, NOT DONE, or CANCELLED depending on their disposition. The fvsAddActivity function adds activities to this table from R at a stop point.
 
-### 5.3 Tree Data Storage and Access
+### Tree Data Storage and Access
 
 Individual tree record data is stored in arrays within the ARRAYS labeled COMMON block and updated as the projection progresses. Tree records are stored in input order, not sorted order. The number of tree records currently in the simulation is carried in the variable ITRN in the CONTRL labeled COMMON block. Each tree record has an internal sequence number from 1 to ITRN that serves as the storage index into all tree arrays. For example, the diameter for the tree at position 5 is in DBH(5), its height in HT(5) and its expansion factor in PROB(5).
 
@@ -119,7 +119,7 @@ Three arrays support access patterns beyond simple 1-to-ITRN loops:
 - **IND1(*k*)**: partitioned into contiguous species sectors where each sector contains the internal sequence numbers for all records of one species.
 - **ISCT(*i*,*j*)**: companion to IND1; ISCT(*i*,1) and ISCT(*i*,2) give the first and last positions within IND1 for species *i*. If no records exist for species *i*, both values are zero. This structure allows growth loops to retrieve species-specific coefficients once and then iterate only over records of that species.
 
-### 5.4 The Main FVS Subroutine
+### The Main FVS Subroutine
 
 The top-level routine PROGRAM MAIN calls fvsSetCmdLine to retrieve command line options (keyword file name, restart file name, stop point parameters) and then calls subroutine FVS, which orchestrates all other subroutines. PROGRAM MAIN contains the only FORTRAN STOP statement in the program. This structure, separating MAIN from subroutine FVS, was introduced around 2010 specifically to support use of FVS as a shared library callable by external programs such as rFVS.
 
@@ -363,7 +363,7 @@ if (nrow(results) > 0) {
 
 rFVS functions are organized into three basic groups based on their primary purpose: FVS execution, getting information from FVS, and sending information to FVS.
 
-### 8.1 FVS Execution Functions
+### FVS Execution Functions
 
 These functions control the loading and execution of FVS simulations.
 
@@ -473,7 +473,7 @@ Numeric value of conversion factor, or NA if FVS does not contain the desired fa
 
 Conversion values contained in currently loaded DLL but shared across all variants. Conversions contained in FVS METRIC.F77 file.
 
-### 8.2 Get Information from FVS Functions
+### Get Information from FVS Functions
 
 These functions retrieve data and status information from FVS during simulation.
 
@@ -700,7 +700,7 @@ Read-only extraction from tree arrays maintains array integrity, does not alter 
 
 
 
-### 8.3 Send  Information to (Set) FVS Functions
+### Send  Information to (Set) FVS Functions
 
 These functions modify data within FVS during simulation.
 
@@ -769,13 +769,13 @@ Directly modifies individual tree attribute arrays: PROB(expansion factors), DBH
 Overwrites existing values in specific tree attribute arrays, modified values used in subsequent growth calculations, volume computations, and mortality processing without additional validation or constraint checking.
 
 
-## 9. FVSOnline graphic interface
+## FVSOnline graphic interface
 
-### 9.1 Package Dependencies and Architecture
+### Package Dependencies and Architecture
 
 rFVS serves as the foundational package for FVSOnline, a Shiny web application framework interface to FVS. The fvsOL package  requires rFVS as a dependency, with rFVS containing the R functions that directly interact with FVS shared libraries while fvsOL provides the interface layer.
 
-### 9.4 Custom Run Scripts
+### Custom Run Scripts
 
 rFVS integrates with FVSOnline through custom run scripts that follow specific naming conventions:
 
