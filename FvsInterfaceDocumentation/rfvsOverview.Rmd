@@ -40,7 +40,7 @@ rfvs.exec.funcs=dplyr::tribble(
  "fvsRun", "Runs FVS up to a designated stop point, year, or both",
  "fvsInteractRun", "Runs FVS where FVS and R interact",
  "fvsUnitConversion", "Gets FVS units conversion factors",
- "fvsGetSpeciesCodes", "Returns a data frame of species codes") %>% 
+ "fvsGetSpeciesCodes", "Returns a matrix of species codes") %>% 
   flextable() %>% 
   set_caption(caption = 'rFVS execution functions',
               style = 'Table Caption',
