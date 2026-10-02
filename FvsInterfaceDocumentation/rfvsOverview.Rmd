@@ -71,9 +71,9 @@ rFVS was developed as part of the broader FVS Application Program Interface (API
 
 The rFVS system is currently housed in a GitHub repository maintained by the USDA Forest Service, Forest Management Service Center (USDA Forest Service 2025a). This integration approach has since been adopted for other regional models and custom applications. The official rFVS package is distributed through the Forest Vegetation Simulator-Interface repository and is built using standard R package development tools including devtools for documentation, building and installation processes.
 
-## Use Cases and Applications
+## Use cases and applications
 
-### Regional Model Integration
+### Regional model integration
 The advantages of using FVS integration rather than creating a novel growth and yield framework include:
 - Selectively substituting regional growth model calculations for FVS calculations
 - Maintaining FVS management capabilities while using specialized growth predictions
@@ -94,19 +94,19 @@ Using the rFVS framework researchers can test new equations and tools, such as
 - The underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results
 
 
-## FVS Model Architecture and Processing Flow
+## FVS model architecture and processing flow
 
-### Processing Phases
+### Processing phases
 
 FVS processes a stand in three sequential phases: the projection initialization phase, the projection cycling phase, and the projection summarization phase. The initialization phase prepares the stand for simulation; the cycling phase projects the stand through time; and the summarization phase produces output reports. FVS can process a single stand or many stands in one run. In a serial run each stand is processed to completion before the next stand begins. In a parallel run all stands are processed to a common stopping year, external processes may run and produce information FVS can use, and simulation then resumes to the next stopping point or end of projection.
 
-### Input Data and the Activity Schedule
+### Input data and the activity schedule
 
 FVS requires three types of input: parameter and user control data communicated via keyword records, stand-level data, and individual tree inventory data. Stand and tree data can come from a database or from external files; the keyword record file is always required and controls basic input even when a database is used. The one exception is a restart run — when FVS starts from a stop point file, no keyword record file is needed.
 
 Management activities are scheduled by year, projection cycle, or by condition using IF-THEN-ENDIF keyword sequences. Internally FVS maintains an activity schedule table where each row represents a scheduled activity and columns hold associated parameters including the scheduled year. As keyword records are processed during initialization, activities are posted to this table. During cycling, conditions are evaluated each cycle and any condition-based activities that are satisfied are posted. Each cycle the table is consulted and due activities are executed. Activities are tagged as DONE, NOT DONE, or CANCELLED depending on their disposition. The fvsAddActivity function adds activities to this table from R at a stop point.
 
-### Tree Data Storage and Access
+### Tree data storage and access
 
 Individual tree record data is stored in arrays within the ARRAYS labeled COMMON block and updated as the projection progresses. Tree records are stored in input order, not sorted order. The number of tree records currently in the simulation is carried in the variable ITRN in the CONTRL labeled COMMON block. Each tree record has an internal sequence number from 1 to ITRN that serves as the storage index into all tree arrays. For example, the diameter for the tree at position 5 is in DBH(5), its height in HT(5) and its expansion factor in PROB(5).
 
@@ -118,7 +118,7 @@ Three arrays support access patterns beyond simple 1-to-ITRN loops:
 - **IND1(*k*)**: partitioned into contiguous species sectors where each sector contains the internal sequence numbers for all records of one species.
 - **ISCT(*i*,*j*)**: companion to IND1; ISCT(*i*,1) and ISCT(*i*,2) give the first and last positions within IND1 for species *i*. If no records exist for species *i*, both values are zero. This structure allows growth loops to retrieve species-specific coefficients once and then iterate only over records of that species.
 
-### The Main FVS Subroutine
+### The main FVS subroutine
 
 The top-level routine PROGRAM MAIN calls fvsSetCmdLine to retrieve command line options (keyword file name, restart file name, stop point parameters) and then calls subroutine FVS, which orchestrates all other subroutines. PROGRAM MAIN contains the only FORTRAN STOP statement in the program. This structure, separating MAIN from subroutine FVS, was introduced around 2010 specifically to support use of FVS as a shared library callable by external programs such as rFVS.
 
@@ -126,7 +126,7 @@ During the projection initialization phase, subroutine FVS: checks command line 
 
 During the projection cycling phase, subroutine FVS calls subroutines to estimate tree growth and mortality, process management requests, establish regeneration, and write output. During the summarization phase it produces final reports and checks whether additional stands remain to be processed, branching back to the initialization phase for the next stand.
 
-## Start-Stop Logic
+## Start-stop logic
 
 rFVS leverages the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
 
@@ -143,7 +143,7 @@ When running as a shared library (the rFVS case), all essential projection state
 *Figure 1: FVS processing sequence showing available stop points for rFVS interaction*
 
 
-### Stop Point Codes and Processing Sequence
+### Stop point codes and processing sequence
 
 FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed, and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadain variant to provide examples, as this is the most mature usage of FVS stop points. 
 
@@ -240,7 +240,7 @@ Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before E
 
 *rFVS Set calls:* fvsAddTrees (add ingrowth records before ESTAB runs). fvsSetTreeAttrs (volumes via tcuft/mcuft/bdft can be overridden here; tpa, dbh, ht). fvsSetEventMonitorVariables.
 
-### Stop Point Years
+### Stop point years
 
 The stop point year parameter controls timing (USDAForestService 2025a):
 
@@ -249,7 +249,7 @@ The stop point year parameter controls timing (USDAForestService 2025a):
 - **[year]**: Stop at specified year
 
 
-### Memory State Management
+### Memory state management
 
 When FVS stops and returns control to R, the entire FVS memory state is preserved in COMMON blocks, allowing seamless continuation from the exact stopping point (USDAForestService 2025a). This enables modification of tree attributes, stand conditions, or other FVS variables before resuming simulation. Any variable whose value must survive across a stop/restart boundary must reside in a COMMON block; local subroutine variables are not preserved.
 
@@ -263,7 +263,7 @@ Stop/restart control variables are stored in the labeled COMMON block GLBLCNTL. 
 
 ## Examples
 
-### Basic Library Loading and Initialization
+### Basic library loading and initialization
 
 ```{r LoadLibEx, echo=TRUE, eval=FALSE}
 # load fvsOL
@@ -277,7 +277,7 @@ fvsLoad("FVSie", "../../bin")
 fvsSetCmdLine("--keywordfile=example.key")`
 ```
 
-### Tree Attribute Manipulation
+### Tree attribute manipulation
 
 ```{r TreeModEx, echo=TRUE, eval=FALSE}
 # Define tree attributes to retrieve
@@ -304,7 +304,7 @@ fvsSetTreeAttrs(trees[,c(3,6,8)])
 fvsRun(0, 0)
 ```
 
-### Event Monitor Integration
+### Event monitor integration
 
 #### Get and set event monitor variables
 Event monitor variables can be queried and assigned at a stop point.
@@ -358,11 +358,11 @@ if (nrow(results) > 0) {
 }
 ```
 
-## Function Reference
+## Function reference
 
 rFVS functions are organized into three basic groups based on their primary purpose: FVS execution, getting information from FVS, and sending information to FVS.
 
-### FVS Execution Functions
+### FVS execution functions
 
 These functions control the loading and execution of FVS simulations.
 
@@ -472,7 +472,7 @@ Numeric value of conversion factor, or NA if FVS does not contain the desired fa
 
 Conversion values contained in currently loaded DLL but shared across all variants. Conversions contained in FVS METRIC.F77 file.
 
-### Get Information from FVS Functions
+### Get information from FVS functions
 
 These functions retrieve data and status information from FVS during simulation.
 
@@ -699,7 +699,7 @@ Read-only extraction from tree arrays maintains array integrity, does not alter 
 
 
 
-### Send Information to (Set) FVS Functions
+### Send information to (set) FVS functions
 
 These functions modify data within FVS during simulation.
 
@@ -770,11 +770,11 @@ Overwrites existing values in specific tree attribute arrays, modified values us
 
 ## FVSOnline graphic interface
 
-### Package Dependencies and Architecture
+### Package dependencies and architecture
 
 rFVS serves as the foundational package for FVSOnline, a Shiny web application framework interface to FVS. The fvsOL package  requires rFVS as a dependency, with rFVS containing the R functions that directly interact with FVS shared libraries while fvsOL provides the interface layer.
 
-### Custom Run Scripts
+### Custom run scripts
 
 rFVS integrates with FVSOnline through custom run scripts that follow specific naming conventions:
 
@@ -787,7 +787,7 @@ FVSOnline automatically discovers custom scripts when:
 - Scripts are properly registered
 - Required functions are implemented
 
-### User Interface Elements
+### User interface elements
 
 Custom models can provide FVSOnline interface elements through UI functions that define:
 
