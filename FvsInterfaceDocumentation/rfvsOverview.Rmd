@@ -972,6 +972,7 @@ These functions modify data within FVS during simulation.
 |----------|-------------|
 | fvsAddActivity | Adds an FVS Activity to the activity schedule |
 | fvsAddTrees | Adds new tree records to the simulation |
+| fvsCutNow | Specifies a thinning by setting the proportion of each tree record to cut |
 | fvsSetEventMonitorVariables | Sets Event Monitor variables |
 | fvsSetSpeciesAttrs | Sets the values of species-specific data |
 | fvsSetTreeAttrs | Sets attributes of trees |
@@ -1004,6 +1005,110 @@ Calls Fortran subroutine `fvsAddActivity`, which copies the parameters and calls
 
 
 
+
+#### fvsAddTrees
+
+**Description**
+
+Adds new tree records to the simulation.
+
+**Usage**
+
+
+fvsAddTrees(newtrees)
+
+**Arguments**
+
+- `newtrees` - A data.frame of new trees with these required columns and no missing values: `dbh` (inches), `species` (FVS species index, an integer from 1 to `maxspecies`; use `fvsGetSpeciesCodes` to list the codes), `ht` (feet), `cratio` (percent), `plot` (plot index from 1 to `nplots`), `tpa` (trees per acre).
+
+**Value**
+
+Invisibly returns 0 if the trees were added and 1 if there was an error.
+
+**Details**
+
+The rFVS help states that this function should be called only at stop point code 6 or 7 (see `fvsRun`); FVS itself does not check the stop point. R stops with an error if a required column is missing, any value is `NA`, a species or plot index is out of range, or there is no room (`maxtrees` minus `ntrees` from `fvsGetDims`).
+
+**Implementation**
+
+Calls Fortran subroutine `fvsAddTrees`, which returns 1 if `ntrees` is 0 or the records do not fit. Otherwise, for each new record it sets `DBH`, `ISP`, `HT`, `ICR`, `ITRE` (plot) and `PROB`, computes the crown width (`CWCALC`), sets the management code `IMC` to 2, age (`ABIRTH`) to 5 and `IDTREE` to 10000000 plus the cycle times 10000 plus the record number, and sets growth, volume and other tree variables to zero. It then rebuilds the species and diameter sorts (`SPESRT`, `RDPSRT`).
+
+#### fvsCutNow
+
+**Description**
+
+Specifies a thinning by setting the proportion of each tree record's trees per acre that is cut in the current cycle.
+
+**Usage**
+
+
+fvsCutNow(propcut)
+
+**Arguments**
+
+- `propcut` - Numeric vector with the proportion to cut for each tree record. A single value is replicated for every tree record.
+
+**Value**
+
+Return code, 0 if OK and nonzero otherwise.
+
+**Details**
+
+Can only be used at stop point code 2 (just after the first Event Monitor call); R stops with an error otherwise. The proportions are held in volatile FVS memory that is reused for other purposes after the cut is simulated. The thinning can be combined with other thinning options, including the `MinHarv` and `YardLoss` keywords. It is implemented with the `ThinPrsc` keyword.
+
+**Implementation**
+
+R function. It adds the activity `base_thinprsc` (parameters 1 and -1) for the current year with `fvsAddActivity`, then writes `propcut` to the tree attribute `wk6` with `fvsSetTreeAttrs` (Fortran `fvsTreeAttr`, array `WK6`).
+
+#### fvsSetEventMonitorVariables
+
+**Description**
+
+Sets the values of Event Monitor variables by name.
+
+**Usage**
+
+
+fvsSetEventMonitorVariables(vars)
+
+**Arguments**
+
+- `vars` - A named numeric vector of the variables and their values. Names are not case sensitive.
+
+**Value**
+
+A named numeric vector of the values that were set, `NA` where the variable could not be set.
+
+**Details**
+
+Predefined Event Monitor variables can be set, and new user-defined variables are created when the name does not exist. FVS holds at most 399 user-defined variables. Stops with an error if `vars` is missing, not numeric, or not named.
+
+**Implementation**
+
+Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) once for each name, with action "set". Predefined variables are written to the arrays `TSTV1` through `TSTV4`. Other names are written to the user-defined variable arrays (`TSTV5`, with names in `CTSTV5`); a new name is added if there is room (`MXTST5`), otherwise the return code is 1.
+
+#### fvsSetSpeciesAttrs
+
+**Description**
+
+Sets the values of species-specific data.
+
+**Usage**
+
+
+fvsSetSpeciesAttrs(vars)
+
+**Arguments**
+
+- `vars` - A named list of numeric vectors. Each name is a species attribute (see the attribute table in `fvsGetSpeciesAttrs`), and each vector holds a value for every species, in order (length `maxspecies` from `fvsGetDims`).
+
+**Value**
+
+Invisibly returns 0 if all attributes were set, or the largest return code from FVS (1 name not found, 4 invalid name length). Vectors with the wrong length or containing `NA` are skipped by R with a warning and do not change the return code.
+
+**Implementation**
+
+Calls Fortran subroutine `fvsSpeciesAttr` (through the C entry `CfvsSpeciesAttr`) once for each attribute, with action "set", and writes the vector to the corresponding species array. The attributes `bfmeth` and `mcmeth` are truncated to integers.
 
 #### fvsSetTreeAttrs
 
