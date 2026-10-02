@@ -52,9 +52,9 @@ rfvs.exec.funcs=dplyr::tribble(
 
 ## Introduction
 
-rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a dynamic load library (.dll on Windows, .dynlib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time ccess to and modification of FVS predictions during simulation runs.
+rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a dynamic load library (.dll on Windows, .dylib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time access to and modification of FVS predictions during simulation runs.
 
-This document assumes familiarity with R, growth and yield modeling concepts, and FVS operations. For additional information about FVS, refer to Essential FVS.
+This document assumes familiarity with R, growth and yield modeling concepts, and FVS operations. For additional information about FVS, refer to [Essential FVS](https://www.fs.usda.gov/sites/default/files/forest-management/essential-fvs.pdf).
 
 ## Purpose
 
@@ -145,13 +145,13 @@ When running as a shared library (the rFVS case), all essential projection state
 
 ### Stop point codes and processing sequence
 
-FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed, and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadain variant to provide examples, as this is the most mature usage of FVS stop points. 
+FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed, and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadian variant to provide examples, as this is the most mature usage of FVS stop points. 
 
-**Code 0 — Never stop**
+**Stop point code 0: Never stop**
 
 FVS runs from beginning to end without stopping. Equivalent to Simple Mode. fvsRun returns when all stands in the keyword file are complete (return code 2).
 
-**Code -1 — Stop at every stop location**
+**Stop point code -1: Stop at every stop location**
 
 FVS stops at every defined stop point (1 through 7) it encounters in the processing sequence.
 
@@ -192,7 +192,7 @@ This stop point can be used for inspecting or overriding event monitor variable 
 
 *rFVS Set calls:* fvsSetEventMonitorVariables (TSTV5 user-defined variables). fvsSetTreeAttrs. fvsAddActivity (activities posted here are visible to CUTS for this cycle).
 
-**Code 3 — Before second Event Monitor call (after-thinning phase)**
+**Stop point code 3: Before second Event Monitor call (after-thinning phase)**
 
 *Invoked from:* subroutine GRINCR, after subroutine CUTS and the post-thinning density update complete, and before EVMON is called with IPHASE=2.
 
@@ -204,7 +204,7 @@ Stop point 3 is useful for inspecting the post-harvest tree list before the afte
 
 *rFVS Set calls:* fvsSetTreeAttrs (tpa, dbh, ht, cratio, mgmtcd). fvsSetEventMonitorVariables (TSTV5). fvsAddActivity.
 
-**Code 4 — After second Event Monitor call, before growth estimation**
+**Stop point code 4: After second Event Monitor call, before growth estimation**
 
 *Invoked from:* subroutine GRINCR, after EVMON returns from the after-thinning phase (IPHASE=2) and before subroutine DGDRIV is called to begin large-tree diameter growth estimation.
 
@@ -216,7 +216,7 @@ Stop point 4 is the final opportunity to adjust species-level growth multipliers
 
 *rFVS Set calls:* fvsSetSpeciesAttrs (baimult, htgmult, mortmult, regdmult, reghmult — these multipliers are applied inside DGDRIV, HTGF, REGENT, and MORTS which have not yet run). fvsSetTreeAttrs (dbh, ht, cratio, tpa before growth runs). fvsSetEventMonitorVariables.
 
-**Code 5 — After growth and mortality computation, before application**
+**Stop point code 5: After growth and mortality computation, before application**
 
 *Invoked from:* subroutine GRADD, after subroutine GRINCR returns (growth and mortality estimation complete, record tripling and fertilizer adjustments applied) and before subroutine UPDATE is called to apply increments to the tree arrays.
 
@@ -228,7 +228,7 @@ This is the primary stop point for replacing or modifying FVS growth and mortali
 
 *rFVS Set calls:* fvsSetTreeAttrs (mort/WK2, dg/DG, htg/HTG are the primary targets; setting dbh or ht here modifies the starting value that UPDATE will then increment by dg/htg respectively). fvsSetEventMonitorVariables.
 
-**Code 6 — Before regeneration establishment (ESTAB)**
+**Stop point code 6: Before regeneration establishment (ESTAB)**
 
 *Invoked from:* subroutine GRADD, after subroutine UPDATE has applied growth and mortality increments and recomputed stand statistics, and before subroutine ESNUTR calls ESTAB to run the regeneration establishment model.
 
