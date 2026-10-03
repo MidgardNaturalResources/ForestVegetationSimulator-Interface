@@ -143,7 +143,7 @@ When running as a shared library (the rFVS case), all essential projection state
 
 ### Stop point codes and processing sequence
 
-FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed, and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadian variant to provide examples, as this is the most mature usage of FVS stop points. 
+FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. Stop points 1 through 6 are checked in every projection cycle, and stop point 7 once per stand during initialization. If a stop point year greater than 0 was requested, the stop occurs only in the cycle that contains that year (see Stop point years). The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed, and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadian variant to provide examples, as this is the most mature usage of FVS stop points. 
 
 **Stop point code 0: Never stop**
 
@@ -151,11 +151,11 @@ FVS runs from beginning to end without stopping. fvsRun returns when all stands 
 
 **Stop point code -1: Stop at every stop location**
 
-FVS stops at every defined stop point (1 through 7) it encounters in the processing sequence.
+FVS stops at every defined stop point (1 through 7) it encounters in the processing sequence, in every cycle.
 
 **Stop point code 7: After input read, before missing value imputation**
 
-*Invoked from:* subroutine FVS, after subroutine NOTRE has loaded the tree records and before subroutine CRATET is called.
+*Invoked from:* subroutine FVS, after subroutine NOTRE has loaded the tree records (and after the pest model initialization that follows it: RDMN1, MPSDLP and DFBINV) and before subroutine CRATET is called. This stop point occurs once per stand, with the cycle counter set to 1. When FVS resumes, it continues just before CRATET, so values set here are in place when imputation and calibration run.
 
 Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, MCFV, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The ARRAYS COMMON block is partially populated.
 
@@ -166,7 +166,7 @@ The Acadian variant integration uses stop point 7 to identify trees requiring he
 
 **Stop point code 1: Before first event monitor call (before-thinning phase)**
 
-*Invoked from:* subroutine GRINCR, after subroutine CRATET completes model calibration and before subroutine EVMON is called with IPHASE=1.
+*Invoked from:* subroutine GRINCR, before subroutine EVMON is called with IPHASE=1. In every cycle GRINCR first applies the SETSITE activities (site index and SDI maximum changes), sets up the extension models, and computes stand density index (SDICAL, SDICLS), forest type (SILFTY) and structural stage (SSTAGE) before it reaches this stop point. In cycle 1 the stop point also follows the model calibration done by subroutine CRATET during initialization.
 
 Full initialization is complete. All tree attributes are defined including dubbed heights, crown ratios calibrated to input data, and volume estimates (CFV, MCFV, BFV) computed by subroutine VOLS. Stand density variables including basal area per acre, crown competition factor (CCF), and SDI are current. Percentile arrays PCT(*i*) and PTBALT(*i*) are populated. The IND, IND1 and ISCT sort arrays are established. Before-thinning event monitor variables in groups 1, 3 and 4 (TSTV1, TSTV3 and TSTV4) have not yet been loaded for this cycle — that occurs inside EVMON.
 
@@ -176,7 +176,7 @@ This stop point can be used to supply imputed heights and crown ratios to replac
 
 *rFVS Get calls:* fvsGetTreeAttrs (all attributes). fvsGetSpeciesAttrs. fvsGetDims. fvsGetStandIDs. fvsGetEventMonitorVariables returns before-thinning variables only if cycle ≥ 2 (populated from previous cycle); values are not yet refreshed for the current cycle at this point.
 
-*rFVS Set calls:* fvsSetTreeAttrs (ht, cratio, tpa, dbh, age, mgmtcd). fvsSetSpeciesAttrs (growth multipliers, SDI maxima, site indices take effect before calibration-derived growth runs). fvsSetEventMonitorVariables (user-defined TSTV5 variables). fvsAddActivity.
+*rFVS Set calls:* fvsSetTreeAttrs (ht, cratio, tpa, dbh, age, mgmtcd). fvsSetSpeciesAttrs (growth multipliers, SDI maxima, site indices; values set here are applied after this cycle's SETSITE processing). fvsSetEventMonitorVariables (user-defined TSTV5 variables). fvsAddActivity.
 
 **Stop point code 2: After first event monitor call, before thinning**
 
@@ -238,6 +238,10 @@ Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before E
 
 *rFVS Set calls:* fvsAddTrees (add ingrowth records before ESTAB runs). fvsSetTreeAttrs (volumes via tcuft/mcuft/bdft can be overridden here; tpa, dbh, ht). fvsSetEventMonitorVariables.
 
+**End of stand (restart code 100)**
+
+After the last cycle of a stand, FVS calls fvsStopPoint with the internal location code -1. This stop is always taken, whatever stop point was requested, and it sets the restart code to 100. FVS first completes the stand's final output (DISPLY and GENPRT) and then returns to R; the next call to fvsRun continues with the next stand. fvsGetRestartcode returns 100 at this point, and this is the stop used by the SimEnd block of fvsInteractRun.
+
 ### Stop point years
 
 The stop point year (`stopPointYear` in `fvsRun`) controls in which projection cycles the requested stop point is used. It is given together with the stop point code; the code alone decides whether FVS stops (code 0 never stops).
@@ -252,11 +256,23 @@ When FVS stops and returns control to R, the entire FVS memory state is preserve
 
 Stop/restart control variables are stored in the labeled COMMON block GLBLCNTL. The key internal subroutines governing stop/restart flow are:
 
-- **fvsStopPoint**: Called from within FVS (e.g., subroutine GRADD) with a location code corresponding to the current stop point. Compares that code against the requested stop point and returns a flag indicating whether stopping was requested.
-- **fvsGetRestartCode**: Called at the beginning of subroutines that contain stop points (GRINCR, TREGRO, GRADD) to retrieve the prior stop point code, allowing the subroutine to jump ahead to where it previously left off rather than re-executing already-completed calculations.
+- **fvsStopPoint**: Called from within FVS (e.g., subroutine GRADD) with a location code corresponding to the current stop point. Compares that code against the requested stop point and returns a flag indicating whether stopping was requested. After a stop point returns, the calling subroutine also tests the FVS return code (fvsGetRtnCode) and returns up the call stack if it is not 0.
+- **fvsGetRestartCode**: Called at the beginning of subroutines that contain stop points (GRINCR, TREGRO, GRADD) to retrieve the prior stop point code, allowing the subroutine to jump ahead to where it previously left off rather than re-executing already-completed calculations. It returns 0 whenever the FVS return code is not 0.
 - **getAmStopping**: An entry point within CMDLINE called by a subroutine (e.g., TREGRO) after a called subroutine (e.g., GRINCR) returns, to determine whether that return was caused by a stop point rather than normal completion.
 - **fvsGetRtnCode**: Returns the current integer return code stored in GLBLCNTL. Subroutines use this to detect fatal error states and propagate returns up the call stack without executing a FORTRAN STOP. At the R level, fvsRun exposes an extended version of this code that includes -1 (FVS not yet started), in addition to the three Fortran-level codes.
 - **fvsSetRtnCode**: Sets the return code in GLBLCNTL to one of three values: 0 (all OK), 1 (error — FVS should not be called again until reset with new input), or 2 (run has ended — new input can be specified). No other values are valid. Fatal errors detected anywhere in the call stack set the code to 1 via fvsSetRtnCode and then return rather than calling FORTRAN STOP, which would terminate the host R session.
+
+When FVS is called again after a stop, subroutines FVS, TREGRO, GRINCR and GRADD read the restart code (fvsGetRestartCode) and jump to the point below, skipping the work already done:
+
+| Stop point code | fvsStopPoint called from | FVS resumes at |
+|---|---|---|
+| 7 | FVS | Just before the stand density and calibration calls (SDICLS, CRATET) |
+| 1 | GRINCR | The first EVMON call (IPHASE=1) |
+| 2 | GRINCR | The economic status call (ECSTATUS) that precedes CUTS, then CUTS |
+| 3 | GRINCR | The second EVMON call (IPHASE=2) |
+| 4 | GRINCR | The economic status call that follows CUTS (ECSTATUS), then the setup for growth estimation |
+| 5 | GRADD | UPDATE |
+| 6 | GRADD | CLAUESTB and ESNUTR (regeneration establishment) |
 
 ## Examples
 
