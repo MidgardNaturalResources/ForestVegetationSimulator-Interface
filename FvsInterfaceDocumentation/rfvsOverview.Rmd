@@ -70,7 +70,7 @@ rFVS serves as a bridge between FVS's forest growth and yield simulation capabil
 
 rFVS was developed as part of the broader FVS Application Program Interface (API) initiative to enable interaction between FVS and external programming languages (USDA Forest Service 2025a). The most notable early application of rFVS was the integration of the Acadian growth model, FVS-ACD, which integrates the Acadian growth, ingrowth and mortality calculations with the FVS Northeast variant (FVS-NE). 
 
-The rFVS system is currently housed in a GitHub repository maintained by the USDA Forest Service, Forest Management Service Center (USDA Forest Service 2025a). This integration approach has since been adopted for other regional models and custom applications. The official rFVS package is distributed through the Forest Vegetation Simulator-Interface repository and is built using standard R package development tools including devtools for documentation, building and installation processes.
+The rFVS system is currently housed in a GitHub repository maintained by the USDA Forest Service (USDA Forest Service 2025a). This integration approach has since been adopted for other regional models and custom applications. The official rFVS package is distributed through the Forest Vegetation Simulator-Interface repository and is built using standard R package development tools including devtools for documentation, building and installation processes.
 
 ## Use cases and applications
 
@@ -248,7 +248,7 @@ The stop point year (`stopPointYear` in `fvsRun`) controls in which projection c
 
 ### Memory state management
 
-When FVS stops and returns control to R, the entire FVS memory state is preserved in COMMON blocks, allowing seamless continuation from the exact stopping point (USDAForestService 2025a). This enables modification of tree attributes, stand conditions, or other FVS variables before resuming simulation. Any variable whose value must survive across a stop/restart boundary must reside in a COMMON block; local subroutine variables are not preserved.
+When FVS stops and returns control to R, the entire FVS memory state is preserved in COMMON blocks, allowing seamless continuation from the exact stopping point. This enables modification of tree attributes, stand conditions, or other FVS variables before resuming simulation. Any variable whose value must survive across a stop/restart boundary must reside in a COMMON block; local subroutine variables are not preserved.
 
 Stop/restart control variables are stored in the labeled COMMON block GLBLCNTL. The key internal subroutines governing stop/restart flow are:
 
