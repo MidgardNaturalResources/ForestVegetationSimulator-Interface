@@ -230,11 +230,11 @@ This is the primary stop point for replacing or modifying FVS growth and mortali
 
 *Invoked from:* subroutine GRADD, after subroutine UPDATE has applied growth and mortality increments and recomputed stand statistics, and before subroutine ESNUTR calls ESTAB to run the regeneration establishment model.
 
-At this stop point DBH(*i*) and HT(*i*) now reflect end of cycle values with growth applied. PROB(*i*) has been reduced by mortality. Volumes (CFV, MCFV, BFV) are recomputed by UPDATE via VOLS, which is called after HT and PROB are updated and before DBH is advanced by DG. Tree ages (age, stored in ABIRTH) have already been increased by the cycle length, so age is an end-of-cycle value here; at stop points 1 through 5 it has not yet been increased for the current cycle. Stand density statistics (basal area, CCF, SDI, PCT, PTBALT) are current for end-of-cycle conditions. Disturbance extension adjustments (insect, disease, fire effects via FMMAIN, MPBCUP, etc.) have been applied to growth and mortality estimates before UPDATE ran. Regeneration tree records have not been added: the climate-driven establishment routine (CLAUESTB) and ESTAB (called through ESNUTR) have not yet run. Crown ratio change has not yet been applied (CROWN is called after ESTAB). End-of-cycle crown widths are not yet updated. After this stop point, GRADD runs CLAUESTB and ESNUTR, which runs ESTAB and appends the new regeneration records to the tree list. It then updates the SVS visualization, calculates economic values (ECCALC), recomputes stand density (DENSE), computes the crown ratio change (CROWN) and updates crown widths.
+At this stop point DBH(*i*) and HT(*i*) reflect end of cycle values with growth applied, and PROB(*i*) has been reduced by mortality. Volumes (CFV, MCFV, BFV) are recomputed by UPDATE via VOLS, which is called after HT and PROB are updated and before DBH is advanced by DG. Tree ages (age, stored in ABIRTH) have already been increased by the cycle length, so age is an end-of-cycle value here; at stop points 1 through 5 it has not yet been increased for the current cycle. The tree records have been re-sorted by diameter (RDPSRT) and the stand density statistics (basal area, CCF, PCT) recomputed by DENSE. The insect, fire and disease adjustments were applied before stop point 5 (see stop point 5). Not yet done: regeneration (CLAUESTB, then ESNUTR, which runs ESTAB and appends the new regeneration records to the tree list), crown ratio change (CROWN) and the update of crown widths. After ESTAB, GRADD updates the SVS visualization, calculates economic values (ECCALC) and recomputes stand density (DENSE) before CROWN.
 
 Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before ESTAB runs; modifying post-growth tree attributes or volumes; inspecting end of cycle stand conditions before regeneration is added. The Acadian integration uses this stop point to add ingrowth records and optionally override volume estimates.
 
-*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dbh, ht and tpa reflect end-of-cycle values; volumes are the values computed in UPDATE). fvsGetDims. fvsGetSummary (end of cycle summary statistics are available). fvsGetEventMonitorVariables.
+*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dbh, ht and tpa reflect end-of-cycle values; volumes are the values computed in UPDATE). fvsGetDims. fvsGetSummary (rows up to the start of the current cycle; the end-of-cycle row is written after the cycle completes). fvsGetEventMonitorVariables.
 
 *rFVS Set calls:* fvsAddTrees (add ingrowth records before ESTAB runs). fvsSetTreeAttrs (volumes via tcuft/mcuft/bdft can be overridden here; tpa, dbh, ht). fvsSetEventMonitorVariables.
 
@@ -957,6 +957,10 @@ fvsGetSummary()
 **Value**
 
 A matrix with one row per cycle boundary (`ncycles + 1` rows) and these columns: `Year`, `Age`, `Tpa`, `TCuFt`, `MCuFt`, `BdFt`, `RTpa`, `RTCuFt`, `RMCuFt`, `RBdFt`, `ATBA`, `ATCCF`, `ATTopHt`, `PrdLen`, `Acc`, `Mort`, `SampWt`, `ForTyp`, `SizeCls`, `StkCls`. `NULL` until a run is made.
+
+**Details**
+
+The table always has `ncycles + 1` rows. At a stop point, the rows for the end of the current cycle and later cycles have not been written yet. All rows are complete when FVS returns at the end of the stand (restart code 100).
 
 **Implementation**
 
