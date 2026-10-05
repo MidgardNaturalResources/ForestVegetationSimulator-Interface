@@ -125,7 +125,7 @@ The top-level routine PROGRAM MAIN calls fvsSetCmdLine to retrieve command line 
 
 During the projection initialization phase, subroutine FVS: checks command line options and return/restart codes; opens required input and output files; initializes parameters to defaults; processes all keyword records; sets up the projection cycling array; initializes extension files; establishes the initial species sort; expands tree data to a per-acre basis based on the sample design; calibrates internal equations to the input data; flags best trees for the regeneration establishment model; computes initial tree-level variables (volumes, crown width); computes initial stand-level variables (basal area per acre); computes initial percentile distributions; assigns example trees to output arrays; and writes initial output data. A logical variable LSTART is set to .TRUE. during initialization and .FALSE. upon completion; it is used extensively during model calibration to control program logic flow.
 
-During the projection cycling phase, subroutine FVS calls subroutines to estimate tree growth and mortality, process management requests, establish regeneration, and write output. During the summarization phase it produces final reports and checks whether additional stands remain to be processed, branching back to the initialization phase for the next stand.
+During the projection cycling phase, subroutine FVS calls subroutines to estimate tree growth and mortality, process management requests, establish regeneration, and write output. During the summarization phase it produces final reports. FVS then returns to its caller (PROGRAM MAIN, or rFVS) after each stand and is called again for the next stand.
 
 ## Start-stop logic
 
@@ -147,7 +147,7 @@ FVS can be instructed to stop at specific computational stages within the proces
 
 **Stop point code 0: Never stop**
 
-FVS runs from beginning to end without stopping. fvsRun returns when all stands in the keyword file are complete (return code 2).
+FVS does not stop at any stop point. fvsRun runs to the end of the current stand and returns with restart code 100. Return code 2 is returned by a later fvsRun call, after the last stand.
 
 **Stop point code -1: Stop at every stop location**
 
@@ -216,7 +216,7 @@ Stop point 4 is the final opportunity to adjust species-level growth multipliers
 
 **Stop point code 5: After growth and mortality computation, before application**
 
-*Invoked from:* subroutine GRADD, after subroutine GRINCR returns (growth and mortality estimation complete, record tripling and fertilizer adjustments applied) and before subroutine UPDATE is called to apply increments to the tree arrays.
+*Invoked from:* subroutine GRADD, after subroutine GRINCR returns (growth and mortality estimation complete, record tripling and fertilizer adjustments applied) and before subroutine UPDATE is called to apply increments to the tree arrays. Before this stop point GRADD has already applied the insect, fire and disease adjustments (MPBCUP, DFBDRV, MISTOE, TMCOUP, BWECUP, FMMAIN/FMKILL, BRTREG, RDTREG), HTGSTP and SVMORT, so values set here are applied after those models.
 
 At this stop point DG(*i*) holds the cycle-length diameter growth estimate for each tree record. HTG(*i*) holds the cycle-length height growth estimate. WK2(*i*) holds trees per acre predicted to die (mortality) for each tree record. DBH(*i*) and HT(*i*) still reflect beginning-of-cycle values; UPDATE has not yet been called. UPDATE adds HTG to HT, subtracts WK2 from PROB (never more than the record's PROB), and adds DG divided by the bark ratio to DBH. Volumes (CFV, MCFV, BFV) reflect beginning-of-cycle conditions. If record tripling has occurred, ITRN is expanded and the additional triple records are present in the tree arrays. Crown ratio change has not yet been computed. Regeneration has not been added.
 
@@ -247,7 +247,7 @@ After the last cycle of a stand, FVS calls fvsStopPoint with the internal locati
 The stop point year (`stopPointYear` in `fvsRun`) controls in which projection cycles the requested stop point is used. It is given together with the stop point code; the code alone decides whether FVS stops (code 0 never stops).
 
 - **Year greater than 0**: stop only in the cycle that contains that year, that is, the cycle that starts on or before the year and ends after it
-- **0 or -1**: no year restriction; stop at the requested stop point in every cycle
+- **-1 (or any value below 0)**: no year limit; stop at the requested stop point in every cycle
 
 
 ### Memory state management
@@ -475,7 +475,7 @@ fvsSetCmdLine(cl = NULL)
 
 - `cl` - Character string with the FVS command line (at most 255 characters). If `NULL`, the arguments passed to R when it started (also from Rscript) are used. Options:
   - `--keywordfile=<file>` - Keyword file to run.
-  - `--stoppoint=<code>,<year>[,<file>]` - Stop point code (-1 to 7; values outside that range are set to the nearest limit) and the year to stop in. If a file name is given, FVS saves the stand state to that file at the stop point (stop with store). If not, FVS stops without saving data.
+  - `--stoppoint=<code>,<year>[,<file>]` - Stop point code (-1 to 7; values outside that range are set to the nearest limit) and the year to stop in. A major stop ends the stand at the stop point. If a file name is given, FVS saves the stand state to that file (stop with store); if not, no data are saved. In both cases the next call to fvsRun starts the next stand. A stored stand is continued only with `--restart=<file>` in a new session.
   - `--restart=<file>` - Resume from a stop point file. The keyword file name is read from the restart file, and any `--keywordfile=` option is ignored with a message.
 
 **Value**
@@ -486,7 +486,7 @@ Invisibly returns the FVS return code, or `NULL` if there is no command line.
 
 Call after `fvsLoad` and before `fvsRun`. Calling it again resets FVS: the return code, restart code and stop point codes are cleared, and files from a previous run that ended with a nonzero return or restart code are closed. The keyword and output files are opened. If a stop point or restart file cannot be opened (or a restart file ends early), FVS sets its return code to 1.
 
-Stop points set with `--stoppoint=` are "major" stop points. They are separate from the "memory" stop points set by `fvsRun` (through `fvsSetStoppointCodes`), which keep the stand state in memory and save nothing.
+Stop points set with `--stoppoint=` are "major" stop points: they end the stand at the stop point. The "memory" stop points set by `fvsRun` (through `fvsSetStoppointCodes`) keep the stand state in memory, save nothing, and let `fvsRun` continue the same stand.
 
 **Implementation**
 
@@ -522,11 +522,11 @@ stopPointCode
 - `4` - Stop after second Event Monitor call (after thinning)
 - `5` - Stop after growth and mortality computation, before applying them
 - `6` - Stop before ESTAB routines
-- `7` - Stop after input read but before missing value imputation and model calibration (stopPointYear ignored)
+- `7` - Stop after input read but before missing value imputation and model calibration (a year above 0 must lie in the first cycle; a year of 0 or below applies no year limit)
 
 stopPointYear
-- Integer value of cycle boundary year within projection period
-- `-1` stop at each cycle boundary
+- A year above 0 stops only in the cycle that contains that year
+- `-1` means no year limit: stop in every cycle (any value below 0 behaves the same)
 
 **Value**
 
@@ -541,11 +541,11 @@ Integer return code:
 
 fvsRun executes a single stand in the current keyword file. When valid stopPointCode and StopPointYear are provided, the FVS run is suspended and users can interact with FVS data in R session via rFVS functions. When fvsRun() is called again, FVS continues processing where it left off.
 
-If one argument to fvsRun() is left as NA (default), then both are ignored. You must code both or neither.
+If one argument to fvsRun() is left as NA (default), then both are ignored. You must code both or neither. A stop request stays in effect until it is changed: fvsRun() with no arguments does not clear it, and fvsRun(0, 0) turns it off.
  
 **Implementation**
 
-If both `stopPointCode` and `stopPointYear` are provided, calls Fortran subroutine `fvsSetStoppointCodes` to set the requested stop point.
+If both `stopPointCode` and `stopPointYear` are provided, calls Fortran subroutine `fvsSetStoppointCodes` to set the requested stop point, which stays in effect until it is changed.
 
 Then repeatedly calls Fortran subroutine `fvs` and, after each call, retrieves the restart code with `fvsGetRestartCode`. The loop ends when the FVS return code is nonzero or when the restart code is nonzero (FVS stopped at a stop point or between stands). The FVS return code is returned invisibly.
 
@@ -835,6 +835,8 @@ Integer restart code:
 - `4` - Stop after second Event Monitor call
 - `5` - Stop after growth and mortality computation, before applying them
 - `6` - Stop before ESTAB routines
+- `7` - Stop after input read, before missing value imputation and model calibration
+- A negative value (the stop point code with its sign changed) - Returned right after a stand is reloaded from a stop point file, so that the stand can be inspected; the value is positive again on the next call to FVS
 - `100` - Stop after stand simulation completed, before starting subsequent stand
 
 **Details**
