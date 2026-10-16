@@ -723,6 +723,20 @@ These functions retrieve data and status information from FVS during simulation.
 | fvsGetTreeAttrs | Gets attributes of trees |
 | fvsSetupSummary | Reorganizes summary statistics so they are ready to plot |
 
+The table lists, for the functions that read FVS data directly, the call chain, the arrays and variables that are read, and the R object types.
+
+| Function | R call, C wrapper and Fortran routine | Arrays and variables read | R input | R return |
+|---|---|---|---|---|
+| fvsGetDims | `.Fortran` fvsDimSizes | IREC1 or ITRN, NCYC, IPTINV, MAXTRE, MAXSP, MAXPLT, MAXCYC | none | named numeric vector (7) |
+| fvsGetEventMonitorVariables | `.C` CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr ("get") | TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5 | character vector of names | named numeric vector (`NA` if undefined or not found) |
+| fvsGetRestartcode | `.Fortran` fvsGetRestartCode (`cmdline.f`) | restartcode and fvsRtnCode (GLBLCNTL) | none | integer |
+| fvsGetSpeciesAttrs | `.C` CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr ("get") | RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB, DBHMIN, TOPD, STMP, METHC, XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4) | character vector of attribute names | data.frame (rows = species) |
+| fvsGetStandIDs | `.C` CfvsStandID, fvsStandIDC | NPLT, DBCN, MGMID, CASEID | none | named list of four character strings |
+| fvsGetSummary | `.Fortran` fvsSummary, once per cycle row | IOSUM(22, MAXCY1) (OUTCOM) | none | numeric matrix (20 named columns) |
+| fvsGetSVSDims | `.Fortran` fvsSVSDimSizes | NSVOBJ, NDEAD, NCWD, MXSVOB, MXDEAD, MXCWD | none | named numeric vector (6) |
+| fvsGetSVSObjectSet | `.C` CfvsSVSObjData, fvsSVSObjDataC, fvsSVSObjData; `.C` CfvsFFEAttrs, fvsFFEAttrsC, fvsFFEAttrs; also fvsGetTreeAttrs and fvsGetSpeciesCodes | IOBJTP, IS2F, XSLOC, YSLOC, SNGDIA, SNGLEN, IYRCOD, ISNSP, FALLDIR, ISTATUS, SNGCNWT(,0), SNGCNWT(,1), SNGCNWT(,2), SNGCNWT(,3), CWDDIA, CWDLEN, CWDPIL, CWDDIR, CWDWT, TFALL(1:MAXSP,0), TFALL(1:MAXSP,1), TFALL(1:MAXSP,2), TFALL(1:MAXSP,3) | none | list of three data.frames (trees, snags, cwd) |
+| fvsGetTreeAttrs | `.C` CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr ("get") | PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR, ISP, ABIRTH, ITRE, CFV, MCFV, SCFV, BFV, DEFECT, PTBALT, IMC, PLTSIZ, PCT, CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE, ISPECL, KUTKOD, WK6 | character vector of attribute names | data.frame (rows = tree records) |
+
 #### fvsCompositeSum
 
 **Description**
@@ -786,6 +800,16 @@ Named numeric vector containing:
 
 The maximum values are compile-time settings of the loaded FVS variant; the values shown are for the Northeast (NE) variant.
 
+**Implementation**
+
+**Calls.** `.Fortran("fvsDimSizes")` calls Fortran subroutine fvsDimSizes (`apisubs.f`). There is no C wrapper.
+
+**Arrays.** ntrees is IREC1 while LSTART is true (during initialization) and ITRN afterward (CONTRL); ncycles is NCYC; nplots is IPTINV (PLOT); maxtrees, maxspecies, maxplots and maxcycles are the parameters MAXTRE, MAXSP, MAXPLT and MAXCYC (PRGPRM).
+
+**Input.** None (seven integer placeholders are passed).
+
+**Returns.** Named numeric vector of length 7: ntrees, ncycles, nplots, maxtrees, maxspecies, maxplots, maxcycles. The routine has no return code.
+
 **Example**
 
 ```{r Ex_fvsGetDims, echo=TRUE, eval=FALSE}
@@ -815,7 +839,22 @@ a named numeric vector of the variables, NA if the variable name does not exist
 
 **Implementation**
 
-Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) once for each name, with action "get". Predefined Event Monitor variables (for example `year`, `age`, `btpa`, `bba`, `cycle`, `sampwt`) are read from the Event Monitor variable arrays `TSTV1` through `TSTV4`. Other names are looked up among user-defined variables (`TSTV5`, with names in `CTSTV5`). Return codes: 0 (OK), 1 (variable is undefined at this point), 2 (name not found). R returns `NA` for codes 1 and 2.
+**Calls.** For each name, `.C("CfvsEvmonAttr", name, nch, "get", value, rtnCode)` is called with the name converted to lower case. CfvsEvmonAttr (`apisubsc.c`) calls Fortran routine fvsEvmonAttrC, which calls fvsEvmonAttr (`apisubs.f`).
+
+**Arrays.** Predefined variables are read from the arrays below, by group (the index is the position within the array). Variables in groups 1 to 3 are returned as stored. Group 4 variables are valid only when the flag LTSTV4 is set for the index. A name that is not predefined is matched in upper case against CTSTV5 and read from TSTV5 when LTSTV5 is set.
+
+| Array | Variable names (index) |
+|---|---|
+| TSTV1 | year (1), age (2), btpa (3), btcuft (4), bmcuft (5), bbdft (6), bba (7), bccf (8), btopht (9), badbh (10), yes (11), no (12), cycle (13), numtrees (14), bsdimax (15), bsdi (16), brden (17), brden2 (18), bhtwtba (19), bscuft (20), habtype (26), slope (27), aspect (28), elev (29), sampwt (30), invyear (31), cendyear (32), evphase (33), smr (34), site (35), cut (36), lat (37), long (38), state (39), county (40), fortyp (41), sizcls (42), stkcls (43), propstk (44), mai (45), agecmp (46), bdbhwtba (47), silvahft (48), fisherin (49), bsdi2 (50), babvbio (51), bmerbio (52), bsawbio (53), bfolbio (54), babvcrb (55), bmercrb (56), bsawcrb (57), bfolcrb (58) |
+| TSTV2 | atpa (1), atcuft (2), amcuft (3), abdft (4), aba (5), accf (6), atopht (7), aadbh (8), rtpa (9), rtcuft (10), rmcuft (11), rbdft (12), asdimax (13), asdi (14), arden (15), adbhwtba (16), arden2 (17), asdi2 (18), ahtwtba (19), ascuft (20), rscuft (21), aabvbio (22), rabvbio (23), amerbio (24), rmerbio (25), asawbio (26), rsawbio (27), aabvcrb (28), rabvcrb (29), amercrb (30), rmercrb (31), asawcrb (32), rsawcrb (33), afolbio (34), rfolbio (35), afolcrb (36), rfolcrb (37) |
+| TSTV3 | acc (1), mort (2), pai (3), dtpa (5), dba (7), dccf (9) |
+| TSTV4 | mpbtpak (4), mpbprob (6), bsclass (16), asclass (17), bstrdbh (18), astrdbh (19), fire (20), minsoil (21), crownidx (22), fireyear (23), bcancov (24), acancov (25), crbaseht (26), torchidx (27), crbulkdn (28), disccost (30), discrevn (31), forstval (32), harvcost (33), harvrevn (34), irr (35), pctcost (36), pnv (37), rprodval (38), sev (39), bmaxhs (40), amaxhs (41), bminhs (42), aminhs (43), bnumss (44), anumss (45), discrate (46), undiscst (47), undisrvn (48), eccuft (49), ecbdft (50) (valid when LTSTV4 is set) |
+| FLIVE | shrubwt (1), herbwt (2) |
+| TSTV5, CTSTV5, LTSTV5 | any other name (matched in upper case against CTSTV5; at most MXTST5 = 399 names) |
+
+**Input.** Character vector of event monitor variable names.
+
+**Returns.** Named numeric vector with the input names. A value is `NA` when the return code is not 0: 1 means the variable is not defined at this point (group 4 and user-defined variables) or the name is not known, and 4 means the name length is invalid.
 
 **Example**
 
@@ -865,7 +904,13 @@ Returns current value of stop/restart code indicating the point within FVS seque
 
 **Implementation**
 
-Calls Fortran subroutine `fvsGetRestartCode`, which returns the value of `restartcode` held in common block `GLBLCNTL` when the FVS return code is 0, and 0 otherwise. Read-only.
+**Calls.** `.Fortran("fvsGetRestartCode")` calls Fortran subroutine fvsGetRestartCode (`cmdline.f`). There is no C wrapper.
+
+**Arrays.** The variables restartcode and fvsRtnCode in common block GLBLCNTL. The restart code is returned only when the FVS return code is 0; otherwise 0 is returned.
+
+**Input.** None (one integer placeholder is passed).
+
+**Returns.** Integer restart code.
 
 **Example**
 
@@ -928,6 +973,42 @@ action="set" or "get" (case sensitive),
 attr=vector of length data (always double), 
 rtnCode: 0=OK, 1=name not found, 4=name string length invalid.
 
+**Implementation**
+
+**Calls.** For each name, `.C("CfvsSpeciesAttr", name, nch, "get", values, rtnCode)` is called. CfvsSpeciesAttr (`apisubsc.c`) calls Fortran routine fvsSpeciesAttrC, which calls fvsSpeciesAttr (`apisubs.f`).
+
+**Arrays.** Each attribute selects one array, with one element per species (length MAXSP):
+
+| Attribute | Array |
+|---|---|
+| spccf | RELDSP |
+| spsiteindx | SITEAR |
+| spsdi | SDIDEF |
+| bfmind | BFMIND |
+| bftopd | BFTOPD |
+| bfstmp | BFSTMP |
+| frmcls | FRMCLS |
+| bfmeth | METHB |
+| mcmind | DBHMIN |
+| mctopd | TOPD |
+| mcstmp | STMP |
+| mcmeth | METHC |
+| baimult | XDMULT |
+| htgmult | XHMULT |
+| mortmult | XMMULT |
+| mortdia1 | XMDIA1 |
+| mortdia2 | XMDIA2 |
+| regdmult | XRDMLT |
+| reghmult | XRHMLT |
+| maxdbh | SIZCAP(,1) |
+| minmort | SIZCAP(,2) |
+| maxdbhcd | SIZCAP(,3) |
+| maxht | SIZCAP(,4) |
+
+**Input.** Character vector of attribute names. A double vector of length `maxspecies` is passed as the buffer for each name.
+
+**Returns.** data.frame with one column per attribute and one row per species. An attribute is left out, without a warning, when its return code is not 0 (1 means the name is not found and 4 means the name length is invalid).
+
 **Example**
 
 ```{r Ex_fvsGetSpeciesAttrs, echo=TRUE, eval=FALSE}
@@ -953,7 +1034,13 @@ A named list with `standid`, `standcn` (stand control number), `mgmtid` and `cas
 
 **Implementation**
 
-Calls the C entry `CfvsStandID`, which calls Fortran subroutine `fvsStandIDC` and returns `NPLT`, `DBCN`, `MGMID` and `CASEID`.
+**Calls.** `.C("CfvsStandID", standid, standcn, mgmtid, caseID)` is called with four empty strings. CfvsStandID (`apisubsc.c`) calls Fortran routine fvsStandIDC (`apisubs.f`), which fills the strings.
+
+**Arrays.** The character variables NPLT (stand ID), DBCN (stand control number), MGMID (management ID) and CASEID (case ID).
+
+**Input.** None.
+
+**Returns.** Named list of four character strings: standid, standcn, mgmtid and caseID. The strings are blank until a run is started.
 
 **Example**
 
@@ -984,7 +1071,13 @@ The table always has `ncycles + 1` rows. At a stop point, the rows for the end o
 
 **Implementation**
 
-Calls Fortran subroutine `fvsSummary` once for each cycle boundary; it copies the stored summary row `IOSUM(:, icycle)` from common block `OUTCOM` and returns 1 if the cycle is out of range.
+**Calls.** `.Fortran("fvsSummary")` is called once for each of the `ncycles + 1` rows, with the row number as the cycle argument. It calls Fortran subroutine fvsSummary (`apisubs.f`). There is no C wrapper.
+
+**Arrays.** The array IOSUM(22, MAXCY1) in common block OUTCOM. Subroutine DISPLY writes the rows: row 1 at initialization, each later row after the cycle completes, and the final row at the end of the stand. fvsSummary returns 1 when the row is out of range.
+
+**Input.** None (a 20-element integer vector and five integer arguments are passed).
+
+**Returns.** Numeric matrix with `ncycles + 1` rows and the 20 named columns listed above, or `NULL` when ncycles is 0.
 
 **Example**
 
@@ -1011,7 +1104,13 @@ Named numeric vector: `nsvsobjs` (SVS objects), `ndeadobjs` (snag objects), `ncw
 
 **Implementation**
 
-Calls Fortran subroutine `fvsSVSDimSizes`, which returns `NSVOBJ`, `NDEAD`, `NCWD`, `MXSVOB`, `MXDEAD` and `MXCWD`.
+**Calls.** `.Fortran("fvsSVSDimSizes")` calls Fortran subroutine fvsSVSDimSizes (`apisubs.f`). There is no C wrapper.
+
+**Arrays.** The variables NSVOBJ, NDEAD and NCWD (current numbers of objects, snags and coarse woody debris pieces) and MXSVOB, MXDEAD and MXCWD (their maxima), from the SVDATA and SVDEAD common blocks.
+
+**Input.** None (six integer placeholders are passed).
+
+**Returns.** Named numeric vector of length 6: nsvsobjs, ndeadobjs, ncwdobjs, mxsvsobjs, mxdeadobjs, mxcwdobjs.
 
 **Example**
 
@@ -1046,7 +1145,41 @@ Snag weights `snagwt0` to `snagwt3` are reduced for the years since each snag fe
 
 **Implementation**
 
-Reads the object types and locations (`objtype`, `objindex`, `xloc`, `yloc`) and the snag and debris attributes by calling the C entry `CfvsSVSObjData` (Fortran `fvsSVSObjData`; return codes 0 OK, 1 name not found, 2 more objects than the maximum, 3 count differs from the current number, 4 invalid name length). Tree attributes come from `fvsGetTreeAttrs`, species codes from `fvsGetSpeciesCodes`, and fall years from the C entry `CfvsFFEAttrs`.
+**Calls.** The function first calls fvsGetSVSDims. It then calls `.C("CfvsSVSObjData", name, nch, "get", nobjs, values, rtnCode)` for each attribute below; CfvsSVSObjData (`apisubsc.c`) calls Fortran routine fvsSVSObjDataC, which calls fvsSVSObjData (`apisubs.f`). Snag weights are then aged with `.C("CfvsFFEAttrs")` (Fortran fvsFFEAttrsC and fvsFFEAttrs). Tree attributes come from fvsGetTreeAttrs and species codes from fvsGetSpeciesCodes.
+
+**Arrays.** Each attribute selects one array. The number of objects passed must equal the current count (NSVOBJ for object attributes, NDEAD for snags, NCWD for coarse woody debris, MAXSP for fall years), otherwise nothing is transferred (return code 3; code 2 means the count exceeds the maximum).
+
+| Attribute | Array |
+|---|---|
+| objtype | IOBJTP |
+| objindex | IS2F |
+| xloc | XSLOC |
+| yloc | YSLOC |
+| snagdbh | SNGDIA |
+| snaglen | SNGLEN |
+| snagyear | IYRCOD |
+| snagspp | ISNSP |
+| snagfdir | FALLDIR |
+| snagstat | ISTATUS |
+| snagwt0 | SNGCNWT(,0) |
+| snagwt1 | SNGCNWT(,1) |
+| snagwt2 | SNGCNWT(,2) |
+| snagwt3 | SNGCNWT(,3) |
+| cwddia | CWDDIA |
+| cwdlen | CWDLEN |
+| cwdpil | CWDPIL |
+| cwddir | CWDDIR |
+| cwdwt | CWDWT |
+| fallyrs0 | TFALL(1:MAXSP,0) |
+| fallyrs1 | TFALL(1:MAXSP,1) |
+| fallyrs2 | TFALL(1:MAXSP,2) |
+| fallyrs3 | TFALL(1:MAXSP,3) |
+
+Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The tree attributes read are species, dbh, ht, crwdth, cratio and crownwt0 to crownwt3 (see fvsGetTreeAttrs).
+
+**Input.** None.
+
+**Returns.** List with elements trees, snags and cwd. Each is a data.frame with the columns xloc and yloc followed by the attributes, or `NULL` when there are no objects of that type. Attributes with a return code other than 0 are left out.
 
 **Example**
 
@@ -1072,56 +1205,13 @@ The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) 
 
 **Implementation**
 
-Calls Fortran subroutine FVSTREEATTR with attribute name and action parameters, extracts data from FVS tree storage arrays.
+**Calls.** For each attribute, `.C("CfvsTreeAttr", name, nch, "get", ntrees, values, rtnCode)` is called. CfvsTreeAttr (`apisubsc.c`) calls Fortran routine fvsTreeAttrC, which calls fvsTreeAttr (`apisubs.f`).
 
-Reads the array that corresponds to the attribute name: for example `PROB` (tpa), `DBH`, `HT`, `ICR` (cratio), `DG`, `HTG`, `WK2` (mort), `ABIRTH` (age), `ITRE` (plot) and `IMC` (mgmtcd), for the current number of tree records (`IREC1` during initialization, `ITRN` afterward).
+**Arrays.** Each attribute selects one array, read for the current number of tree records (IREC1 during initialization, otherwise ITRN). The array for each attribute is given in the Tree attributes table below.
 
-Read-only extraction from tree arrays maintains array integrity, does not alter ITRN tree counter or modify tree attribute values stored in primary tree data structures.
+**Input.** Character vector of attribute names. A double vector of length ntrees (from fvsGetDims) is passed as the buffer for each name.
 
-**Tree Attributes**
-
-| R Variable | Fortran Array | Description |
-|------------|---------------|-------------|
-| id | IDTREE | Tree identification number (may not be unique) |
-| species | ISP | FVS numeric species code |
-| tpa | PROB | Trees per acre (expansion factor) |
-| mort | WK2 | Trees per acre predicted to die |
-| dbh | DBH | Diameter breast height (inches) |
-| dg | DG | Diameter growth scaled to cycle length (inches) |
-| ht | HT | Height (feet) |
-| htg | HTG | Height growth scaled to cycle length (feet) |
-| crwdth | CRWDTH | Crown width (feet) |
-| cratio | ICR | Crown ratio (proportion of height in live crown) |
-| age | ABIRTH | Tree age |
-| plot | ITRE | FVS numeric plot index |
-| tcuft | CFV | Total cubic volume |
-| mcuft | MCFV | Merchantable cubic volume |
-| bdft | BFV | Board foot volume |
-| ptbalt | PTBALT | Point basal area in larger trees (sq ft/acre) |
-| bapctile | PCT | Percentile in the distribution of tree basal area |
-| defect | DEFECT | Defect coded as 11223344 |
-| mgmtcd | IMC | Tree value class or management code (1, 2, or 3) |
-| plotsize | PLTSIZE | Size of plot tree was sampled from |
-| crownwt0 | CROWNWT(0) | Weight of foliage (pounds) |
-| crownwt1 | CROWNWT(1) | Weight of 0-.25 inch crown material (pounds) |
-| crownwt2 | CROWNWT(2) | Weight of .25-1 inch crown material (pounds) |
-| crownwt3 | CROWNWT(3) | Weight of 1-3 inch crown material (pounds) |
-| crownwt4 | CROWNWT(4) | Weight of 3-6 inch crown material (pounds) |
-| crownwt5 | CROWNWT(5) | Weight of 6-12 inch crown material (pounds) |
-| special | ISPECL | Special values stored as ispecl |
-| scuft | SCFV | Sawlog cubic volume |
-| kutkod | KUTKOD | Flag designating tree status when a prescription thinning (ThinPrsc) is used |
-| wk6 | WK6 | Work array holding the proportion of each tree record to cut (see `fvsCutNow`) |
-| - | ITGL | Mortality flag (not accessible via rFVS) |
-| - | ISCT | Species change code (not accessible via rFVS) |
-| - | ISTATUS | Tree status code (not accessible via rFVS) |
-| - | HISTORY | Tree history code (not accessible via rFVS) |
-| - | DAMAGE1 | Primary damage code (not accessible via rFVS) |
-| - | SEVERITY1 | Primary damage severity (not accessible via rFVS) |
-| - | DAMAGE2 | Secondary damage code (not accessible via rFVS) |
-| - | SEVERITY2 | Secondary damage severity (not accessible via rFVS) |
-| - | DAMAGE3 | Tertiary damage code (not accessible via rFVS) |
-| - | SEVERITY3 | Tertiary damage severity (not accessible via rFVS) |
+**Returns.** data.frame with one column per attribute and one row per tree record; an empty data.frame when there are no records. An attribute is left out, without a warning, when its return code is not 0 (1 name not found, 2 ntrees greater than MAXTRE, 3 length differs from the current number of records, 4 invalid name length).
 
 **Example**
 
@@ -1175,6 +1265,17 @@ These functions modify data within FVS during simulation.
 | fvsSetSpeciesAttrs | Sets the values of species-specific data |
 | fvsSetTreeAttrs | Sets attributes of trees |
 
+The table lists, for the functions that write to FVS, the call chain, the arrays and variables that are written, and the R object types.
+
+| Function | R call, C wrapper and Fortran routine | Arrays and variables written | R input | R return |
+|---|---|---|---|---|
+| fvsAddActivity | `.Fortran` fvsAddActivity, then OPADD, OPNEW and OPINCR | OPCOM activity arrays: IACT(,1:5), IDATE, ISEQ, IOPSRT, PARMS; pointers IMPL and IMGL | year (integer), activity (code or name), parms (numeric, at most 20 values) | invisible 0 or 1; with no arguments, a named vector of activity codes |
+| fvsAddTrees | `.Fortran` fvsAddTrees | DBH, ISP, HT, ICR, ITRE, PROB, IMC, ABIRTH, IDTREE, CRWDTH (CWCALC); set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH, PHT; ZRAND set to -999; counters ITRN, IREC1, IFST; routines MISPUTZ, SPESRT, RDPSRT | data.frame with dbh, species, ht, cratio, plot, tpa (sent as six double vectors and a count) | invisible 0 or 1 |
+| fvsCutNow | R function: fvsAddActivity("base_thinprsc", c(1, -1)) and fvsSetTreeAttrs | OPCOM activity arrays (as fvsAddActivity), WK6 | numeric vector of proportions (length 1 or one per tree record) | return code (0 or nonzero) |
+| fvsSetEventMonitorVariables | `.C` CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr ("set") | TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5, ITST5 | named numeric vector | named numeric vector (`NA` where not set) |
+| fvsSetSpeciesAttrs | `.C` CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr ("set") | RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB (int), DBHMIN, TOPD, STMP, METHC (int), XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4) | named list of numeric vectors, each of length `maxspecies` | invisible integer (largest return code) |
+| fvsSetTreeAttrs | `.C` CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr ("set") | PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR (int), ISP (int), ABIRTH, ITRE (int), CFV, MCFV, SCFV, BFV, DEFECT (int), PTBALT, IMC (int), PLTSIZ (int), PCT (int), CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE (int), ISPECL (int), KUTKOD (int), WK6 | named list or data.frame of numeric vectors, each of length `ntrees` | invisible integer (largest return code) |
+
 #### fvsAddActivity
 
 **Description**
@@ -1199,7 +1300,13 @@ Invisibly returns 0 if the activity was added and 1 if there was an error. With 
 
 **Implementation**
 
-Calls Fortran subroutine `fvsAddActivity`, which copies the parameters and calls `OPADD` to post the activity to the activity schedule, then calls `OPINCR`.
+**Calls.** `.Fortran("fvsAddActivity", year, activity, parms, nparms, rtnCode)` calls Fortran subroutine fvsAddActivity (`apisubs.f`), which copies up to 20 parameters to real(4) values and calls OPADD. OPADD calls OPNEW to store the activity and, when the status is 0, OPINCR must be called afterward; fvsAddActivity calls it when OPADD succeeds. There is no C wrapper.
+
+**Arrays.** The activity schedule in common block OPCOM: OPNEW stores the activity code in IACT(,1), the parameter pointers in IACT(,2:3), the date in IDATE and the parameters in PARMS, and sets the sort pointer IOPSRT; OPADD sets the status IACT(,4) to 0 and the sequence number ISEQ. The pointers IMPL (next free parameter) and IMGL (next free activity row) are advanced.
+
+**Input.** The year as an integer; the activity as an integer code, or a name that R matches (ignoring case, and it must match one activity) against its built-in table of activity codes; the parameters as a numeric vector without `NA`.
+
+**Returns.** Invisible integer: 0 when the activity was added and 1 when it was not (the schedule arrays are full or the year is not above 0). With no arguments, a named numeric vector of all activity codes.
 
 **Example**
 
@@ -1236,7 +1343,13 @@ The rFVS help states that this function should be called only at stop point code
 
 **Implementation**
 
-Calls Fortran subroutine `fvsAddTrees`, which returns 1 if `ntrees` is 0 or the records do not fit. Otherwise, for each new record it sets `DBH`, `ISP`, `HT`, `ICR`, `ITRE` (plot) and `PROB`, computes the crown width (`CWCALC`), sets the management code `IMC` to 2, age (`ABIRTH`) to 5 and `IDTREE` to 10000000 plus the cycle times 10000 plus the record number, and sets growth, volume and other tree variables to zero. It then rebuilds the species and diameter sorts (`SPESRT`, `RDPSRT`).
+**Calls.** `.Fortran("fvsAddTrees", dbh, species, ht, cratio, plot, tpa, ntrees, rtnCode)` calls Fortran subroutine fvsAddTrees (`apisubs.f`), which calls CWCALC (crown width), MISPUTZ, SPESRT and RDPSRT. There is no C wrapper.
+
+**Arrays.** For each new record, the next position in the tree arrays is filled: DBH, ISP, HT, ICR, ITRE and PROB from the input; IMC is set to 2, ABIRTH to 5, IDTREE to 10000000 plus the cycle number times 10000 plus the record number, and CRWDTH from CWCALC. These arrays are set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH and PHT; ZRAND is set to -999. The counter ITRN is increased, IREC1 is set to ITRN, and IFST is set to 1 so that the example tree records are picked again.
+
+**Input.** data.frame with the required columns dbh, species, ht, cratio, plot and tpa, without `NA`. R sends the six columns as double vectors together with the number of rows.
+
+**Returns.** Invisible integer: 0 when the trees were added, and 1 when ntrees is 0 or the records do not fit in the tree arrays. R stops with an error before the call if a column is missing, a value is `NA`, a species or plot index is out of range, or there is no room.
 
 **Example**
 
@@ -1271,7 +1384,13 @@ Can only be used at stop point code 2 (just after the first Event Monitor call);
 
 **Implementation**
 
-R function. It adds the activity `base_thinprsc` (parameters 1 and -1) for the current year with `fvsAddActivity`, then writes `propcut` to the tree attribute `wk6` with `fvsSetTreeAttrs` (Fortran `fvsTreeAttr`, array `WK6`).
+**Calls.** R function. It checks that the restart code (fvsGetRestartcode) is 2, replicates a single proportion to every tree record, calls fvsAddActivity with the current year (from fvsGetEventMonitorVariables), the activity "base_thinprsc" and the parameters 1 and -1, and then calls fvsSetTreeAttrs with the attribute wk6.
+
+**Arrays.** The OPCOM activity arrays (as described for fvsAddActivity) and the tree array WK6, which holds the proportion of each tree record to cut. Subroutine CUTS reads WK6 when the ThinPrsc parameter KUTNOW is -1, and then reuses WK6 for the removed volume.
+
+**Input.** Numeric vector of proportions, of length 1 or one per tree record (ntrees from fvsGetDims).
+
+**Returns.** The nonzero return code from fvsAddActivity if the activity could not be added; otherwise the invisible return code from fvsSetTreeAttrs (0 when OK).
 
 **Example**
 
@@ -1305,7 +1424,22 @@ Predefined Event Monitor variables can be set, and new user-defined variables ar
 
 **Implementation**
 
-Calls Fortran subroutine `fvsEvmonAttr` (through the C entry `CfvsEvmonAttr`) once for each name, with action "set". Predefined variables are written to the arrays `TSTV1` through `TSTV4`. Other names are written to the user-defined variable arrays (`TSTV5`, with names in `CTSTV5`); a new name is added if there is room (`MXTST5`), otherwise the return code is 1.
+**Calls.** For each name, `.C("CfvsEvmonAttr", name, nch, "set", value, rtnCode)` is called with the name converted to lower case. CfvsEvmonAttr (`apisubsc.c`) calls Fortran routine fvsEvmonAttrC, which calls fvsEvmonAttr (`apisubs.f`) with action "set".
+
+**Arrays.** Predefined variables are written to the arrays below, by group (the index is the position within the array); setting a group 4 variable also sets the flag LTSTV4 for the index. A name that is not predefined is matched in upper case against CTSTV5: if found, TSTV5 is updated and LTSTV5 is set; if not found and the table is not full (ITST5 below MXTST5 = 399), the name is added to CTSTV5, ITST5 is increased, and TSTV5 and LTSTV5 are set; otherwise the return code is 1.
+
+| Array | Variable names (index) |
+|---|---|
+| TSTV1 | year (1), age (2), btpa (3), btcuft (4), bmcuft (5), bbdft (6), bba (7), bccf (8), btopht (9), badbh (10), yes (11), no (12), cycle (13), numtrees (14), bsdimax (15), bsdi (16), brden (17), brden2 (18), bhtwtba (19), bscuft (20), habtype (26), slope (27), aspect (28), elev (29), sampwt (30), invyear (31), cendyear (32), evphase (33), smr (34), site (35), cut (36), lat (37), long (38), state (39), county (40), fortyp (41), sizcls (42), stkcls (43), propstk (44), mai (45), agecmp (46), bdbhwtba (47), silvahft (48), fisherin (49), bsdi2 (50), babvbio (51), bmerbio (52), bsawbio (53), bfolbio (54), babvcrb (55), bmercrb (56), bsawcrb (57), bfolcrb (58) |
+| TSTV2 | atpa (1), atcuft (2), amcuft (3), abdft (4), aba (5), accf (6), atopht (7), aadbh (8), rtpa (9), rtcuft (10), rmcuft (11), rbdft (12), asdimax (13), asdi (14), arden (15), adbhwtba (16), arden2 (17), asdi2 (18), ahtwtba (19), ascuft (20), rscuft (21), aabvbio (22), rabvbio (23), amerbio (24), rmerbio (25), asawbio (26), rsawbio (27), aabvcrb (28), rabvcrb (29), amercrb (30), rmercrb (31), asawcrb (32), rsawcrb (33), afolbio (34), rfolbio (35), afolcrb (36), rfolcrb (37) |
+| TSTV3 | acc (1), mort (2), pai (3), dtpa (5), dba (7), dccf (9) |
+| TSTV4 | mpbtpak (4), mpbprob (6), bsclass (16), asclass (17), bstrdbh (18), astrdbh (19), fire (20), minsoil (21), crownidx (22), fireyear (23), bcancov (24), acancov (25), crbaseht (26), torchidx (27), crbulkdn (28), disccost (30), discrevn (31), forstval (32), harvcost (33), harvrevn (34), irr (35), pctcost (36), pnv (37), rprodval (38), sev (39), bmaxhs (40), amaxhs (41), bminhs (42), aminhs (43), bnumss (44), anumss (45), discrate (46), undiscst (47), undisrvn (48), eccuft (49), ecbdft (50) (valid when LTSTV4 is set) |
+| FLIVE | shrubwt (1), herbwt (2) |
+| TSTV5, CTSTV5, LTSTV5 | any other name (matched in upper case against CTSTV5; at most MXTST5 = 399 names) |
+
+**Input.** Named numeric vector; each value is passed as a double.
+
+**Returns.** Named numeric vector with the input names. Each element is the value that was passed, or `NA` when the return code is not 0 (1 means the user-defined table is full, and 4 means the name length is invalid).
 
 **Example**
 
@@ -1339,7 +1473,39 @@ Invisibly returns 0 if all attributes were set, or the largest return code from 
 
 **Implementation**
 
-Calls Fortran subroutine `fvsSpeciesAttr` (through the C entry `CfvsSpeciesAttr`) once for each attribute, with action "set", and writes the vector to the corresponding species array. The attributes `bfmeth` and `mcmeth` are truncated to integers.
+**Calls.** For each name in the list, `.C("CfvsSpeciesAttr", name, nch, "set", values, rtnCode)` is called. CfvsSpeciesAttr (`apisubsc.c`) calls Fortran routine fvsSpeciesAttrC, which calls fvsSpeciesAttr (`apisubs.f`) with action "set".
+
+**Arrays.** Each attribute writes one array with one element per species (length MAXSP):
+
+| Attribute | Array | Stored as |
+|---|---|---|
+| spccf | RELDSP | real(4) |
+| spsiteindx | SITEAR | real(4) |
+| spsdi | SDIDEF | real(4) |
+| bfmind | BFMIND | real(4) |
+| bftopd | BFTOPD | real(4) |
+| bfstmp | BFSTMP | real(4) |
+| frmcls | FRMCLS | real(4) |
+| bfmeth | METHB | integer (truncated with int) |
+| mcmind | DBHMIN | real(4) |
+| mctopd | TOPD | real(4) |
+| mcstmp | STMP | real(4) |
+| mcmeth | METHC | integer (truncated with int) |
+| baimult | XDMULT | real(4) |
+| htgmult | XHMULT | real(4) |
+| mortmult | XMMULT | real(4) |
+| mortdia1 | XMDIA1 | real(4) |
+| mortdia2 | XMDIA2 | real(4) |
+| regdmult | XRDMLT | real(4) |
+| reghmult | XRHMLT | real(4) |
+| maxdbh | SIZCAP(,1) | real(4) |
+| minmort | SIZCAP(,2) | real(4) |
+| maxdbhcd | SIZCAP(,3) | real(4) |
+| maxht | SIZCAP(,4) | real(4) |
+
+**Input.** Named list of numeric vectors, each of length `maxspecies` (from fvsGetDims) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
+
+**Returns.** Invisible integer: 0, or the largest return code from FVS (1 name not found, 4 invalid name length). A vector skipped by R does not change the return code.
 
 **Example**
 
@@ -1377,11 +1543,46 @@ Uses same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,actio
 
 **Implementation**
 
-Calls Fortran subroutine FVSTREEATTR with "set" action parameter, updates specified tree attribute arrays with values from R data structures.
+**Calls.** For each name in the list, `.C("CfvsTreeAttr", name, nch, "set", ntrees, values, rtnCode)` is called. CfvsTreeAttr (`apisubsc.c`) calls Fortran routine fvsTreeAttrC, which calls fvsTreeAttr (`apisubs.f`) with action "set".
 
-Writes each vector to the array that corresponds to the attribute name (see the tree attributes table). Integer attributes (`species`, `plot`, `cratio`, `mgmtcd`, `plotsize`, `bapctile`, `id`, `special`, `kutkod`, `defect`) are truncated to integers. No range checking is done.
+**Arrays.** Each attribute writes one array for the current number of tree records (IREC1 during initialization, otherwise ITRN):
 
-Overwrites existing values in specific tree attribute arrays, modified values used in subsequent growth calculations, volume computations, and mortality processing without additional validation or constraint checking.
+| Attribute | Array | Stored as |
+|---|---|---|
+| tpa | PROB | real(4) |
+| mort | WK2 | real(4) |
+| dbh | DBH | real(4) |
+| dg | DG | real(4) |
+| ht | HT | real(4) |
+| htg | HTG | real(4) |
+| crwdth | CRWDTH | real(4) |
+| cratio | ICR | integer (truncated with int) |
+| species | ISP | integer (truncated with int) |
+| age | ABIRTH | real(4) |
+| plot | ITRE | integer (truncated with int) |
+| tcuft | CFV | real(4) |
+| mcuft | MCFV | real(4) |
+| scuft | SCFV | real(4) |
+| bdft | BFV | real(4) |
+| defect | DEFECT | integer (ifix) |
+| ptbalt | PTBALT | real(4) |
+| mgmtcd | IMC | integer (truncated with int) |
+| plotsize | PLTSIZ | integer (truncated with int) |
+| bapctile | PCT | integer (truncated with int) |
+| crownwt0 | CROWNW(,0) | real(4) |
+| crownwt1 | CROWNW(,1) | real(4) |
+| crownwt2 | CROWNW(,2) | real(4) |
+| crownwt3 | CROWNW(,3) | real(4) |
+| crownwt4 | CROWNW(,4) | real(4) |
+| crownwt5 | CROWNW(,5) | real(4) |
+| id | IDTREE | integer (truncated with int) |
+| special | ISPECL | integer (truncated with int) |
+| kutkod | KUTKOD | integer (truncated with int) |
+| wk6 | WK6 | real(4) |
+
+**Input.** Named list (or data.frame) of numeric vectors, each of length ntrees (from fvsGetDims) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
+
+**Returns.** Invisible integer: 0, or the largest return code from FVS (1 name not found, 2 ntrees greater than MAXTRE, 3 length differs from the current number of records, 4 invalid name length). A vector skipped by R does not change the return code.
 
 **Example**
 
