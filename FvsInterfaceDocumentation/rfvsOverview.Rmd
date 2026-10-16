@@ -55,16 +55,14 @@ rfvs.exec.funcs=dplyr::tribble(
 
 rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a dynamic load library (.dll on Windows, .dylib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time access to and modification of FVS predictions during simulation runs.
 
-This document assumes familiarity with R, growth and yield modeling concepts, and FVS operations. For additional information about FVS, refer to [Essential FVS](https://www.fs.usda.gov/sites/default/files/forest-management/essential-fvs.pdf) (Dixon 2002).
-
-## Purpose
-
 rFVS serves as a bridge between FVS's forest growth and yield simulation capabilities and R's statistical computing environment. The system is part of the ForestVegetationSimulator-Interface GitHub repository, which provides R and Shiny interfaces for the USFS Forest Vegetation Simulator. The primary purposes include:
 
 - **Model Integration**: Incorporating external R-based growth and yield models into FVS simulations
 - **Custom Analytics**: Leveraging R's statistical and program integration capabilities within FVS workflows
 - **Research and development**: Enabling experimental modifications to FVS behavior for research and development purposes
 - **FVSOnline Interface Support**: Providing the underlying R functionality for FVSOnline, the Shiny-based FVS interface
+
+Following is a brief overview of rFVS and examples of use cases. This document assumes familiarity with R, growth and yield modeling concepts and FVS operations. For additional information about FVS, refer to [Essential FVS](https://www.fs.usda.gov/sites/default/files/forest-management/essential-fvs.pdf) (Dixon 2002).
 
 ## History
 
@@ -75,9 +73,9 @@ The rFVS system is currently housed in a GitHub repository maintained by the USD
 ## Use cases and applications
 
 ### Regional model integration
-The advantages of using FVS integration rather than creating a novel growth and yield framework include:
+The advantages of using FVS integration rather than creating a standalone growth and yield framework include:
 - Selectively substituting regional growth model calculations for FVS calculations
-- Maintaining FVS management capabilities while using specialized growth predictions
+- Maintaining FVS management capabilities while using regional or context specific growth and mortality predictions
 - Leveraging existing FVS growth and mortality infrastructure during model development
 - Providing users with a well-known and supported modeling platform
 
@@ -90,7 +88,7 @@ Using the rFVS framework researchers can test new equations and tools, such as
 
 
 ### FVSOnline integration
-
+Since the retirement of the FVS Suppose interface, FVSOnline has been the primary way for users to interact with FVS via a graphic user interface. 
 - Users interact with FVS via the R Shiny framework
 - The underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results
 
@@ -129,7 +127,7 @@ During the projection cycling phase, subroutine FVS calls subroutines to estimat
 
 ## Start-stop logic
 
-rFVS leverages the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
+rFVS uses the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
 
 FVS can run from beginning to end without stopping, or stop at specified points, return control to R, and then continue (USDAForestService 2025b).
 
