@@ -379,6 +379,28 @@ if (nrow(results) > 0) {
 
 rFVS functions are organized into three basic groups based on their primary purpose: FVS execution, getting information from FVS, and sending information to FVS.
 
+### R function interaction with FVS
+
+The Get and Set functions reach FVS data through two source files in the `base` folder of the FVS repository: `apisubs.f` and `apisubsc.c`.
+
+`apisubs.f` is a collection of Fortran routines that provide an interface to the shared library version of FVS. It was created in 2011, and routines were added in 2019 so that C functions can pass character strings to Fortran. It contains 15 routines: fvsDimSizes, fvsSummary, fvsTreeAttr, fvsSpeciesAttr, fvsEvmonAttr, fvsAddTrees, fvsSpeciesCode, fvsCutTrees (not implemented; returns 1), fvsStandID, fvsCloseFile, fvsAddActivity, fvsSVSDimSizes, fvsSVSObjData, fvsFFEAttrs and fvsUnitConversion. Each is exported by name from the library.
+
+Nine of these routines take character arguments and have a second, C-callable version whose name ends in an upper-case C (for example fvsTreeAttrC). The C-callable version is declared with `bind(c)` and receives each character argument as an array of single characters. It copies the characters into a Fortran string, sets `action` to "set" if the first character is "s" (otherwise "get"), and calls the routine without the C suffix. These versions are compiled only when the compiler flag CMPgcc is defined.
+
+`apisubsc.c` contains the C functions that R calls with the `.C` interface: CfvsSetCmdLine, CfvsTreeAttr, CfvsSpeciesAttr, CfvsEvmonAttr, CfvsSpeciesCode, CfvsStandID, CfvsUnitConversion, CfvsCloseFile, CfvsSVSObjData and CfvsFFEAttrs. Each receives its character arguments as `char **` (the way `.C` passes strings), dereferences them, and calls the matching Fortran routine ending in C (fvsSetCmdLineC is in `cmdline.f`). They are also compiled only when CMPgcc is defined.
+
+Routines with numeric arguments only are called directly with `.Fortran`: fvsDimSizes, fvsSummary, fvsSVSDimSizes, fvsAddActivity and fvsAddTrees (`apisubs.f`), fvs (`fvs.f`), and fvsGetRestartCode and fvsSetStoppointCodes (`cmdline.f`).
+
+| Layer | Where | Role |
+|---|---|---|
+| R function | rFVS package | Checks arguments, calls `.C` or `.Fortran`, builds the R object that is returned |
+| C wrapper | `apisubsc.c` | Dereferences the character arguments |
+| C-callable Fortran routine | `apisubs.f`, `cmdline.f` | Copies characters into a Fortran string |
+| Fortran routine | `apisubs.f` | Selects the array by name and reads or writes it |
+| FVS arrays | COMMON blocks | Tree, species, event monitor, summary and SVS data |
+
+Numeric vectors from R are passed as double precision (`real(8)`). The attribute routines (fvsTreeAttr, fvsSpeciesAttr, fvsEvmonAttr, fvsSVSObjData and fvsFFEAttrs) use one double vector argument, `attr`, in both directions. When setting, each value is stored as a `real(4)` or truncated to an integer, depending on the array. Attribute names are passed with their length (`nch`); for tree and species attributes a length of 0 or more than 10 returns code 4. Each routine returns an integer code in `rtnCode`, which R turns into `NA`, a warning or an invisible return value, depending on the function.
+
 ### FVS execution functions
 
 These functions control the loading and execution of FVS simulations.
