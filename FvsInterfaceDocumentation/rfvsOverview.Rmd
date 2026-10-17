@@ -278,7 +278,7 @@ FVS can run from beginning to end without stopping, or stop at specified points 
 When running as a shared library (the rFVS case), all essential projection state is maintained in COMMON block memory within the loaded library. FVS returns up the call stack to R without writing anything to disk, and the caller is free to use the FVS API to read or modify variables before calling FVS to continue. 
 
 
-![FVS Stop Points](FVS%20stop-points.png)
+![FVS Stop Points](Figs/FVS%20stop-points.png)
 
 *Figure 1: FVS processing sequence showing available stop points for rFVS interaction*
 
@@ -443,7 +443,7 @@ When the run is started with "Wait for run", fvsOL does the following:
 
 `r fvsol.fg.funcs`
 
-![FVSOnline foreground run](FVSOnline-foreground-run.png)
+![FVSOnline foreground run](Figs/FVSOnline-foreground-run.png)
 
 *Figure 2: Sequence of calls in an FVSOnline foreground run. The shaded lane is the child R session where rFVS is loaded.*
 
