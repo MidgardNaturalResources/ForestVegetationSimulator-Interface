@@ -102,7 +102,7 @@ rfvs.get.funcs=dplyr::tribble(
  "fvsGetRestartcode", "Gets the current FVS restart code",
  "fvsGetSpeciesAttrs", "Returns the values of species-specific data",
  "fvsGetStandIDs", "Returns stand identification codes",
- "fvsGetSummary", "Returns a data frame of the summary statistics",
+ "fvsGetSummary", "Returns a dataframe of the summary statistics",
  "fvsGetSVSDims", "Returns the max dimensions of important Stand Visualization System data storage",
  "fvsGetSVSObjectSet", "Returns the Stand Visualization System objects (trees, snags, coarse woody debris)",
  "fvsGetTreeAttrs", "Gets attributes of trees",
@@ -119,12 +119,12 @@ rfvs.get.overview=dplyr::tribble(
  "fvsGetDims", ".Fortran fvsDimSizes", "IREC1 or ITRN, NCYC, IPTINV, MAXTRE, MAXSP, MAXPLT, MAXCYC", "none", "named numeric vector (7)",
  "fvsGetEventMonitorVariables", ".C CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr (\"get\")", "TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5", "character vector of names", "named numeric vector (NA if undefined or not found)",
  "fvsGetRestartcode", ".Fortran fvsGetRestartCode (cmdline.f)", "restartcode and fvsRtnCode (GLBLCNTL)", "none", "integer",
- "fvsGetSpeciesAttrs", ".C CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr (\"get\")", "RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB, DBHMIN, TOPD, STMP, METHC, XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4)", "character vector of attribute names", "data.frame (rows = species)",
+ "fvsGetSpeciesAttrs", ".C CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr (\"get\")", "RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB, DBHMIN, TOPD, STMP, METHC, XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4)", "character vector of attribute names", "dataframe (rows = species)",
  "fvsGetStandIDs", ".C CfvsStandID, fvsStandIDC", "NPLT, DBCN, MGMID, CASEID", "none", "named list of four character strings",
  "fvsGetSummary", ".Fortran fvsSummary, once per cycle row", "IOSUM(22, MAXCY1) (OUTCOM)", "none", "numeric matrix (20 named columns)",
  "fvsGetSVSDims", ".Fortran fvsSVSDimSizes", "NSVOBJ, NDEAD, NCWD, MXSVOB, MXDEAD, MXCWD", "none", "named numeric vector (6)",
- "fvsGetSVSObjectSet", ".C CfvsSVSObjData, fvsSVSObjDataC, fvsSVSObjData; .C CfvsFFEAttrs, fvsFFEAttrsC, fvsFFEAttrs; also fvsGetTreeAttrs and fvsGetSpeciesCodes", "IOBJTP, IS2F, XSLOC, YSLOC, SNGDIA, SNGLEN, IYRCOD, ISNSP, FALLDIR, ISTATUS, SNGCNWT(,0), SNGCNWT(,1), SNGCNWT(,2), SNGCNWT(,3), CWDDIA, CWDLEN, CWDPIL, CWDDIR, CWDWT, TFALL(1:MAXSP,0), TFALL(1:MAXSP,1), TFALL(1:MAXSP,2), TFALL(1:MAXSP,3)", "none", "list of three data.frames (trees, snags, cwd)",
- "fvsGetTreeAttrs", ".C CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr (\"get\")", "PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR, ISP, ABIRTH, ITRE, CFV, MCFV, SCFV, BFV, DEFECT, PTBALT, IMC, PLTSIZ, PCT, CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE, ISPECL, KUTKOD, WK6", "character vector of attribute names", "data.frame (rows = tree records)") %>% 
+ "fvsGetSVSObjectSet", ".C CfvsSVSObjData, fvsSVSObjDataC, fvsSVSObjData; .C CfvsFFEAttrs, fvsFFEAttrsC, fvsFFEAttrs; also fvsGetTreeAttrs and fvsGetSpeciesCodes", "IOBJTP, IS2F, XSLOC, YSLOC, SNGDIA, SNGLEN, IYRCOD, ISNSP, FALLDIR, ISTATUS, SNGCNWT(,0), SNGCNWT(,1), SNGCNWT(,2), SNGCNWT(,3), CWDDIA, CWDLEN, CWDPIL, CWDDIR, CWDWT, TFALL(1:MAXSP,0), TFALL(1:MAXSP,1), TFALL(1:MAXSP,2), TFALL(1:MAXSP,3)", "none", "list of three dataframes (trees, snags, cwd)",
+ "fvsGetTreeAttrs", ".C CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr (\"get\")", "PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR, ISP, ABIRTH, ITRE, CFV, MCFV, SCFV, BFV, DEFECT, PTBALT, IMC, PLTSIZ, PCT, CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE, ISPECL, KUTKOD, WK6", "character vector of attribute names", "dataframe (rows = tree records)") %>% 
   flextable() %>% 
   set_caption(caption = 'Get functions: calls, arrays and returns',
               style = 'Table Caption',
@@ -150,11 +150,11 @@ rfvs.set.funcs=dplyr::tribble(
 rfvs.set.overview=dplyr::tribble(
  ~`Function`, ~`R call, C wrapper and Fortran routine`, ~`Arrays and variables written`, ~`R input`, ~`R return`,
  "fvsAddActivity", ".Fortran fvsAddActivity, then OPADD, OPNEW and OPINCR", "OPCOM activity arrays: IACT(,1:5), IDATE, ISEQ, IOPSRT, PARMS; pointers IMPL and IMGL", "year (integer), activity (code or name), parms (numeric, at most 20 values)", "invisible 0 or 1; with no arguments, a named vector of activity codes",
- "fvsAddTrees", ".Fortran fvsAddTrees", "DBH, ISP, HT, ICR, ITRE, PROB, IMC, ABIRTH, IDTREE, CRWDTH (CWCALC); set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH, PHT; ZRAND set to -999; counters ITRN, IREC1, IFST; routines MISPUTZ, SPESRT, RDPSRT", "data.frame with dbh, species, ht, cratio, plot, tpa (sent as six double vectors and a count)", "invisible 0 or 1",
+ "fvsAddTrees", ".Fortran fvsAddTrees", "DBH, ISP, HT, ICR, ITRE, PROB, IMC, ABIRTH, IDTREE, CRWDTH (CWCALC); set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH, PHT; ZRAND set to -999; counters ITRN, IREC1, IFST; routines MISPUTZ, SPESRT, RDPSRT", "dataframe with dbh, species, ht, cratio, plot, tpa (sent as six double vectors and a count)", "invisible 0 or 1",
  "fvsCutNow", "R function: fvsAddActivity(\"base_thinprsc\", c(1, -1)) and fvsSetTreeAttrs", "OPCOM activity arrays (as fvsAddActivity), WK6", "numeric vector of proportions (length 1 or one per tree record)", "return code (0 or nonzero)",
  "fvsSetEventMonitorVariables", ".C CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr (\"set\")", "TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5, ITST5", "named numeric vector", "named numeric vector (NA where not set)",
  "fvsSetSpeciesAttrs", ".C CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr (\"set\")", "RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB (int), DBHMIN, TOPD, STMP, METHC (int), XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4)", "named list of numeric vectors, each of length maxspecies", "invisible integer (largest return code)",
- "fvsSetTreeAttrs", ".C CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr (\"set\")", "PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR (int), ISP (int), ABIRTH, ITRE (int), CFV, MCFV, SCFV, BFV, DEFECT (int), PTBALT, IMC (int), PLTSIZ (int), PCT (int), CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE (int), ISPECL (int), KUTKOD (int), WK6", "named list or data.frame of numeric vectors, each of length ntrees", "invisible integer (largest return code)") %>% 
+ "fvsSetTreeAttrs", ".C CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr (\"set\")", "PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR (int), ISP (int), ABIRTH, ITRE (int), CFV, MCFV, SCFV, BFV, DEFECT (int), PTBALT, IMC (int), PLTSIZ (int), PCT (int), CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE (int), ISPECL (int), KUTKOD (int), WK6", "named list or dataframe of numeric vectors, each of length ntrees", "invisible integer (largest return code)") %>% 
   flextable() %>% 
   set_caption(caption = 'Set functions: calls, arrays and returns',
               style = 'Table Caption',
@@ -209,10 +209,10 @@ rFVS is a package of R-language functions that provides interaction between the 
 
 rFVS serves as a bridge between FVS's forest growth and yield simulation capabilities and R's statistical computing environment. The system is part of the ForestVegetationSimulator-Interface GitHub repository, which provides R and Shiny interfaces for the USFS Forest Vegetation Simulator. The primary purposes include:
 
-- **Model Integration**: Incorporating external R-based growth and yield models into FVS simulations
-- **Custom Analytics**: Leveraging R's statistical and program integration capabilities within FVS workflows
+- **Model integration**: Incorporating external R-based growth and yield models into FVS simulations
+- **Custom analytics**: Leveraging R's statistical and program integration capabilities within FVS workflows
 - **Research and development**: Enabling experimental modifications to FVS behavior for research and development purposes
-- **FVSOnline Interface Support**: Providing the underlying R functionality for FVSOnline, the Shiny-based FVS interface
+- **FVSOnline interface support**: Providing the underlying R functionality for FVSOnline, the Shiny-based FVS interface
 
 Following is a brief overview of rFVS and examples of use cases. This document assumes familiarity with R, growth and yield modeling concepts and FVS operations. For additional information about FVS, refer to [Essential FVS](https://www.fs.usda.gov/sites/default/files/forest-management/essential-fvs.pdf) (Dixon 2002).
 
@@ -373,11 +373,11 @@ This is the primary stop point for replacing or modifying FVS growth and mortali
 
 *Invoked from:* subroutine GRADD, after subroutine UPDATE has applied growth and mortality increments and recomputed stand statistics, and before subroutine ESNUTR calls ESTAB to run the regeneration establishment model.
 
-At this stop point DBH(*i*) and HT(*i*) reflect end of cycle values with growth applied, and PROB(*i*) has been reduced by mortality. Volumes (CFV, MCFV, BFV) are recomputed by UPDATE via VOLS, which is called after HT and PROB are updated and before DBH is advanced by DG. Tree ages (age, stored in ABIRTH) have already been increased by the cycle length, so age is an end-of-cycle value here; at stop points 1 through 5 it has not yet been increased for the current cycle. The tree records have been re-sorted by diameter (RDPSRT) and the stand density statistics (basal area, CCF, PCT) recomputed by DENSE. The insect, fire and disease adjustments were applied before stop point 5 (see stop point 5). Not yet done: regeneration (CLAUESTB, then ESNUTR, which runs ESTAB and appends the new regeneration records to the tree list), crown ratio change (CROWN) and the update of crown widths. After ESTAB, GRADD updates the SVS visualization, calculates economic values (ECCALC) and recomputes stand density (DENSE) before CROWN.
+At this stop point DBH(*i*) and HT(*i*) reflect end of cycle values with growth applied, and PROB(*i*) has been reduced by mortality. Volumes (CFV, MCFV, BFV) are recomputed by UPDATE via VOLS, which is called after HT and PROB are updated and before DBH is advanced by DG. Tree ages (age, stored in ABIRTH) have already been increased by the cycle length, so age is an end of cycle value here; at stop points 1 through 5 it has not yet been increased for the current cycle. The tree records have been re-sorted by diameter (RDPSRT) and the stand density statistics (basal area, CCF, PCT) recomputed by DENSE. The insect, fire and disease adjustments were applied before stop point 5 (see stop point 5). Not yet done: regeneration (CLAUESTB, then ESNUTR, which runs ESTAB and appends the new regeneration records to the tree list), crown ratio change (CROWN) and the update of crown widths. After ESTAB, GRADD updates the SVS visualization, calculates economic values (ECCALC) and recomputes stand density (DENSE) before CROWN.
 
 Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before ESTAB runs; modifying post-growth tree attributes or volumes; inspecting end of cycle stand conditions before regeneration is added. The Acadian integration uses this stop point to add ingrowth records and optionally override volume estimates.
 
-*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dbh, ht and tpa reflect end-of-cycle values; volumes are the values computed in UPDATE). fvsGetDims. fvsGetSummary (rows up to the start of the current cycle; the end-of-cycle row is written after the cycle completes). fvsGetEventMonitorVariables.
+*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dbh, ht and tpa reflect end of cycle values; volumes are the values computed in UPDATE). fvsGetDims. fvsGetSummary (rows up to the start of the current cycle; the end of cycle row is written after the cycle completes). fvsGetEventMonitorVariables.
 
 *rFVS Set calls:* fvsAddTrees (add ingrowth records before ESTAB runs). fvsSetTreeAttrs (volumes via tcuft/mcuft/bdft can be overridden here; tpa, dbh, ht). fvsSetEventMonitorVariables.
 
@@ -514,10 +514,10 @@ fvsRun(5, 2060)
 # Get tree data
 trees = fvsGetTreeAttrs(tree.attrs)
 
-# Modify mortality- increase by 25%
+# Modify mortality increase by 25%
 trees$mort = trees$mort*1.25
 
-# Modify height growth- decrease by 10%
+# Modify height growth decrease by 10%
 trees$htg = trees$htg * 0.9
 
 # Apply modifications
@@ -672,7 +672,7 @@ fvsMakeKeyFile(keyFileName = NULL, runTitle = NULL, standIDs = NULL, inDataBase 
 - `inDataBase` - Input database name; if `NULL`, the input database keywords are omitted
 - `outDataBase` - Output database name; if `NULL`, the output database keywords are omitted
 - `ncycles` - Number of FVS cycles
-- `moreKeywords` - Keywords added to every stand: either a character vector of formatted keyword records, or a data.frame whose first column is the keyword and whose other columns are the keyword fields
+- `moreKeywords` - Keywords added to every stand: either a character vector of formatted keyword records, or a dataframe whose first column is the keyword and whose other columns are the keyword fields
 
 **Value**
 
@@ -884,9 +884,9 @@ fvsUnitConversion(name)
 
 **Arguments**
 
-- name - Character string (case sensitive) name of desired conversion factor
+- `name` - Character string (case sensitive) name of desired conversion factor
 
-**Available Conversion Factors**
+**Available conversion factors**
 
 CMtoIN, CMtoFT, MtoIN, MtoFT, KMtoMI, M2toFT2, HAtoACR, M3toFT3, KGtoLB, TMtoTI, CtoF1, CtoF2, INtoCM, FTtoCM, INtoM, FTtoM, MItoKM, FT2toM2, ACRtoHA, FT3toM3, LBtoKG, TItoTM, FtoC1, FtoC2, BTUtoKJ, M2pHAtoFT2pACR, M3pHAtoFT3pACR, FT2pACRtoM2pHA, FT3pACRtoM3pHA
 
@@ -1193,7 +1193,7 @@ fvsGetSpeciesAttrs(vars)
 
 - `vars` - Character vector of species attribute names
 
-**Available Species Attributes**
+**Available species attributes**
 
 | Attribute | Description |
 |-----------|-------------|
@@ -1265,7 +1265,7 @@ fvsGetSpeciesAttrs() calls the underlying FVS function fvsSpeciesAttr(name,nch,a
 
 **Input.** Character vector of attribute names. A double vector of length `maxspecies` is passed as the buffer for each name.
 
-**Returns.** data.frame with one column per attribute and one row per species. An attribute is left out, without a warning, when its return code is not 0 (1 means the name is not found and 4 means the name length is invalid).
+**Returns.** dataframe with one column per attribute and one row per species. An attribute is left out, without a warning, when its return code is not 0 (1 means the name is not found and 4 means the name length is invalid).
 
 **Example**
 
@@ -1391,7 +1391,7 @@ fvsGetSVSObjectSet()
 
 **Value**
 
-A list with elements `trees`, `snags` and `cwd`, each a data.frame, or `NULL` when there are no objects of that type (for example, when the run did not use SVS). Each has `xloc` and `yloc` columns.
+A list with elements `trees`, `snags` and `cwd`, each a dataframe, or `NULL` when there are no objects of that type (for example, when the run did not use SVS). Each has `xloc` and `yloc` columns.
 
 - `trees`: `species` (Plants code), `dbh`, `ht`, `crwdth`, `cratio`, `crownwt0` to `crownwt3`
 - `snags`: `snagspp` (Plants code), `snagdbh`, `snaglen`, `snagfdir`, `snagstat`, `snagyear`, `snagwt0` to `snagwt3`
@@ -1437,12 +1437,12 @@ Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The
 
 **Input.** None.
 
-**Returns.** List with elements trees, snags and cwd. Each is a data.frame with the columns xloc and yloc followed by the attributes, or `NULL` when there are no objects of that type. Attributes with a return code other than 0 are left out.
+**Returns.** List with elements trees, snags and cwd. Each is a dataframe with the columns xloc and yloc followed by the attributes, or `NULL` when there are no objects of that type. Attributes with a return code other than 0 are left out.
 
 **Example**
 
 ```{r Ex_fvsGetSVSObjectSet, echo=TRUE, eval=FALSE}
-fvsGetSVSObjectSet() # return list of empty data frames until a run is made using SVS.
+fvsGetSVSObjectSet() # return list of empty dataframes until a run is made using SVS.
 ```
 
 #### fvsGetTreeAttrs
@@ -1476,14 +1476,14 @@ The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode),
 
 **Input.** Character vector of attribute names. A double vector of length ntrees (from fvsGetDims) is passed as the buffer for each name.
 
-**Returns.** data.frame with one column per attribute and one row per tree record; an empty data.frame when there are no records. An attribute is left out, without a warning, when its return code is not 0 (1 name not found, 2 ntrees greater than MAXTRE, 3 length differs from the current number of records, 4 invalid name length).
+**Returns.** dataframe with one column per attribute and one row per tree record; an empty dataframe when there are no records. An attribute is left out, without a warning, when its return code is not 0 (1 name not found, 2 ntrees greater than MAXTRE, 3 length differs from the current number of records, 4 invalid name length).
 
 **Example**
 
 ```{r Ex_fvsGetTreeAttrs, echo=TRUE, eval=FALSE}
 #edit fvsLoad to reflect where FVSbin is stored on your system.
 fvsLoad(bin="FVSbin",fvsProgram="FVSie")
-fvsGetTreeAttrs(vars=c("dbh","ht","tpa")) # return an empty data frame until a run is made.
+fvsGetTreeAttrs(vars=c("dbh","ht","tpa")) # return an empty dataframe until a run is made.
 ```
 
 #### fvsSetupSummary
@@ -1582,7 +1582,7 @@ fvsAddTrees(newtrees)
 
 **Arguments**
 
-- `newtrees` - A data.frame of new trees with these required columns and no missing values: `dbh` (inches), `species` (FVS species index, an integer from 1 to `maxspecies`; use `fvsGetSpeciesCodes` to list the codes), `ht` (feet), `cratio` (percent), `plot` (plot index from 1 to `nplots`), `tpa` (trees per acre).
+- `newtrees` - A dataframe of new trees with these required columns and no missing values: `dbh` (inches), `species` (FVS species index, an integer from 1 to `maxspecies`; use `fvsGetSpeciesCodes` to list the codes), `ht` (feet), `cratio` (percent), `plot` (plot index from 1 to `nplots`), `tpa` (trees per acre).
 
 **Value**
 
@@ -1598,7 +1598,7 @@ The rFVS help states that this function should be called only at stop point code
 
 **Arrays.** For each new record, the next position in the tree arrays is filled: DBH, ISP, HT, ICR, ITRE and PROB from the input; IMC is set to 2, ABIRTH to 5, IDTREE to 10000000 plus the cycle number times 10000 plus the record number and CRWDTH from CWCALC. These arrays are set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH and PHT; ZRAND is set to -999. The counter ITRN is increased, IREC1 is set to ITRN and IFST is set to 1 so that the example tree records are picked again.
 
-**Input.** data.frame with the required columns dbh, species, ht, cratio, plot and tpa, without `NA`. R sends the six columns as double vectors together with the number of rows.
+**Input.** dataframe with the required columns dbh, species, ht, cratio, plot and tpa, without `NA`. R sends the six columns as double vectors together with the number of rows.
 
 **Returns.** Invisible integer: 0 when the trees were added, and 1 when ntrees is 0 or the records do not fit in the tree arrays. R stops with an error before the call if a column is missing, a value is `NA`, a species or plot index is out of range or there is no room.
 
@@ -1831,7 +1831,7 @@ Uses the same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,a
 | kutkod | KUTKOD | integer (truncated with int) |
 | wk6 | WK6 | real(4) |
 
-**Input.** Named list (or data.frame) of numeric vectors, each of length ntrees (from fvsGetDims) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
+**Input.** Named list (or dataframe) of numeric vectors, each of length ntrees (from fvsGetDims) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
 
 **Returns.** Invisible integer: 0, or the largest return code from FVS (1 name not found, 2 ntrees greater than MAXTRE, 3 length differs from the current number of records, 4 invalid name length). A vector skipped by R does not change the return code.
 
