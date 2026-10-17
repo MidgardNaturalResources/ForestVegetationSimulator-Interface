@@ -1715,7 +1715,9 @@ When the run is started with "Wait for run", fvsOL does the following:
 | 4 | `fvsGetStandIDs` | Identify the stand and the management ID that was just run |
 | 4 | `fvsGetSummary`, `fvsSetupSummary` | Read the summary table of the stand and format it for the quick plot |
 
-<!-- TODO: add a sequence diagram of the foreground run (browser, fvsOL server, child R session with rFVS, FVS library). -->
+![FVSOnline foreground run](FVSOnline-foreground-run.png)
+
+*Figure 2: Sequence of calls in an FVSOnline foreground run. The shaded lane is the child R session where rFVS is loaded.*
 
 ### Background runs
 
