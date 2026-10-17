@@ -48,6 +48,158 @@ rfvs.exec.funcs=dplyr::tribble(
   autofit()
 
 
+
+rfvs.restart.pts=dplyr::tribble(
+ ~`Stop point code`, ~`fvsStopPoint called from`, ~`FVS resumes at`,
+ "7", "FVS", "Just before the stand density and calibration calls (SDICLS, CRATET)",
+ "1", "GRINCR", "The first EVMON call (IPHASE=1)",
+ "2", "GRINCR", "The economic status call (ECSTATUS) that precedes CUTS, then CUTS",
+ "3", "GRINCR", "The second EVMON call (IPHASE=2)",
+ "4", "GRINCR", "The economic status call that follows CUTS (ECSTATUS), then the setup for growth estimation",
+ "5", "GRADD", "UPDATE",
+ "6", "GRADD", "CLAUESTB and ESNUTR (regeneration establishment)") %>% 
+  flextable() %>% 
+  set_caption(caption = 'Stop point restart locations',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_rfvs_restart_pts")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+rfvs.layers=dplyr::tribble(
+ ~`Layer`, ~`Where`, ~`Role`,
+ "R function", "rFVS package", "Checks arguments, calls .C or .Fortran, builds the R object that is returned",
+ "C wrapper", "apisubsc.c", "Dereferences the character arguments",
+ "C-callable Fortran routine", "apisubs.f, cmdline.f", "Copies characters into a Fortran string",
+ "Fortran routine", "apisubs.f", "Selects the array by name and reads or writes it",
+ "FVS arrays", "COMMON blocks", "Tree, species, event monitor, summary and SVS data") %>% 
+  flextable() %>% 
+  set_caption(caption = 'Layers between an rFVS function and FVS',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_rfvs_layers")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+rfvs.exec.overview=dplyr::tribble(
+ ~`Function`, ~`R call and Fortran routine`, ~`Variables and arrays`, ~`R input`, ~`R return`,
+ "fvsLoad", "R function: dyn.unload, dyn.load, is.loaded; no FVS routine is run", "global R object .FVSLOADEDLIBRARY", "fvsProgram, bin", "invisible character path of the library",
+ "fvsSetCmdLine", ".C CfvsSetCmdLine, fvsSetCmdLineC, fvsSetCmdLine (cmdline.f); FILCLOSE, GENRPT, FILOPN", "keywordfile, restartfile, stopptfile, maxStoppts, fvsRtnCode, restartcode, minorstopptcode, minorstopptyear, majorstopptcode, majorstopptyear, stopstatcd, originalRestartCode, readFilePos, oldstopyr, firstWrite, jstash, jdstash (GLBLCNTL)", "cl (character, at most 255 characters)", "invisible list of the three .C arguments (the FVS return code is the third), or NULL",
+ "fvsRun", ".Fortran fvsSetStoppointCodes (cmdline.f); .Fortran fvs (fvs.f); .Fortran fvsGetRestartCode (cmdline.f)", "minorstopptcode, minorstopptyear, restartcode, stopstatcd, fvsRtnCode (GLBLCNTL)", "stopPointCode, stopPointYear (integers, both or neither)", "invisible integer FVS return code",
+ "fvsInteractRun", "as fvsRun, with fvsSetStoppointCodes called for each requested stop point; fvsGetStandIDs and fvsGetEventMonitorVariables", "minorstopptcode, minorstopptyear, restartcode, fvsRtnCode (GLBLCNTL)", "named code blocks and trace", "named list of the block results",
+ "fvsUnitConversion", ".C CfvsUnitConversion, fvsUnitConversionC, fvsUnitConversion (apisubs.f)", "the 29 constants in METRIC.F77 (listed in the entry)", "name (character, at most 15 characters)", "numeric scalar, or NA",
+ "fvsGetSpeciesCodes", ".C CfvsSpeciesCode, fvsSpeciesCodeC, fvsSpeciesCode (apisubs.f), once per species index", "JSP, FIAJSP, PLNJSP", "none", "character matrix (maxspecies x 3)") %>% 
+  flextable() %>% 
+  set_caption(caption = 'Execution functions: calls, variables and returns',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_rfvs_exec_overview")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+rfvs.get.funcs=dplyr::tribble(
+ ~`Function`, ~`Description`,
+ "fvsCompositeSum", "Builds a composite summary statistics table from a list of summary tables",
+ "fvsGetDims", "Returns the max dimensions of important FVS data storage",
+ "fvsGetEventMonitorVariables", "Gets Event Monitor variables",
+ "fvsGetRestartcode", "Gets the current FVS restart code",
+ "fvsGetSpeciesAttrs", "Returns the values of species-specific data",
+ "fvsGetStandIDs", "Returns stand identification codes",
+ "fvsGetSummary", "Returns a data frame of the summary statistics",
+ "fvsGetSVSDims", "Returns the max dimensions of important Stand Visualization System data storage",
+ "fvsGetSVSObjectSet", "Returns the Stand Visualization System objects (trees, snags, coarse woody debris)",
+ "fvsGetTreeAttrs", "Gets attributes of trees",
+ "fvsSetupSummary", "Reorganizes summary statistics so they are ready to plot") %>% 
+  flextable() %>% 
+  set_caption(caption = 'rFVS functions that get information from FVS',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_rfvs_get_funcs")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+rfvs.get.overview=dplyr::tribble(
+ ~`Function`, ~`R call, C wrapper and Fortran routine`, ~`Arrays and variables read`, ~`R input`, ~`R return`,
+ "fvsGetDims", ".Fortran fvsDimSizes", "IREC1 or ITRN, NCYC, IPTINV, MAXTRE, MAXSP, MAXPLT, MAXCYC", "none", "named numeric vector (7)",
+ "fvsGetEventMonitorVariables", ".C CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr (\"get\")", "TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5", "character vector of names", "named numeric vector (NA if undefined or not found)",
+ "fvsGetRestartcode", ".Fortran fvsGetRestartCode (cmdline.f)", "restartcode and fvsRtnCode (GLBLCNTL)", "none", "integer",
+ "fvsGetSpeciesAttrs", ".C CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr (\"get\")", "RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB, DBHMIN, TOPD, STMP, METHC, XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4)", "character vector of attribute names", "data.frame (rows = species)",
+ "fvsGetStandIDs", ".C CfvsStandID, fvsStandIDC", "NPLT, DBCN, MGMID, CASEID", "none", "named list of four character strings",
+ "fvsGetSummary", ".Fortran fvsSummary, once per cycle row", "IOSUM(22, MAXCY1) (OUTCOM)", "none", "numeric matrix (20 named columns)",
+ "fvsGetSVSDims", ".Fortran fvsSVSDimSizes", "NSVOBJ, NDEAD, NCWD, MXSVOB, MXDEAD, MXCWD", "none", "named numeric vector (6)",
+ "fvsGetSVSObjectSet", ".C CfvsSVSObjData, fvsSVSObjDataC, fvsSVSObjData; .C CfvsFFEAttrs, fvsFFEAttrsC, fvsFFEAttrs; also fvsGetTreeAttrs and fvsGetSpeciesCodes", "IOBJTP, IS2F, XSLOC, YSLOC, SNGDIA, SNGLEN, IYRCOD, ISNSP, FALLDIR, ISTATUS, SNGCNWT(,0), SNGCNWT(,1), SNGCNWT(,2), SNGCNWT(,3), CWDDIA, CWDLEN, CWDPIL, CWDDIR, CWDWT, TFALL(1:MAXSP,0), TFALL(1:MAXSP,1), TFALL(1:MAXSP,2), TFALL(1:MAXSP,3)", "none", "list of three data.frames (trees, snags, cwd)",
+ "fvsGetTreeAttrs", ".C CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr (\"get\")", "PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR, ISP, ABIRTH, ITRE, CFV, MCFV, SCFV, BFV, DEFECT, PTBALT, IMC, PLTSIZ, PCT, CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE, ISPECL, KUTKOD, WK6", "character vector of attribute names", "data.frame (rows = tree records)") %>% 
+  flextable() %>% 
+  set_caption(caption = 'Get functions: calls, arrays and returns',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_rfvs_get_overview")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+rfvs.set.funcs=dplyr::tribble(
+ ~`Function`, ~`Description`,
+ "fvsAddActivity", "Adds an FVS Activity to the activity schedule",
+ "fvsAddTrees", "Adds new tree records to the simulation",
+ "fvsCutNow", "Specifies a thinning by setting the proportion of each tree record to cut",
+ "fvsSetEventMonitorVariables", "Sets Event Monitor variables",
+ "fvsSetSpeciesAttrs", "Sets the values of species-specific data",
+ "fvsSetTreeAttrs", "Sets attributes of trees") %>% 
+  flextable() %>% 
+  set_caption(caption = 'rFVS functions that send information to FVS',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_rfvs_set_funcs")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+rfvs.set.overview=dplyr::tribble(
+ ~`Function`, ~`R call, C wrapper and Fortran routine`, ~`Arrays and variables written`, ~`R input`, ~`R return`,
+ "fvsAddActivity", ".Fortran fvsAddActivity, then OPADD, OPNEW and OPINCR", "OPCOM activity arrays: IACT(,1:5), IDATE, ISEQ, IOPSRT, PARMS; pointers IMPL and IMGL", "year (integer), activity (code or name), parms (numeric, at most 20 values)", "invisible 0 or 1; with no arguments, a named vector of activity codes",
+ "fvsAddTrees", ".Fortran fvsAddTrees", "DBH, ISP, HT, ICR, ITRE, PROB, IMC, ABIRTH, IDTREE, CRWDTH (CWCALC); set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH, PHT; ZRAND set to -999; counters ITRN, IREC1, IFST; routines MISPUTZ, SPESRT, RDPSRT", "data.frame with dbh, species, ht, cratio, plot, tpa (sent as six double vectors and a count)", "invisible 0 or 1",
+ "fvsCutNow", "R function: fvsAddActivity(\"base_thinprsc\", c(1, -1)) and fvsSetTreeAttrs", "OPCOM activity arrays (as fvsAddActivity), WK6", "numeric vector of proportions (length 1 or one per tree record)", "return code (0 or nonzero)",
+ "fvsSetEventMonitorVariables", ".C CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr (\"set\")", "TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5, ITST5", "named numeric vector", "named numeric vector (NA where not set)",
+ "fvsSetSpeciesAttrs", ".C CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr (\"set\")", "RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB (int), DBHMIN, TOPD, STMP, METHC (int), XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4)", "named list of numeric vectors, each of length maxspecies", "invisible integer (largest return code)",
+ "fvsSetTreeAttrs", ".C CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr (\"set\")", "PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR (int), ISP (int), ABIRTH, ITRE (int), CFV, MCFV, SCFV, BFV, DEFECT (int), PTBALT, IMC (int), PLTSIZ (int), PCT (int), CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE (int), ISPECL (int), KUTKOD (int), WK6", "named list or data.frame of numeric vectors, each of length ntrees", "invisible integer (largest return code)") %>% 
+  flextable() %>% 
+  set_caption(caption = 'Set functions: calls, arrays and returns',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_rfvs_set_overview")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+fvsol.roles=dplyr::tribble(
+ ~`Part`, ~`Responsibility`,
+ "fvsOL", "Collects the run definition, writes the keyword file, starts R child sessions, scans the output for errors, and merges the output into the project output database (FVSOut.db)",
+ "rFVS", "Loads the FVS library, passes the keyword file name to FVS, runs each stand, and reads or modifies the FVS data when a custom run script is used",
+ "FVS library", "Reads the keyword file and the input database, projects each stand, and writes the output (the FVS output file and the run's output database)") %>% 
+  flextable() %>% 
+  set_caption(caption = 'Division of work in FVSOnline',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_fvsol_roles")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+fvsol.fg.funcs=dplyr::tribble(
+ ~`Step`, ~`rFVS function`, ~`Purpose`,
+ "3", "fvsLoad", "Load the selected FVS library",
+ "3", "fvsSetCmdLine", "Give FVS the keyword file name",
+ "4", "fvsRun", "Run one stand to its end",
+ "4", "fvsGetStandIDs", "Identify the stand and the management ID that was just run",
+ "4", "fvsGetSummary, fvsSetupSummary", "Read the summary table of the stand and format it for the quick plot") %>% 
+  flextable() %>% 
+  set_caption(caption = 'rFVS functions called in an FVSOnline foreground run',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_fvsol_fg_funcs")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
+fvsol.custom=dplyr::tribble(
+ ~`Script`, ~`Stop point codes used`, ~`Uses`,
+ "Acadian", "7, 1, 5 and 6", "Heights and crown ratios (stop points 7 and 1); tree records each cycle (stop point 5); new tree records and volumes (stop point 6)",
+ "Adirondack", "5 and 6", "Tree records each cycle (stop point 5); new tree records (stop point 6)",
+ "Hi", "7, 1 and 5", "Heights and crown ratios (stop points 7 and 1); tree records each cycle (stop point 5)") %>% 
+  flextable() %>% 
+  set_caption(caption = 'Stop points used by the custom run scripts',
+              style = 'Table Caption',
+              autonum = run_autonum(seq_id = "tab", bkm = "tab_fvsol_custom")) %>%
+  set_table_properties(layout = "autofit", width = 1)
+
+
 ```
 
 
@@ -262,15 +414,7 @@ Stop/restart control variables are stored in the labeled COMMON block GLBLCNTL. 
 
 When FVS is called again after a stop, subroutines FVS, TREGRO, GRINCR and GRADD read the restart code (fvsGetRestartCode) and jump to the point below, skipping the work already done:
 
-| Stop point code | fvsStopPoint called from | FVS resumes at |
-|---|---|---|
-| 7 | FVS | Just before the stand density and calibration calls (SDICLS, CRATET) |
-| 1 | GRINCR | The first EVMON call (IPHASE=1) |
-| 2 | GRINCR | The economic status call (ECSTATUS) that precedes CUTS, then CUTS |
-| 3 | GRINCR | The second EVMON call (IPHASE=2) |
-| 4 | GRINCR | The economic status call that follows CUTS (ECSTATUS), then the setup for growth estimation |
-| 5 | GRADD | UPDATE |
-| 6 | GRADD | CLAUESTB and ESNUTR (regeneration establishment) |
+`r rfvs.restart.pts`
 
 ## Examples
 
@@ -389,13 +533,7 @@ Nine of these routines take character arguments and have a second, C-callable ve
 
 Routines with numeric arguments only are called directly with `.Fortran`: fvsDimSizes, fvsSummary, fvsSVSDimSizes, fvsAddActivity and fvsAddTrees (`apisubs.f`), fvs (`fvs.f`), and fvsGetRestartCode and fvsSetStoppointCodes (`cmdline.f`).
 
-| Layer | Where | Role |
-|---|---|---|
-| R function | rFVS package | Checks arguments, calls `.C` or `.Fortran`, builds the R object that is returned |
-| C wrapper | `apisubsc.c` | Dereferences the character arguments |
-| C-callable Fortran routine | `apisubs.f`, `cmdline.f` | Copies characters into a Fortran string |
-| Fortran routine | `apisubs.f` | Selects the array by name and reads or writes it |
-| FVS arrays | COMMON blocks | Tree, species, event monitor, summary and SVS data |
+`r rfvs.layers`
 
 Numeric vectors from R are passed as double precision (`real(8)`). The attribute routines (fvsTreeAttr, fvsSpeciesAttr, fvsEvmonAttr, fvsSVSObjData and fvsFFEAttrs) use one double vector argument, `attr`, in both directions. When setting, each value is stored as a `real(4)` or truncated to an integer, depending on the array. Attribute names are passed with their length (`nch`); for tree and species attributes a length of 0 or more than 10 returns code 4. Each routine returns an integer code in `rtnCode`, which R turns into `NA`, a warning or an invisible return value, depending on the function.
 
@@ -409,14 +547,7 @@ A run uses the execution functions in this sequence. fvsLoad loads the FVS libra
 
 The table lists, for the execution functions, the call chain, the variables and arrays that are used, and the R object types.
 
-| Function | R call and Fortran routine | Variables and arrays | R input | R return |
-|---|---|---|---|---|
-| fvsLoad | R function: `dyn.unload`, `dyn.load`, `is.loaded`; no FVS routine is run | global R object `.FVSLOADEDLIBRARY` | `fvsProgram`, `bin` | invisible character path of the library |
-| fvsSetCmdLine | `.C` CfvsSetCmdLine, fvsSetCmdLineC, fvsSetCmdLine (`cmdline.f`); FILCLOSE, GENRPT, FILOPN | keywordfile, restartfile, stopptfile, maxStoppts, fvsRtnCode, restartcode, minorstopptcode, minorstopptyear, majorstopptcode, majorstopptyear, stopstatcd, originalRestartCode, readFilePos, oldstopyr, firstWrite, jstash, jdstash (GLBLCNTL) | `cl` (character, at most 255 characters) | invisible list of the three `.C` arguments (the FVS return code is the third), or `NULL` |
-| fvsRun | `.Fortran` fvsSetStoppointCodes (`cmdline.f`); `.Fortran` fvs (`fvs.f`); `.Fortran` fvsGetRestartCode (`cmdline.f`) | minorstopptcode, minorstopptyear, restartcode, stopstatcd, fvsRtnCode (GLBLCNTL) | `stopPointCode`, `stopPointYear` (integers, both or neither) | invisible integer FVS return code |
-| fvsInteractRun | as fvsRun, with fvsSetStoppointCodes called for each requested stop point; fvsGetStandIDs and fvsGetEventMonitorVariables | minorstopptcode, minorstopptyear, restartcode, fvsRtnCode (GLBLCNTL) | named code blocks and `trace` | named list of the block results |
-| fvsUnitConversion | `.C` CfvsUnitConversion, fvsUnitConversionC, fvsUnitConversion (`apisubs.f`) | the 29 constants in METRIC.F77 (listed in the entry) | `name` (character, at most 15 characters) | numeric scalar, or `NA` |
-| fvsGetSpeciesCodes | `.C` CfvsSpeciesCode, fvsSpeciesCodeC, fvsSpeciesCode (`apisubs.f`), once per species index | JSP, FIAJSP, PLNJSP | none | character matrix (`maxspecies` x 3) |
+`r rfvs.exec.overview`
 
 
 #### fvsLoad
@@ -786,33 +917,11 @@ fvsGetSpeciesCodes()
 
 These functions retrieve data and status information from FVS during simulation.
 
-| Function | Description |
-|----------|-------------|
-| fvsCompositeSum | Builds a composite summary statistics table from a list of summary tables |
-| fvsGetDims | Returns the max dimensions of important FVS data storage |
-| fvsGetEventMonitorVariables | Gets Event Monitor variables |
-| fvsGetRestartcode | Gets the current FVS restart code |
-| fvsGetSpeciesAttrs | Returns the values of species-specific data |
-| fvsGetStandIDs | Returns stand identification codes |
-| fvsGetSummary | Returns a data frame of the summary statistics |
-| fvsGetSVSDims | Returns the max dimensions of important Stand Visualization System data storage |
-| fvsGetSVSObjectSet | Returns the Stand Visualization System objects (trees, snags, coarse woody debris) |
-| fvsGetTreeAttrs | Gets attributes of trees |
-| fvsSetupSummary | Reorganizes summary statistics so they are ready to plot |
+`r rfvs.get.funcs`
 
 The table lists, for the functions that read FVS data directly, the call chain, the arrays and variables that are read, and the R object types.
 
-| Function | R call, C wrapper and Fortran routine | Arrays and variables read | R input | R return |
-|---|---|---|---|---|
-| fvsGetDims | `.Fortran` fvsDimSizes | IREC1 or ITRN, NCYC, IPTINV, MAXTRE, MAXSP, MAXPLT, MAXCYC | none | named numeric vector (7) |
-| fvsGetEventMonitorVariables | `.C` CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr ("get") | TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5 | character vector of names | named numeric vector (`NA` if undefined or not found) |
-| fvsGetRestartcode | `.Fortran` fvsGetRestartCode (`cmdline.f`) | restartcode and fvsRtnCode (GLBLCNTL) | none | integer |
-| fvsGetSpeciesAttrs | `.C` CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr ("get") | RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB, DBHMIN, TOPD, STMP, METHC, XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4) | character vector of attribute names | data.frame (rows = species) |
-| fvsGetStandIDs | `.C` CfvsStandID, fvsStandIDC | NPLT, DBCN, MGMID, CASEID | none | named list of four character strings |
-| fvsGetSummary | `.Fortran` fvsSummary, once per cycle row | IOSUM(22, MAXCY1) (OUTCOM) | none | numeric matrix (20 named columns) |
-| fvsGetSVSDims | `.Fortran` fvsSVSDimSizes | NSVOBJ, NDEAD, NCWD, MXSVOB, MXDEAD, MXCWD | none | named numeric vector (6) |
-| fvsGetSVSObjectSet | `.C` CfvsSVSObjData, fvsSVSObjDataC, fvsSVSObjData; `.C` CfvsFFEAttrs, fvsFFEAttrsC, fvsFFEAttrs; also fvsGetTreeAttrs and fvsGetSpeciesCodes | IOBJTP, IS2F, XSLOC, YSLOC, SNGDIA, SNGLEN, IYRCOD, ISNSP, FALLDIR, ISTATUS, SNGCNWT(,0), SNGCNWT(,1), SNGCNWT(,2), SNGCNWT(,3), CWDDIA, CWDLEN, CWDPIL, CWDDIR, CWDWT, TFALL(1:MAXSP,0), TFALL(1:MAXSP,1), TFALL(1:MAXSP,2), TFALL(1:MAXSP,3) | none | list of three data.frames (trees, snags, cwd) |
-| fvsGetTreeAttrs | `.C` CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr ("get") | PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR, ISP, ABIRTH, ITRE, CFV, MCFV, SCFV, BFV, DEFECT, PTBALT, IMC, PLTSIZ, PCT, CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE, ISPECL, KUTKOD, WK6 | character vector of attribute names | data.frame (rows = tree records) |
+`r rfvs.get.overview`
 
 #### fvsCompositeSum
 
@@ -1333,25 +1442,11 @@ fvsSetupSummary(fvsGetSummary())
 
 These functions modify data within FVS during simulation.
 
-| Function | Description |
-|----------|-------------|
-| fvsAddActivity | Adds an FVS Activity to the activity schedule |
-| fvsAddTrees | Adds new tree records to the simulation |
-| fvsCutNow | Specifies a thinning by setting the proportion of each tree record to cut |
-| fvsSetEventMonitorVariables | Sets Event Monitor variables |
-| fvsSetSpeciesAttrs | Sets the values of species-specific data |
-| fvsSetTreeAttrs | Sets attributes of trees |
+`r rfvs.set.funcs`
 
 The table lists, for the functions that write to FVS, the call chain, the arrays and variables that are written, and the R object types.
 
-| Function | R call, C wrapper and Fortran routine | Arrays and variables written | R input | R return |
-|---|---|---|---|---|
-| fvsAddActivity | `.Fortran` fvsAddActivity, then OPADD, OPNEW and OPINCR | OPCOM activity arrays: IACT(,1:5), IDATE, ISEQ, IOPSRT, PARMS; pointers IMPL and IMGL | year (integer), activity (code or name), parms (numeric, at most 20 values) | invisible 0 or 1; with no arguments, a named vector of activity codes |
-| fvsAddTrees | `.Fortran` fvsAddTrees | DBH, ISP, HT, ICR, ITRE, PROB, IMC, ABIRTH, IDTREE, CRWDTH (CWCALC); set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH, PHT; ZRAND set to -999; counters ITRN, IREC1, IFST; routines MISPUTZ, SPESRT, RDPSRT | data.frame with dbh, species, ht, cratio, plot, tpa (sent as six double vectors and a count) | invisible 0 or 1 |
-| fvsCutNow | R function: fvsAddActivity("base_thinprsc", c(1, -1)) and fvsSetTreeAttrs | OPCOM activity arrays (as fvsAddActivity), WK6 | numeric vector of proportions (length 1 or one per tree record) | return code (0 or nonzero) |
-| fvsSetEventMonitorVariables | `.C` CfvsEvmonAttr, fvsEvmonAttrC, fvsEvmonAttr ("set") | TSTV1, TSTV2, TSTV3, TSTV4, LTSTV4, FLIVE(1:2), TSTV5, CTSTV5, LTSTV5, ITST5 | named numeric vector | named numeric vector (`NA` where not set) |
-| fvsSetSpeciesAttrs | `.C` CfvsSpeciesAttr, fvsSpeciesAttrC, fvsSpeciesAttr ("set") | RELDSP, SITEAR, SDIDEF, BFMIND, BFTOPD, BFSTMP, FRMCLS, METHB (int), DBHMIN, TOPD, STMP, METHC (int), XDMULT, XHMULT, XMMULT, XMDIA1, XMDIA2, XRDMLT, XRHMLT, SIZCAP(,1), SIZCAP(,2), SIZCAP(,3), SIZCAP(,4) | named list of numeric vectors, each of length `maxspecies` | invisible integer (largest return code) |
-| fvsSetTreeAttrs | `.C` CfvsTreeAttr, fvsTreeAttrC, fvsTreeAttr ("set") | PROB, WK2, DBH, DG, HT, HTG, CRWDTH, ICR (int), ISP (int), ABIRTH, ITRE (int), CFV, MCFV, SCFV, BFV, DEFECT (int), PTBALT, IMC (int), PLTSIZ (int), PCT (int), CROWNW(,0), CROWNW(,1), CROWNW(,2), CROWNW(,3), CROWNW(,4), CROWNW(,5), IDTREE (int), ISPECL (int), KUTKOD (int), WK6 | named list or data.frame of numeric vectors, each of length `ntrees` | invisible integer (largest return code) |
+`r rfvs.set.overview`
 
 #### fvsAddActivity
 
@@ -1680,11 +1775,7 @@ rFVS serves as the foundational package for FVSOnline, a Shiny web application i
 
 Only a small part of the interface calls rFVS. The Simulate tabs that define a run (Stands, Time, Components, Select Outputs) and the tabs that display results (View Outputs, Visualize, View On Maps) work on the project databases and on the saved run object, not on the FVS library. The Run tab is where fvsOL hands a run to rFVS. The division of work is:
 
-| Part | Responsibility |
-|:-----|:---------------|
-| fvsOL | Collects the run definition, writes the keyword file, starts R child sessions, scans the output for errors, and merges the output into the project output database (`FVSOut.db`) |
-| rFVS | Loads the FVS library, passes the keyword file name to FVS, runs each stand, and reads or modifies the FVS data when a custom run script is used |
-| FVS library | Reads the keyword file and the input database, projects each stand, and writes the output (the FVS output file and the run's output database) |
+`r fvsol.roles`
 
 In the fvsOL code that builds and runs the simulation, the interface itself calls only `fvsLoad`, `fvsSetCmdLine`, `fvsRun`, `fvsGetStandIDs`, `fvsGetSummary` and `fvsSetupSummary`. The remaining rFVS functions are called only from custom run scripts.
 
@@ -1707,13 +1798,7 @@ When the run is started with "Wait for run", fvsOL does the following:
 5. Calls `fvsRun()` once more after the last stand.
 6. Scans the FVS output for errors (`extnErrorScan`), merges the run's output database into `FVSOut.db` (`addNewRun2DB`), and plots total cubic foot volume from the summaries returned by rFVS.
 
-| Step | rFVS function | Purpose |
-|:-----|:--------------|:--------|
-| 3 | `fvsLoad` | Load the selected FVS library |
-| 3 | `fvsSetCmdLine` | Give FVS the keyword file name |
-| 4 | `fvsRun` | Run one stand to its end |
-| 4 | `fvsGetStandIDs` | Identify the stand and the management ID that was just run |
-| 4 | `fvsGetSummary`, `fvsSetupSummary` | Read the summary table of the stand and format it for the quick plot |
+`r fvsol.fg.funcs`
 
 ![FVSOnline foreground run](FVSOnline-foreground-run.png)
 
@@ -1738,11 +1823,7 @@ FVSOnline automatically discovers custom scripts when:
 
 The run function `[name]` is called in the child session for each stand with the saved options (`runOps`). It calls `fvsRun` with a stop point code, reads or modifies the data, and repeats until `fvsRun` returns a nonzero code or `fvsGetRestartcode` returns 100 (end of stand). The scripts that ship with fvsOL (Acadian, Adirondack and Hi growth models) use these stop points:
 
-| Script | Stop point codes used | Uses |
-|:-------|:----------------------|:-----|
-| Acadian | 7, 1, 5 and 6 | Heights and crown ratios (stop points 7 and 1); tree records each cycle (stop point 5); new tree records and volumes (stop point 6) |
-| Adirondack | 5 and 6 | Tree records each cycle (stop point 5); new tree records (stop point 6) |
-| Hi | 7, 1 and 5 | Heights and crown ratios (stop points 7 and 1); tree records each cycle (stop point 5) |
+`r fvsol.custom`
 
 For example, the Acadian script calls `fvsRun(7,0)` to stop before FVS fills in missing heights and crown ratios, saves those values with `fvsGetTreeAttrs`, uses `fvsRun(1,-1)` to let FVS impute them, writes revised values back with `fvsSetTreeAttrs`, and then in each cycle stops at stop point code 5 to read the trees with `fvsGetTreeAttrs`, grow them in R, and write the results back with `fvsSetTreeAttrs`, adding new records with `fvsAddTrees` at stop point code 6.
 
