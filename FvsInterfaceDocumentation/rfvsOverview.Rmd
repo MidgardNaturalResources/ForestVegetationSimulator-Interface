@@ -225,12 +225,13 @@ The rFVS system is currently housed in a GitHub repository maintained by the USD
 ## Use cases and applications
 
 ### Regional model integration
-The rFVS framework allows using FVS integration with regional growth and/or mortality equations rather than creating a standalone growth and yield framework. This allows growth projections that selectively substitute regional growth model calculations for FVS calculations. This approach also  retains the full suite of FVS management simulation capabilities. For the most part the user interaction with the model is little changed when using this approach, significantly reducing the burden on users. 
+The rFVS framework allows using FVS integration with regional growth and/or mortality equations rather than creating a standalone growth and yield framework. This allows growth projections that selectively substitute regional growth model calculations for FVS calculations. This approach also retains the full suite of FVS management simulation capabilities. For the most part the user interaction with the model is little changed when using this approach, significantly reducing the burden on users. 
 
 This approach has been successfully used to integrate the Acadian model (FVS-ACD), the Adirondack model (FVS-ADK) and the koa growth model for Hawaii (FVS-HI).
 
 ### Research and development applications
-Using the rFVS framework researchers can test new equations and tools without the burden of creating a purpose built model. rFVS could be useful in cases such as
+Using the rFVS framework researchers can test new equations and tools without the burden of creating a purpose-built model. rFVS could be useful in cases such as:
+
 - Testing experimental growth or mortality equations
 - Developing novel modifiers, such as forest health or post-harvest modifiers
 - Developing regeneration algorithms
@@ -301,7 +302,7 @@ FVS stops at every defined stop point (1 through 7) it encounters in the process
 
 Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, MCFV, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The ARRAYS COMMON block is partially populated.
 
-Dubbed heights and crown ratios, calibrated growth multipliers, percentile arrays PCT and PTBALT, stand density metrics, volumes are not yet available. Setting volumes, growth increments or percentile-dependent attributes at this point has no effect as they are overwritten by subsequent initialization.
+Dubbed heights and crown ratios, calibrated growth multipliers, percentile arrays PCT and PTBALT, stand density metrics and volumes are not yet available. Setting volumes, growth increments or percentile-dependent attributes at this point has no effect as they are overwritten by subsequent initialization.
 
 The Acadian variant integration uses stop point 7 to identify trees requiring height and crown ratio imputation, fetching those records before FVS attempts its own dubbing, then supplying R-computed values at stop point 1. This is the only stop point that occurs during the projection initialization phase.
 
@@ -415,7 +416,7 @@ When FVS is called again after a stop, subroutines FVS, TREGRO, GRINCR and GRADD
 
 rFVS and fvsOL are used in FVSOnline, a Shiny web application interface to FVS. rFVS contains the R functions that directly interact with FVS shared libraries while fvsOL provides the interface layer. The interface terms used below (Simulate, View Outputs, Run, and so on) follow the FVS Training Guide (FVS Staff 2021), which describes how to use the interface.
 
-rFVS functions are called a limited nmber of times in the interface. The Simulate tabs that define a run (Stands, Time, Components, Select Outputs) and the tabs that display results (View Outputs, Visualize, View On Maps) work on the project databases and on the saved run object, not on the FVS library. The Run tab is where fvsOL hands a run to rFVS. The division of work is:
+rFVS functions are called a limited number of times in the interface. The Simulate tabs that define a run (Stands, Time, Components, Select Outputs) and the tabs that display results (View Outputs, Visualize, View On Maps) work on the project databases and on the saved run object, not on the FVS library. The Run tab is where fvsOL hands a run to rFVS. The division of work is:
 
 `r fvsol.roles`
 
@@ -752,7 +753,9 @@ Runs FVS up to a designated stop point, year or both. This is the primary functi
 fvsRun(stopPointCode = NA, stopPointYear = NA)
 
 **Arguments**
-stopPointCode
+
+`stopPointCode`
+
 - `0` - Never stop
 - `-1` - Stop at every stop location
 - `1` - Stop before first Event Monitor call (before thinning)
@@ -763,7 +766,8 @@ stopPointCode
 - `6` - Stop before ESTAB routines
 - `7` - Stop after input read but before missing value imputation and model calibration (a year above 0 must lie in the first cycle; a year of 0 or below applies no year limit)
 
-stopPointYear
+`stopPointYear`
+
 - A year above 0 stops only in the cycle that contains that year
 - `-1` means no year limit: stop in every cycle (any value below 0 behaves the same)
 
@@ -778,7 +782,7 @@ Integer return code:
 
 **Details**
 
-fvsRun executes a single stand in the current keyword file. When valid stopPointCode and StopPointYear are provided, the FVS run is suspended and users can interact with FVS data in R session via rFVS functions. When fvsRun() is called again, FVS continues processing where it left off.
+fvsRun executes a single stand in the current keyword file. When valid stopPointCode and stopPointYear are provided, the FVS run is suspended and users can interact with FVS data in an R session via rFVS functions. When fvsRun() is called again, FVS continues processing where it left off.
 
 If one argument to fvsRun() is left as NA (default), then both are ignored. You must code both or neither. A stop request stays in effect until it is changed: fvsRun() with no arguments does not clear it, and fvsRun(0, 0) turns it off.
  
@@ -892,7 +896,7 @@ Numeric value of conversion factor, or NA if FVS does not contain the desired fa
 
 **Details**
 
-Conversion values contained in currently loaded DLL but shared across all variants. Conversions contained in FVS METRIC.F77 file.
+The values are held in the currently loaded library and are shared across all variants. They come from the FVS METRIC.F77 file.
 
 **Implementation**
 
@@ -1084,11 +1088,12 @@ Gets values of FVS Event Monitor variables by name.
 fvsGetEventMonitorVariables(vars)
 
 **Arguments**
-vars	
-a character vector of Event Monitor names. Consult FVS documentation for the possible variable names.
+
+- `vars` - A character vector of Event Monitor names. Consult FVS documentation for the possible variable names.
 
 **Value**
-a named numeric vector of the variables, NA if the variable name does not exist
+
+A named numeric vector of the variables, NA if the variable name does not exist
 
 **Implementation**
 
@@ -1127,7 +1132,7 @@ fvsGetEventMonitorVariables("myaba")
 
 **Description**
 
-Get the current FVS restart code indicating the point within FVS processing sequence.
+Get the current FVS restart code indicating the point within the FVS processing sequence.
 
 
 **Usage**
@@ -1218,13 +1223,13 @@ fvsGetSpeciesAttrs(vars)
 
 **Details**
 
-fvsGetSpeciesAttrs() calls the underlying FVS function: fvsSpeciesAttr(name,nch,action,attr,rtnCode) 
-where 
-name=variable name (case sensitive), 
-nch=number of characters in name, 
-action="set" or "get" (case sensitive), 
-attr=vector of length data (always double), 
-rtnCode: 0=OK, 1=name not found, 4=name string length invalid.
+fvsGetSpeciesAttrs() calls the underlying FVS function fvsSpeciesAttr(name,nch,action,attr,rtnCode), where:
+
+- `name` - variable name (case sensitive)
+- `nch` - number of characters in name
+- `action` - "set" or "get" (case sensitive)
+- `attr` - vector of length data (always double)
+- `rtnCode` - 0=OK, 1=name not found, 4=name string length invalid
 
 **Implementation**
 
@@ -1450,11 +1455,18 @@ Gets attributes of trees in the current FVS stand.
 
 This function returns tree attributes at the current cycle stop point. If FVS encounters an error, nothing is returned. If there are no records in the tree list, an empty dataframe is returned.
 
-The defect value is an 8-digit code comprised of four 2-digit segments: first two digits=input merchantable cubic volume defect percent, third and fourth digits=input board foot defect percent, fifth and sixth digits=applied merchantable cubic volume defect percent, seventh and eighth digits=applied board foot defect percent.
+The defect value is an 8-digit code composed of four 2-digit segments: first two digits=input merchantable cubic volume defect percent, third and fourth digits=input board foot defect percent, fifth and sixth digits=applied merchantable cubic volume defect percent, seventh and eighth digits=applied board foot defect percent.
 
 The ispecl variable is a special tree status code used to flag trees for specific reasons such as wildlife trees. The code can be used in setting cut priority via multiplier on tcondmlt keyword. Also used in organon swo and nwo/smc to define the value "user" in the organon code. Also used to hold the form and risk class (Used in the Acadian model) when damage code 54 is coded.
 
-The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) where name=variable name (case sensitive), nch=number of characters in name, action="set" or "get" (case sensitive), ntrees=number of trees (length of attr), attr=vector of length ntrees (always double), rtnCode: 0=OK, 1=name not found, 2=ntrees greater than maxtrees (not all data transferred), 3=more/fewer than ntrees, 4=name string length invalid.
+The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode), where:
+
+- `name` - variable name (case sensitive)
+- `nch` - number of characters in name
+- `action` - "set" or "get" (case sensitive)
+- `ntrees` - number of trees (length of attr)
+- `attr` - vector of length ntrees (always double)
+- `rtnCode` - 0=OK, 1=name not found, 2=ntrees greater than maxtrees (not all data transferred), 3=more/fewer than ntrees, 4=name string length invalid
 
 **Implementation**
 
@@ -1552,7 +1564,7 @@ Invisibly returns 0 if the activity was added and 1 if there was an error. With 
 ```{r Ex_fvsAddActivity, echo=TRUE, eval=FALSE}
 #edit fvsLoad to reflect where FVSbin is stored on your system.
 fvsLoad(bin="FVSbin",fvsProgram="FVSie")
-fvsAddActivity()  # a list of all possible activities is return
+fvsAddActivity()  # a list of all possible activities is returned
 fvsAddActivity(1993,"base_yardloss",c(0.50, 0.70, 0.50))
 fvsAddActivity(1993,"base_thindbh",c(0.00,12.00,1.00,0.00,0.00))
 ```
@@ -1770,7 +1782,7 @@ fvsSetTreeAttrs(vars)
 
 **Arguments**
 
-- `vars` - Data frame or named list where each column/element is numeric vector with no NAs and length equal to current number of trees (ntrees from fvsGetDims()). Column/element names must match valid tree attribute names.
+- `vars` - Data frame or named list where each column/element is a numeric vector with no NAs and length equal to current number of trees (ntrees from fvsGetDims()). Column/element names must match valid tree attribute names.
 
 **Value**
 
@@ -1778,7 +1790,7 @@ Invisibly returns 0, or the largest return code from FVS when an attribute is re
 
 **Details**
 
-Uses same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) but with action="set".
+Uses the same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) but with action="set".
 
 **Implementation**
 
