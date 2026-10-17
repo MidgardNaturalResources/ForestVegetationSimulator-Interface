@@ -1442,7 +1442,7 @@ Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The
 **Example**
 
 ```{r Ex_fvsGetSVSObjectSet, echo=TRUE, eval=FALSE}
-fvsGetSVSObjectSet() # return list of empty dataframes until a run is made using SVS.
+fvsGetSVSObjectSet() # returns a list with NULL for trees, snags and cwd until a run is made using SVS.
 ```
 
 #### fvsGetTreeAttrs
