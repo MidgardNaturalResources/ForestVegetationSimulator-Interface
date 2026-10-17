@@ -225,31 +225,24 @@ The rFVS system is currently housed in a GitHub repository maintained by the USD
 ## Use cases and applications
 
 ### Regional model integration
-The advantages of using FVS integration rather than creating a standalone growth and yield framework include:
-- Selectively substituting regional growth model calculations for FVS calculations
-- Maintaining FVS management capabilities while using regional or context specific growth and mortality predictions
-- Leveraging existing FVS growth and mortality infrastructure during model development
-- Providing users with a well-known and supported modeling platform
+The rFVS framework allows using FVS integration with regional growth and/or mortality equations rather than creating a standalone growth and yield framework. This allows growth projections that selectively substitute regional growth model calculations for FVS calculations. This approach also  retains the full suite of FVS management simulation capabilities. For the most part the user interaction with the model is little changed when using this approach, significantly reducing the burden on users. 
+
+This approach has been successfully used to integrate the Acadian model (FVS-ACD), the Adirondack model (FVS-ADK) and the koa growth model for Hawaii (FVS-HI).
 
 ### Research and development applications
-Using the rFVS framework researchers can test new equations and tools, such as
+Using the rFVS framework researchers can test new equations and tools without the burden of creating a purpose built model. rFVS could be useful in cases such as
 - Testing experimental growth or mortality equations
 - Developing novel modifiers, such as forest health or post-harvest modifiers
-- Developing novel regeneration algorithms
+- Developing regeneration algorithms
 - Prototyping new volume estimation methods
 
-
 ### FVSOnline integration
-Since the retirement of the FVS Suppose interface, FVSOnline has been the primary way for users to interact with FVS via a graphic user interface. 
-- Users interact with FVS via the R Shiny framework
-- The underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results
+Since the retirement of the FVS Suppose interface, FVSOnline has been the primary way for users to interact with FVS via a graphic user interface. Users interact with FVS via the R Shiny application and the underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results. Additional details are provided below in the FVSOnline graphic interface section. 
 
 
-## FVS model architecture and processing flow
+## FVS processing flow
 
-### Processing phases
-
-FVS processes a stand in three sequential phases: the projection initialization phase, the projection cycling phase, and the projection summarization phase. The initialization phase prepares the stand for simulation; the cycling phase projects the stand through time; and the summarization phase produces output reports. FVS can process a single stand or many stands in one run. In a serial run each stand is processed to completion before the next stand begins. In a parallel run all stands are processed to a common stopping year, external processes may run and produce information FVS can use, and simulation then resumes to the next stopping point or end of projection.
+FVS processes a stand in three sequential phases: the projection initialization phase, the projection cycling phase, and the projection summarization phase. The initialization phase prepares the stand for simulation; the cycling phase projects the stand through time; and the summarization phase produces output reports. FVS can process a single stand or many stands in one run. In a serial run each stand is processed to completion before the next stand begins. 
 
 ### Input data and the activity schedule
 
@@ -277,11 +270,10 @@ During the projection initialization phase, subroutine FVS: checks command line 
 
 During the projection cycling phase, subroutine FVS calls subroutines to estimate tree growth and mortality, process management requests, establish regeneration, and write output. During the summarization phase it produces final reports. FVS then returns to its caller (PROGRAM MAIN, or rFVS) after each stand and is called again for the next stand.
 
+
 ## Start-stop logic
 
-rFVS uses the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
-
-FVS can run from beginning to end without stopping, or stop at specified points, return control to R, and then continue (USDAForestService 2025b).
+FVS can run from beginning to end without stopping, or stop at specified points (USDAForestService 2025b). rFVS uses the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
 
 When running as a shared library (the rFVS case), all essential projection state is maintained in COMMON block memory within the loaded library. FVS returns up the call stack to R without writing anything to disk, and the caller is free to use the FVS API to read or modify variables before calling FVS to continue. 
 
@@ -416,6 +408,81 @@ When FVS is called again after a stop, subroutines FVS, TREGRO, GRINCR and GRADD
 
 `r rfvs.restart.pts`
 
+
+## FVSOnline graphic interface
+
+### Package architecture
+
+rFVS and fvsOL are used in FVSOnline, a Shiny web application interface to FVS. rFVS contains the R functions that directly interact with FVS shared libraries while fvsOL provides the interface layer. The interface terms used below (Simulate, View Outputs, Run, and so on) follow the FVS Training Guide (FVS Staff 2021), which describes how to use the interface.
+
+rFVS functions are called a limited nmber of times in the interface. The Simulate tabs that define a run (Stands, Time, Components, Select Outputs) and the tabs that display results (View Outputs, Visualize, View On Maps) work on the project databases and on the saved run object, not on the FVS library. The Run tab is where fvsOL hands a run to rFVS. The division of work is:
+
+`r fvsol.roles`
+
+
+rFVS does not build keyword files, does not query or merge the output databases, and does not produce the tables, plots or maps in the interface. Those functions are performed by fvsOL, using the databases that FVS writes. rFVS also does not select which variant library is used. In the fvsOL code that builds and runs the simulation, the interface itself calls `fvsLoad`, `fvsSetCmdLine`, `fvsRun`, `fvsGetStandIDs`, `fvsGetSummary` and `fvsSetupSummary`.
+
+### From run settings to keyword file
+
+The run definition is stored in a run object (a reference class that is saved in the project database). When a run starts, `writeKeyFile` converts the selected stands, the time settings, the output selections and the components into an FVS keyword file named `[uuid].key`, where `uuid` is the run's identifier. For each stand the file contains `StdIdent`, `StandCN`, `MgmtId`, `InvYear`, the cycle keywords, the output keywords and then the keywords of the stand's components, grouped by FVS extension. The stand and tree records are not written to the keyword file; FVS reads them from the input database. rFVS only receives the name of the keyword file.
+
+### Selecting the FVS variant and library
+
+At startup and after the project changes, fvsOL looks in the `fvsBin` directory for files named `FVS[a-z]*` with the platform's shared library extension (`resetActiveFVS`). Each file found is an FVS variant library. A list of the extensions that each variant supports is used to decide which components are offered in the interface. The library selected for a run is passed to `fvsLoad` as the `fvsProgram` argument, and `fvsBin` is passed as `bin`.
+
+### Foreground run
+
+When the run is started with "Wait for run", fvsOL does the following:
+
+1. Saves the run and writes the keyword file.
+2. Starts one child R session (`makePSOCKcluster(1)`) and loads rFVS in it. The FVS library is loaded in the child session, not in the Shiny session.
+3. Calls `fvsLoad` and `fvsSetCmdLine("--keywordfile=[uuid].key")` in the child session.
+4. For each stand, calls `fvsRun()` (or the run function of a custom run script, described below), then `fvsGetStandIDs()` and `fvsSetupSummary(fvsGetSummary())`. A nonzero FVS return code ends the loop.
+5. Calls `fvsRun()` once more after the last stand.
+6. Scans the FVS output for errors (`extnErrorScan`), merges the run's output database into `FVSOut.db` (`addNewRun2DB`), and plots total cubic foot volume from the summaries returned by rFVS.
+
+`r fvsol.fg.funcs`
+
+![FVSOnline foreground run](FVSOnline-foreground-run.png)
+
+*Figure 2: Sequence of calls in an FVSOnline foreground run. The shaded lane is the child R session where rFVS is loaded.*
+
+### Background runs
+
+When "Run in background" is selected, the interface does not call rFVS directly. It calls `extnSimulateRun`, which splits the stands over the requested number of CPUs, writes a keyword file for each set, and writes an R script for each set that contains `fvsLoad`, `fvsSetCmdLine` and a loop of the form `while (fvsRun() != 2)`. When a custom run script is selected, its run function replaces `fvsRun()` in the loop. A separate R process starts a cluster with one child session per CPU set, and each child session sources its script in the directory of its set. When the sessions finish, the output of each set is merged into `FVSOut.db` with `addNewRun2DB`. The process id is recorded in a `[uuid].pidStatus` file while the run is active, which the interface uses to track the run.
+
+### Custom run scripts
+
+Custom run scripts replace the call to `fvsRun()` in the run loop so that R can read or change the FVS data at stop points, and are the only place in the interface where the rFVS get and set functions are used. They follow specific naming conventions:
+
+- Script files named: `customRun_[name].R`
+- Registration in the `runScripts.R` configuration file
+
+FVSOnline automatically discovers custom scripts when:
+
+- Filenames conform to naming conventions
+- Scripts are properly registered
+- Required functions are implemented
+
+The run function `[name]` is called in the child session for each stand with the saved options (`runOps`). It calls `fvsRun` with a stop point code, reads or modifies the data, and repeats until `fvsRun` returns a nonzero code or `fvsGetRestartcode` returns 100 (end of stand). The scripts that ship with fvsOL (Acadian, Adirondack and Hi growth models) use these stop points:
+
+`r fvsol.custom`
+
+For example, the Acadian script calls `fvsRun(7,0)` to stop before FVS fills in missing heights and crown ratios, saves those values with `fvsGetTreeAttrs`, uses `fvsRun(1,-1)` to let FVS impute them, writes revised values back with `fvsSetTreeAttrs`, and then in each cycle stops at stop point code 5 to read the trees with `fvsGetTreeAttrs`, grow them in R, and write the results back with `fvsSetTreeAttrs`, adding new records with `fvsAddTrees` at stop point code 6.
+
+The functions called by these scripts are `fvsRun`, `fvsGetRestartcode`, `fvsGetDims`, `fvsGetStandIDs`, `fvsGetEventMonitorVariables`, `fvsGetTreeAttrs`, `fvsSetTreeAttrs`, `fvsGetSpeciesAttrs`, `fvsGetSpeciesCodes` and `fvsUnitConversion`, plus `fvsAddTrees` in the Acadian and Adirondack scripts. User-supplied scripts must not be allowed in a client/server deployment because the child session runs them as ordinary R code.
+
+### User interface elements
+
+Custom models can provide FVSOnline interface elements through UI functions that define:
+
+- Radio button groups for model options
+- Text input fields for parameters
+- Default value management
+
+The values chosen are saved with the run (`uiCustomRunOps`) and passed to the run function as `runOps`.
+
+
 ## Examples
 
 ### Basic library loading and initialization
@@ -523,7 +590,7 @@ rFVS functions are organized into three basic groups based on their primary purp
 
 ### R function interaction with FVS
 
-The Get and Set functions reach FVS data through two source files in the `base` folder of the FVS repository: `apisubs.f` and `apisubsc.c`.
+The Get and Set functions reach FVS data through two source files, `apisubs.f` and `apisubsc.c`.
 
 `apisubs.f` is a collection of Fortran routines that provide an interface to the shared library version of FVS. It was created in 2011, and routines were added in 2019 so that C functions can pass character strings to Fortran. It contains 15 routines: fvsDimSizes, fvsSummary, fvsTreeAttr, fvsSpeciesAttr, fvsEvmonAttr, fvsAddTrees, fvsSpeciesCode, fvsCutTrees (not implemented; returns 1), fvsStandID, fvsCloseFile, fvsAddActivity, fvsSVSDimSizes, fvsSVSObjData, fvsFFEAttrs and fvsUnitConversion. Each is exported by name from the library.
 
@@ -1764,84 +1831,6 @@ fvsLoad(bin="FVSbin",fvsProgram="FVSie")
 vars = fvsGetTreeAttrs(vars=c("dbh","ht","tpa"))
 fvsSetTreeAttrs(vars)
 ```
-
-## FVSOnline graphic interface
-
-### Package dependencies and architecture
-
-rFVS serves as the foundational package for FVSOnline, a Shiny web application interface to FVS. The fvsOL package requires rFVS as a dependency, with rFVS containing the R functions that directly interact with FVS shared libraries while fvsOL provides the interface layer. The interface terms used below (Simulate, View Outputs, Run, and so on) follow the FVS Training Guide (FVS Staff 2021), which describes how to use the interface and is not repeated here.
-
-### Where rFVS fits
-
-Only a small part of the interface calls rFVS. The Simulate tabs that define a run (Stands, Time, Components, Select Outputs) and the tabs that display results (View Outputs, Visualize, View On Maps) work on the project databases and on the saved run object, not on the FVS library. The Run tab is where fvsOL hands a run to rFVS. The division of work is:
-
-`r fvsol.roles`
-
-In the fvsOL code that builds and runs the simulation, the interface itself calls only `fvsLoad`, `fvsSetCmdLine`, `fvsRun`, `fvsGetStandIDs`, `fvsGetSummary` and `fvsSetupSummary`. The remaining rFVS functions are called only from custom run scripts.
-
-### From run settings to keyword file
-
-The run definition is stored in a run object (a reference class that is saved in the project database). When a run starts, `writeKeyFile` converts the selected stands, the time settings, the output selections and the components into an FVS keyword file named `[uuid].key`, where `uuid` is the run's identifier. For each stand the file contains `StdIdent`, `StandCN`, `MgmtId`, `InvYear`, the cycle keywords, the output keywords and then the keywords of the stand's components, grouped by FVS extension. The stand and tree records are not written to the keyword file; FVS reads them from the input database. rFVS only receives the name of the keyword file.
-
-### Selecting the FVS variant and library
-
-At startup and after the project changes, fvsOL looks in the `fvsBin` directory for files named `FVS[a-z]*` with the platform's shared library extension (`resetActiveFVS`). Each file found is an FVS variant library. A list of the extensions that each variant supports is used to decide which components are offered in the interface. The library selected for a run is passed to `fvsLoad` as the `fvsProgram` argument, and `fvsBin` is passed as `bin`.
-
-### Foreground run
-
-When the run is started with "Wait for run", fvsOL does the following:
-
-1. Saves the run and writes the keyword file.
-2. Starts one child R session (`makePSOCKcluster(1)`) and loads rFVS in it. The FVS library is loaded in the child session, not in the Shiny session.
-3. Calls `fvsLoad` and `fvsSetCmdLine("--keywordfile=[uuid].key")` in the child session.
-4. For each stand, calls `fvsRun()` (or the run function of a custom run script, described below), then `fvsGetStandIDs()` and `fvsSetupSummary(fvsGetSummary())`. A nonzero FVS return code ends the loop.
-5. Calls `fvsRun()` once more after the last stand.
-6. Scans the FVS output for errors (`extnErrorScan`), merges the run's output database into `FVSOut.db` (`addNewRun2DB`), and plots total cubic foot volume from the summaries returned by rFVS.
-
-`r fvsol.fg.funcs`
-
-![FVSOnline foreground run](FVSOnline-foreground-run.png)
-
-*Figure 2: Sequence of calls in an FVSOnline foreground run. The shaded lane is the child R session where rFVS is loaded.*
-
-### Background runs
-
-When "Run in background" is selected, the interface does not call rFVS directly. It calls `extnSimulateRun`, which splits the stands over the requested number of CPUs, writes a keyword file for each set, and writes an R script for each set that contains `fvsLoad`, `fvsSetCmdLine` and a loop of the form `while (fvsRun() != 2)`. When a custom run script is selected, its run function replaces `fvsRun()` in the loop. A separate R process starts a cluster with one child session per CPU set, and each child session sources its script in the directory of its set. When the sessions finish, the output of each set is merged into `FVSOut.db` with `addNewRun2DB`. The process id is recorded in a `[uuid].pidStatus` file while the run is active, which the interface uses to track the run.
-
-### Custom run scripts
-
-Custom run scripts replace the call to `fvsRun()` in the run loop so that R can read or change the FVS data at stop points, and are the only place in the interface where the rFVS get and set functions are used. They follow specific naming conventions:
-
-- Script files named: `customRun_[name].R`
-- Registration in the `runScripts.R` configuration file
-
-FVSOnline automatically discovers custom scripts when:
-
-- Filenames conform to naming conventions
-- Scripts are properly registered
-- Required functions are implemented
-
-The run function `[name]` is called in the child session for each stand with the saved options (`runOps`). It calls `fvsRun` with a stop point code, reads or modifies the data, and repeats until `fvsRun` returns a nonzero code or `fvsGetRestartcode` returns 100 (end of stand). The scripts that ship with fvsOL (Acadian, Adirondack and Hi growth models) use these stop points:
-
-`r fvsol.custom`
-
-For example, the Acadian script calls `fvsRun(7,0)` to stop before FVS fills in missing heights and crown ratios, saves those values with `fvsGetTreeAttrs`, uses `fvsRun(1,-1)` to let FVS impute them, writes revised values back with `fvsSetTreeAttrs`, and then in each cycle stops at stop point code 5 to read the trees with `fvsGetTreeAttrs`, grow them in R, and write the results back with `fvsSetTreeAttrs`, adding new records with `fvsAddTrees` at stop point code 6.
-
-The functions called by these scripts are `fvsRun`, `fvsGetRestartcode`, `fvsGetDims`, `fvsGetStandIDs`, `fvsGetEventMonitorVariables`, `fvsGetTreeAttrs`, `fvsSetTreeAttrs`, `fvsGetSpeciesAttrs`, `fvsGetSpeciesCodes` and `fvsUnitConversion`, plus `fvsAddTrees` in the Acadian and Adirondack scripts. User-supplied scripts must not be allowed in a client/server deployment because the child session runs them as ordinary R code.
-
-### User interface elements
-
-Custom models can provide FVSOnline interface elements through UI functions that define:
-
-- Radio button groups for model options
-- Text input fields for parameters
-- Default value management
-
-The values chosen are saved with the run (`uiCustomRunOps`) and passed to the run function as `runOps`.
-
-### What rFVS does not do in the interface
-
-rFVS does not build the keyword file, does not query or merge the output databases, and does not produce the tables, plots or maps in the interface. Those functions are performed by fvsOL, using the databases that FVS writes. rFVS also does not select which variant library is used; fvsOL does so from the contents of `fvsBin` and passes the choice to `fvsLoad`.
 
 
 ## References
