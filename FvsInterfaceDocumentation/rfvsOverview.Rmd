@@ -487,9 +487,10 @@ The values chosen are saved with the run (`uiCustomRunOps`) and passed to the ru
 ## Examples
 
 ### Basic library loading and initialization
+To interact with FVS we need to first create a keyword file. In this case we are calling the file example.key and we assume that it is located in the current working directory. Loading the fvsOL package will also load the rFVS package. While the fvsOL functions are necessary for the following examples, there are some useful functions. Next the `fvsSetCmdLine` function is used to set the keyword file.  
 
 ```{r LoadLibEx, echo=TRUE, eval=FALSE}
-# load fvsOL
+# load fvsOL package
 library(fvsOL)
 # this will also load the dependent rFVS package
 
@@ -501,6 +502,7 @@ fvsSetCmdLine("--keywordfile=example.key")
 ```
 
 ### Tree attribute manipulation
+Once FVS has accessed the keyword file, you can begin interacting with FVS. Here we run to stop point 5 in year 2060 and modify the FVS projections. We then continue to run the projection without interuption. 
 
 ```{r TreeModEx, echo=TRUE, eval=FALSE}
 # Define tree attributes to retrieve
@@ -514,10 +516,10 @@ fvsRun(5, 2060)
 # Get tree data
 trees = fvsGetTreeAttrs(tree.attrs)
 
-# Modify mortality increase by 25%
+# Modify mortality, increase by 25%
 trees$mort = trees$mort*1.25
 
-# Modify height growth decrease by 10%
+# Modify height growth, decrease by 10%
 trees$htg = trees$htg * 0.9
 
 # Apply modifications
@@ -530,7 +532,7 @@ fvsRun(0, 0)
 ### Event monitor integration
 
 #### Get and set event monitor variables
-Event monitor variables can be queried and assigned at a stop point.
+Event monitor variables can be queried and assigned at a stop point. Here we query the year, after treatment TPA and the after treatment basal area, using `fvsGetEventMonitorVariables`. The `fvsSetEventMonitorVariables` function can be used to modify existing variables in the event monitor or create new variables and assign values.  
 
 ```{r EmModEx, echo=TRUE, eval=FALSE}
 em.vars = fvsGetEventMonitorVariables(c("year", "atpa", "aba"))
@@ -538,7 +540,7 @@ fvsSetEventMonitorVariables(c("myaba"=100, "another"=40))
 ```
 
 #### Access external data to set event monitor variables
-Event monitor variables can be used to incorporate external data. For example, querying database variables or GIS data.
+Event monitor variables can be used to incorporate external data. For example, querying database variables or GIS data. In this example we stop the projection at stop point 1 each cycle. We then fetch the stand id and a potential harvest indicator variable. In R we use the sf package to query the adjacent stand identifiers. Next we query the FVS output database to see if any of the those adjacent stands were treated in the previous five years. Using that information we set the harvest availability for the current stand via the `fvsSetEventMonitorVariables` function. 
 
 
 ```{r ExtDataEx, echo=TRUE, eval=FALSE}
@@ -1846,7 +1848,6 @@ fvsSetTreeAttrs(vars)
 
 
 ## References
-
 
 Dixon, Gary E. comp. 2002. Essential FVS: A user's guide to the Forest Vegetation Simulator. Internal Report. Fort Collins, CO: U.S. Department of Agriculture, Forest Service, Forest Management Service Center. 240p. (Revised: June 11, 2026)
 
