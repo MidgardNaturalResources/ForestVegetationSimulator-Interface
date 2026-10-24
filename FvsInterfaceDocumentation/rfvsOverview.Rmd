@@ -98,7 +98,7 @@ rfvs.get.funcs=dplyr::tribble(
  ~`Function`, ~`Description`,
  "fvsCompositeSum", "Builds a composite summary statistics table from a list of summary tables",
  "fvsGetDims", "Returns the max dimensions of important FVS data storage",
- "fvsGetEventMonitorVariables", "Gets Event Monitor variables",
+ "fvsGetEventMonitorVariables", "Gets event monitor variables",
  "fvsGetRestartcode", "Gets the current FVS restart code",
  "fvsGetSpeciesAttrs", "Returns the values of species-specific data",
  "fvsGetStandIDs", "Returns stand identification codes",
@@ -137,7 +137,7 @@ rfvs.set.funcs=dplyr::tribble(
  "fvsAddActivity", "Adds an FVS Activity to the activity schedule",
  "fvsAddTrees", "Adds new tree records to the simulation",
  "fvsCutNow", "Specifies a thinning by setting the proportion of each tree record to cut",
- "fvsSetEventMonitorVariables", "Sets Event Monitor variables",
+ "fvsSetEventMonitorVariables", "Sets event monitor variables",
  "fvsSetSpeciesAttrs", "Sets the values of species-specific data",
  "fvsSetTreeAttrs", "Sets attributes of trees") %>% 
   flextable() %>% 
@@ -190,9 +190,9 @@ fvsol.fg.funcs=dplyr::tribble(
 
 fvsol.custom=dplyr::tribble(
  ~`Script`, ~`Stop point codes used`, ~`Uses`,
- "Acadian", "7, 1, 5 and 6", "Heights and crown ratios (stop points 7 and 1); tree records each cycle (stop point 5); new tree records and volumes (stop point 6)",
- "Adirondack", "5 and 6", "Tree records each cycle (stop point 5); new tree records (stop point 6)",
- "Hi", "7, 1 and 5", "Heights and crown ratios (stop points 7 and 1); tree records each cycle (stop point 5)") %>% 
+ "Acadian", "7, 1, 5 and 6", "Heights and crown ratios (stop point codes 7 and 1); tree records each cycle (stop point code 5); new tree records and volumes (stop point code 6)",
+ "Adirondack", "5 and 6", "Tree records each cycle (stop point code 5); new tree records (stop point code 6)",
+ "Hi", "7, 1 and 5", "Heights and crown ratios (stop point codes 7 and 1); tree records each cycle (stop point code 5)") %>% 
   flextable() %>% 
   set_caption(caption = 'Stop points used by the custom run scripts',
               style = 'Table Caption',
@@ -205,7 +205,7 @@ fvsol.custom=dplyr::tribble(
 
 ## Introduction
 
-rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a dynamic load library (.dll on Windows, .dylib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time access to and modification of FVS predictions during simulation runs.
+rFVS is a package of R-language functions that provides interaction between the Forest Vegetation Simulator (FVS) and R. The system enables FVS to run as a shared library (.dll on Windows, .dylib on MacOS, .so on Unix-like systems) inside an R session. This allows for execution of FVS projections and real-time access to and modification of FVS predictions during simulation runs.
 
 rFVS serves as a bridge between FVS's forest growth and yield simulation capabilities and R's statistical computing environment. The system is part of the ForestVegetationSimulator-Interface GitHub repository, which provides R and Shiny interfaces for the USFS Forest Vegetation Simulator. The primary purposes include:
 
@@ -249,11 +249,11 @@ FVS processes a stand in three sequential phases: the projection initialization 
 
 FVS requires three types of input: parameter and user control data communicated via keyword records, stand-level data and individual tree inventory data. Stand and tree data can come from a database or from external files; the keyword record file is always required and controls basic input even when a database is used.
 
-Management activities are scheduled by year, projection cycle or by condition using IF-THEN-ENDIF keyword sequences. Internally FVS maintains an activity schedule table where each row represents a scheduled activity and columns hold associated parameters including the scheduled year. As keyword records are processed during initialization, activities are posted to this table. During cycling, conditions are evaluated each cycle and any condition-based activities that are satisfied are posted. Each cycle the table is consulted and due activities are executed. Activities are tagged as DONE, NOT DONE or CANCELLED depending on their disposition. The fvsAddActivity function adds activities to this table from R at a stop point.
+Management activities are scheduled by year, projection cycle or by condition using IF-THEN-ENDIF keyword sequences. Internally FVS maintains an activity schedule table where each row represents a scheduled activity and columns hold associated parameters including the scheduled year. As keyword records are processed during initialization, activities are posted to this table. During cycling, conditions are evaluated each cycle and any condition-based activities that are satisfied are posted. Each cycle the table is consulted and due activities are executed. Activities are tagged as DONE, NOT DONE or CANCELLED depending on their disposition. The `fvsAddActivity` function adds activities to this table from R at a stop point.
 
 ### Tree data storage and access
 
-Individual tree record data is stored in arrays within the ARRAYS labeled COMMON block and updated as the projection progresses. Tree records are stored in input order, not sorted order. The number of tree records currently in the simulation is carried in the variable ITRN in the CONTRL labeled COMMON block. Each tree record has an internal sequence number from 1 to ITRN that serves as the storage index into all tree arrays. For example, the diameter for the tree at position 5 is in DBH(5), its height in HT(5) and its expansion factor in PROB(5).
+Individual tree record data is stored in arrays within the common block ARRAYS and updated as the projection progresses. Tree records are stored in input order, not sorted order. The number of tree records currently in the simulation is carried in the variable ITRN in the common block CONTRL. Each tree record has an internal sequence number from 1 to ITRN that serves as the storage index into all tree arrays. For example, the diameter for the tree at position 5 is in DBH(5), its height in HT(5) and its expansion factor in PROB(5).
 
 PROB(*i*) — the number of trees per acre that tree record *i* represents — is the key per-tree scalar used throughout the model. Mortality reduces PROB(*i*); harvesting also reduces it. Stand-level statistics are computed by summing across all ITRN tree records weighted by PROB(*i*). In rFVS this variable is exposed as the `tpa` tree attribute.
 
@@ -265,7 +265,7 @@ Three arrays support access patterns beyond simple 1-to-ITRN loops:
 
 ### The main FVS subroutine
 
-The top-level routine PROGRAM MAIN calls fvsSetCmdLine to retrieve command line options (keyword file name, restart file name, stop point parameters) and then calls subroutine FVS, which orchestrates all other subroutines. PROGRAM MAIN contains the only FORTRAN STOP statement in the program. This structure, separating MAIN from subroutine FVS, was introduced around 2010 specifically to support use of FVS as a shared library callable by external programs such as rFVS.
+The top-level routine PROGRAM MAIN calls `fvsSetCmdLine` to retrieve command line options (keyword file name, restart file name, stop point parameters) and then calls subroutine FVS, which orchestrates all other subroutines. PROGRAM MAIN contains the only FORTRAN STOP statement in the program. This structure, separating MAIN from subroutine FVS, was introduced around 2010 specifically to support use of FVS as a shared library callable by external programs such as rFVS.
 
 During the projection initialization phase, subroutine FVS: checks command line options and return/restart codes; opens required input and output files; initializes parameters to defaults; processes all keyword records; sets up the projection cycling array; initializes extension files; establishes the initial species sort; expands tree data to a per-acre basis based on the sample design; calibrates internal equations to the input data; flags best trees for the regeneration establishment model; computes initial tree-level variables (volumes, crown width); computes initial stand-level variables (basal area per acre); computes initial percentile distributions; assigns example trees to output arrays; and writes initial output data. A logical variable LSTART is set to .TRUE. during initialization and .FALSE. upon completion; it is used extensively during model calibration to control program logic flow.
 
@@ -274,23 +274,23 @@ During the projection cycling phase, subroutine FVS calls subroutines to estimat
 
 ## Start-stop logic
 
-FVS can run from beginning to end without stopping, or stop at specified points (USDAForestService 2025b). rFVS uses the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDAForestService 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
+FVS can run from beginning to end without stopping, or stop at specified points (USDA Forest Service 2025b). rFVS uses the FVS stop-restart capability, which allows simulations to be paused at specific computational points and resumed with full state preservation (USDA Forest Service 2025c). This functionality enables real-time interaction between R and FVS during simulation execution.
 
 When running as a shared library (the rFVS case), all essential projection state is maintained in COMMON block memory within the loaded library. FVS returns up the call stack to R without writing anything to disk, and the caller is free to use the FVS API to read or modify variables before calling FVS to continue. 
 
 
-![FVS Stop Points](Figs/FVS%20stop-points.png)
+![FVS stop points](Figs/FVS%20stop-points.png)
 
 *Figure 1: FVS processing sequence showing available stop points for rFVS interaction*
 
 
 ### Stop point codes and processing sequence
 
-FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. Stop points 1 through 6 are checked in every projection cycle, and stop point 7 once per stand during initialization. If a stop point year greater than 0 was requested, the stop occurs only in the cycle that contains that year (see [Stop point years](#stop-point-years)). The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadian variant to provide examples, as this is the most mature usage of FVS stop points. 
+FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine `fvsStopPoint`, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. Stop point codes 1 through 6 are checked in every projection cycle, and stop point code 7 once per stand during initialization. If a stop point year greater than 0 was requested, the stop occurs only in the cycle that contains that year (see [Stop point years](#stop-point-years)). The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed and which rFVS get and set functions are meaningful. The stop point descriptions use the Acadian variant to provide examples, as this is the most mature usage of FVS stop points. 
 
 **Stop point code 0: Never stop**
 
-FVS does not stop at any stop point. fvsRun runs to the end of the current stand and returns with restart code 100. Return code 2 is returned by a later fvsRun call, after the last stand.
+FVS does not stop at any stop point. `fvsRun` runs to the end of the current stand and returns with restart code 100. Return code 2 is returned by a later `fvsRun` call, after the last stand.
 
 **Stop point code -1: Stop at every stop location**
 
@@ -300,11 +300,11 @@ FVS stops at every defined stop point (1 through 7) it encounters in the process
 
 *Invoked from:* subroutine FVS, after subroutine NOTRE has loaded the tree records (and after the pest model initialization that follows it: RDMN1, MPSDLP and DFBINV) and before subroutine CRATET is called. This stop point occurs once per stand, with the cycle counter set to 1. When FVS resumes, it continues just before CRATET, so values set here are in place when imputation and calibration run.
 
-Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, MCFV, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The ARRAYS COMMON block is partially populated.
+Raw tree data as read from the input file or database is available. DBH(*i*), HT(*i*), ICR(*i*), PROB(*i*) and ISP(*i*) are populated for all ITRN tree records, but heights and crown ratios that were absent in the input are still missing (coded as 0 or flag values). Growth increments DG and HTG are not yet defined. Volumes CFV, MCFV, BFV are zero. Stand-level variables (basal area, CCF, SDI) have not yet been computed. The common block ARRAYS is partially populated.
 
 Dubbed heights and crown ratios, calibrated growth multipliers, percentile arrays PCT and PTBALT, stand density metrics and volumes are not yet available. Setting volumes, growth increments or percentile-dependent attributes at this point has no effect as they are overwritten by subsequent initialization.
 
-The Acadian variant integration uses stop point 7 to identify trees requiring height and crown ratio imputation, fetching those records before FVS attempts its own dubbing, then supplying R-computed values at stop point 1. This is the only stop point that occurs during the projection initialization phase.
+The Acadian variant integration uses stop point code 7 to identify trees requiring height and crown ratio imputation, fetching those records before FVS attempts its own dubbing, then supplying R-computed values at stop point code 1. This is the only stop point that occurs during the projection initialization phase.
 
 
 **Stop point code 1: Before first event monitor call (before-thinning phase)**
@@ -315,11 +315,11 @@ Full initialization is complete. All tree attributes are defined including dubbe
 
 In cycle 1 the before-thinning variables (TSTV1) have not been loaded; in later cycles they hold the previous cycle's values. Growth increments DG and HTG contain zero or prior-cycle values, as they have not been estimated for the current cycle. Mortality (WK2) is not yet computed.
 
-This stop point can be used to supply imputed heights and crown ratios to replace FVS dubbing (as in Acadian), inspect the calibrated tree list, set species-level multipliers before growth begins and add or modify activities with fvsAddActivity before the event monitor evaluates conditions. Note that at stop point 1 the initial tree list has already been written to the database. Heights and crown ratios imputed outside of FVS are therefore used in subsequent FVS calculations, but those values do not appear in the output database.
+This stop point can be used to supply imputed heights and crown ratios to replace FVS dubbing (as in Acadian), inspect the calibrated tree list, set species-level multipliers before growth begins and add or modify activities with `fvsAddActivity` before the event monitor evaluates conditions. Note that at stop point code 1 the initial tree list has already been written to the database. Heights and crown ratios imputed outside of FVS are therefore used in subsequent FVS calculations, but those values do not appear in the output database.
 
-*rFVS Get calls:* fvsGetTreeAttrs (all attributes). fvsGetSpeciesAttrs. fvsGetDims. fvsGetStandIDs. fvsGetEventMonitorVariables returns before-thinning variables only if cycle ≥ 2 (populated from previous cycle); values are not yet refreshed for the current cycle at this point.
+*rFVS Get calls:* `fvsGetTreeAttrs` (all attributes). `fvsGetSpeciesAttrs`. `fvsGetDims`. `fvsGetStandIDs`. `fvsGetEventMonitorVariables` returns before-thinning variables only if cycle ≥ 2 (populated from previous cycle); values are not yet refreshed for the current cycle at this point.
 
-*rFVS Set calls:* fvsSetTreeAttrs (ht, cratio, tpa, dbh, age, mgmtcd). fvsSetSpeciesAttrs (growth multipliers, SDI maxima, site indices; values set here are applied after this cycle's SETSITE processing). fvsSetEventMonitorVariables (user-defined TSTV5 variables). fvsAddActivity.
+*rFVS Set calls:* `fvsSetTreeAttrs` (ht, cratio, tpa, dbh, age, mgmtcd). `fvsSetSpeciesAttrs` (growth multipliers, SDI maxima, site indices; values set here are applied after this cycle's SETSITE processing). `fvsSetEventMonitorVariables` (user-defined TSTV5 variables). `fvsAddActivity`.
 
 **Stop point code 2: After first event monitor call, before thinning**
 
@@ -329,9 +329,9 @@ At this stop point before-thinning event monitor variables in groups 1, 3, 4 and
 
 This stop point can be used for inspecting or overriding event monitor variable values before thinning executes; conditionally adding or canceling activities based on external logic before CUTS runs.
 
-*rFVS Get calls:* fvsGetTreeAttrs (all attributes). fvsGetEventMonitorVariables (before-thinning TSTV1 variables: year, atpa, aba, sdi, ccf, structural stage variables, user-defined).
+*rFVS Get calls:* `fvsGetTreeAttrs` (all attributes). `fvsGetEventMonitorVariables` (before-thinning TSTV1 variables: year, atpa, aba, sdi, ccf, structural stage variables, user-defined).
 
-*rFVS Set calls:* fvsSetEventMonitorVariables (TSTV5 user-defined variables). fvsSetTreeAttrs. fvsAddActivity (activities posted here are visible to CUTS for this cycle).
+*rFVS Set calls:* `fvsSetEventMonitorVariables` (TSTV5 user-defined variables). `fvsSetTreeAttrs`. `fvsAddActivity` (activities posted here are visible to CUTS for this cycle).
 
 **Stop point code 3: Before second event monitor call (after-thinning phase)**
 
@@ -339,11 +339,11 @@ This stop point can be used for inspecting or overriding event monitor variable 
 
 At this stop point thinning has been applied. PROB(*i*) values are reduced for cut trees; records thinned to zero have been deleted by TREDEL and the IND, IND1, ISCT arrays rebuilt by SPESRT and RDPSRT. When trees were removed, DENSE has recomputed the stand density statistics (basal area and CCF). In every case the post-thinning stand density index (SDICAL and SDICLS), forest type (SILFTY) and structural stage (SSTAGE) have been computed. Removed volume tallies and cut tree lists are finalized. The event monitor has not yet loaded the after-thinning variables (TSTV2). Growth increments and mortality have not yet been computed.
 
-Stop point 3 is useful for inspecting the post-harvest tree list before the after-thinning event monitor evaluates conditions; applying custom post-harvest adjustments to PROB or other tree attributes before growth estimation.
+Stop point code 3 is useful for inspecting the post-harvest tree list before the after-thinning event monitor evaluates conditions; applying custom post-harvest adjustments to PROB or other tree attributes before growth estimation.
 
-*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa, dbh, ht, cratio, crwdth, volumes, plot, plotsize, mgmtcd); tpa reflects the post-harvest expansion factors. fvsGetDims (ntrees reflects post-harvest count). fvsGetEventMonitorVariables (before-thinning TSTV1 variables remain available; TSTV2 not yet loaded).
+*rFVS Get calls:* `fvsGetTreeAttrs` (id, species, tpa, dbh, ht, cratio, crwdth, volumes, plot, plotsize, mgmtcd); tpa reflects the post-harvest expansion factors. `fvsGetDims` (ntrees reflects post-harvest count). `fvsGetEventMonitorVariables` (before-thinning TSTV1 variables remain available; TSTV2 not yet loaded).
 
-*rFVS Set calls:* fvsSetTreeAttrs (tpa, dbh, ht, cratio, mgmtcd). fvsSetEventMonitorVariables (TSTV5). fvsAddActivity.
+*rFVS Set calls:* `fvsSetTreeAttrs` (tpa, dbh, ht, cratio, mgmtcd). `fvsSetEventMonitorVariables` (TSTV5). `fvsAddActivity`.
 
 **Stop point code 4: After second event monitor call, before growth estimation**
 
@@ -351,11 +351,11 @@ Stop point 3 is useful for inspecting the post-harvest tree list before the afte
 
 At this stop point after-thinning event monitor variables in groups 2 and 5 (TSTV2 and TSTV5) are now loaded and evaluated. Any condition-based activities triggered by the after-thinning event monitor have been posted. Tree list and stand density reflect post-harvest conditions. Growth increments (DG, HTG) not yet estimated for the current cycle. Mortality (WK2) not yet computed. WK2 currently holds values from the previous cycle or zero.
 
-Stop point 4 is the final opportunity to adjust species-level growth multipliers or tree attributes before diameter and height growth estimation begins. Useful for injecting climate-based or disturbance-based growth modifiers that should apply to the current cycle's growth calculation.
+Stop point code 4 is the final opportunity to adjust species-level growth multipliers or tree attributes before diameter and height growth estimation begins. Useful for injecting climate-based or disturbance-based growth modifiers that should apply to the current cycle's growth calculation.
 
-*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dg and htg reflect prior-cycle or zero values). fvsGetEventMonitorVariables (TSTV1 and TSTV2 variables). fvsGetSpeciesAttrs.
+*rFVS Get calls:* `fvsGetTreeAttrs` (all attributes; dg and htg reflect prior-cycle or zero values). `fvsGetEventMonitorVariables` (TSTV1 and TSTV2 variables). `fvsGetSpeciesAttrs`.
 
-*rFVS Set calls:* fvsSetSpeciesAttrs (baimult, htgmult, mortmult, regdmult, reghmult — these multipliers are applied inside DGDRIV, HTGF, REGENT and MORTS which have not yet run). fvsSetTreeAttrs (dbh, ht, cratio, tpa before growth runs). fvsSetEventMonitorVariables.
+*rFVS Set calls:* `fvsSetSpeciesAttrs` (baimult, htgmult, mortmult, regdmult, reghmult — these multipliers are applied inside DGDRIV, HTGF, REGENT and MORTS which have not yet run). `fvsSetTreeAttrs` (dbh, ht, cratio, tpa before growth runs). `fvsSetEventMonitorVariables`.
 
 **Stop point code 5: After growth and mortality computation, before application**
 
@@ -365,25 +365,25 @@ At this stop point DG(*i*) holds the cycle-length diameter growth estimate for e
 
 This is the primary stop point for replacing or modifying FVS growth and mortality estimates before they are committed to the tree arrays. The Acadian integration uses this stop point to fetch DG, HTG and WK2, replace them with Acadian-computed values and push them back before resuming. Setting dg=0, htg=0 and mort=0 suppresses all FVS-computed growth and mortality for the cycle.
 
-*rFVS Get calls:* fvsGetTreeAttrs (id, species, tpa, dbh, ht, cratio, dg, htg, mort, age, plot, ptbalt, bapctile — all meaningful here; volumes reflect start of cycle values). fvsGetDims (ntrees includes tripled records if tripling is active). fvsGetEventMonitorVariables.
+*rFVS Get calls:* `fvsGetTreeAttrs` (id, species, tpa, dbh, ht, cratio, dg, htg, mort, age, plot, ptbalt, bapctile — all meaningful here; volumes reflect start of cycle values). `fvsGetDims` (ntrees includes tripled records if tripling is active). `fvsGetEventMonitorVariables`.
 
-*rFVS Set calls:* fvsSetTreeAttrs (mort/WK2, dg/DG, htg/HTG are the primary targets; setting dbh or ht here modifies the starting value that UPDATE will then increment (ht by htg, and dbh by dg divided by the bark ratio)). fvsSetEventMonitorVariables.
+*rFVS Set calls:* `fvsSetTreeAttrs` (mort/WK2, dg/DG, htg/HTG are the primary targets; setting dbh or ht here modifies the starting value that UPDATE will then increment (ht by htg, and dbh by dg divided by the bark ratio)). `fvsSetEventMonitorVariables`.
 
 **Stop point code 6: Before regeneration establishment (ESTAB)**
 
 *Invoked from:* subroutine GRADD, after subroutine UPDATE has applied growth and mortality increments and recomputed stand statistics, and before subroutine ESNUTR calls ESTAB to run the regeneration establishment model.
 
-At this stop point DBH(*i*) and HT(*i*) reflect end of cycle values with growth applied, and PROB(*i*) has been reduced by mortality. Volumes (CFV, MCFV, BFV) are recomputed by UPDATE via VOLS, which is called after HT and PROB are updated and before DBH is advanced by DG. Tree ages (age, stored in ABIRTH) have already been increased by the cycle length, so age is an end of cycle value here; at stop points 1 through 5 it has not yet been increased for the current cycle. The tree records have been re-sorted by diameter (RDPSRT) and the stand density statistics (basal area, CCF, PCT) recomputed by DENSE. The insect, fire and disease adjustments were applied before stop point 5 (see stop point 5). Not yet done: regeneration (CLAUESTB, then ESNUTR, which runs ESTAB and appends the new regeneration records to the tree list), crown ratio change (CROWN) and the update of crown widths. After ESTAB, GRADD updates the SVS visualization, calculates economic values (ECCALC) and recomputes stand density (DENSE) before CROWN.
+At this stop point DBH(*i*) and HT(*i*) reflect end of cycle values with growth applied, and PROB(*i*) has been reduced by mortality. Volumes (CFV, MCFV, BFV) are recomputed by UPDATE via VOLS, which is called after HT and PROB are updated and before DBH is advanced by DG. Tree ages (age, stored in ABIRTH) have already been increased by the cycle length, so age is an end of cycle value here; at stop point codes 1 through 5 it has not yet been increased for the current cycle. The tree records have been re-sorted by diameter (RDPSRT) and the stand density statistics (basal area, CCF, PCT) recomputed by DENSE. The insect, fire and disease adjustments were applied before stop point code 5 (see stop point code 5). Not yet done: regeneration (CLAUESTB, then ESNUTR, which runs ESTAB and appends the new regeneration records to the tree list), crown ratio change (CROWN) and the update of crown widths. After ESTAB, GRADD updates the SVS visualization, calculates economic values (ECCALC) and recomputes stand density (DENSE) before CROWN.
 
-Stop point 6 is useful for adding ingrowth tree records via fvsAddTrees before ESTAB runs; modifying post-growth tree attributes or volumes; inspecting end of cycle stand conditions before regeneration is added. The Acadian integration uses this stop point to add ingrowth records and optionally override volume estimates.
+Stop point code 6 is useful for adding ingrowth tree records via `fvsAddTrees` before ESTAB runs; modifying post-growth tree attributes or volumes; inspecting end of cycle stand conditions before regeneration is added. The Acadian integration uses this stop point to add ingrowth records and optionally override volume estimates.
 
-*rFVS Get calls:* fvsGetTreeAttrs (all attributes; dbh, ht and tpa reflect end of cycle values; volumes are the values computed in UPDATE). fvsGetDims. fvsGetSummary (rows up to the start of the current cycle; the end of cycle row is written after the cycle completes). fvsGetEventMonitorVariables.
+*rFVS Get calls:* `fvsGetTreeAttrs` (all attributes; dbh, ht and tpa reflect end of cycle values; volumes are the values computed in UPDATE). `fvsGetDims`. `fvsGetSummary` (rows up to the start of the current cycle; the end of cycle row is written after the cycle completes). `fvsGetEventMonitorVariables`.
 
-*rFVS Set calls:* fvsAddTrees (add ingrowth records before ESTAB runs). fvsSetTreeAttrs (volumes via tcuft/mcuft/bdft can be overridden here; tpa, dbh, ht). fvsSetEventMonitorVariables.
+*rFVS Set calls:* `fvsAddTrees` (add ingrowth records before ESTAB runs). `fvsSetTreeAttrs` (volumes via tcuft/mcuft/bdft can be overridden here; tpa, dbh, ht). `fvsSetEventMonitorVariables`.
 
 **End of stand (restart code 100)**
 
-After the last cycle of a stand, FVS calls fvsStopPoint with the internal location code -1. This stop is always taken, whatever stop point was requested, and it sets the restart code to 100. FVS first completes the stand's final output (DISPLY and GENPRT) and then returns to R; the next call to fvsRun continues with the next stand. fvsGetRestartcode returns 100 at this point, and this is the stop used by the SimEnd block of fvsInteractRun.
+After the last cycle of a stand, FVS calls `fvsStopPoint` with the internal location code -1. This stop is always taken, whatever stop point was requested, and it sets the restart code to 100. FVS first completes the stand's final output (DISPLY and GENPRT) and then returns to R; the next call to `fvsRun` continues with the next stand. `fvsGetRestartcode` returns 100 at this point, and this is the stop used by the SimEnd block of `fvsInteractRun`.
 
 ### Stop point years
 
@@ -397,15 +397,15 @@ The stop point year (`stopPointYear` in `fvsRun`) controls in which projection c
 
 When FVS stops and returns control to R, the entire FVS memory state is preserved in COMMON blocks, allowing seamless continuation from the exact stopping point. This enables modification of tree attributes, stand conditions or other FVS variables before resuming simulation. Any variable whose value must survive across a stop/restart boundary must reside in a COMMON block; local subroutine variables are not preserved.
 
-Stop/restart control variables are stored in the labeled COMMON block GLBLCNTL. The key internal subroutines governing stop/restart flow are:
+Stop/restart control variables are stored in the common block GLBLCNTL. The key internal subroutines governing stop/restart flow are:
 
-- **fvsStopPoint**: Called from within FVS (e.g., subroutine GRADD) with a location code corresponding to the current stop point. Compares that code against the requested stop point and returns a flag indicating whether stopping was requested. After a stop point returns, the calling subroutine also tests the FVS return code (fvsGetRtnCode) and returns up the call stack if it is not 0.
+- **fvsStopPoint**: Called from within FVS (e.g., subroutine GRADD) with a location code corresponding to the current stop point. Compares that code against the requested stop point and returns a flag indicating whether stopping was requested. After a stop point returns, the calling subroutine also tests the FVS return code (`fvsGetRtnCode`) and returns up the call stack if it is not 0.
 - **fvsGetRestartCode**: Called at the beginning of subroutines that contain stop points (GRINCR, TREGRO, GRADD) to retrieve the prior stop point code, allowing the subroutine to jump ahead to where it previously left off rather than re-executing already-completed calculations. It returns 0 whenever the FVS return code is not 0.
 - **getAmStopping**: An entry point within CMDLINE called by a subroutine (e.g., TREGRO) after a called subroutine (e.g., GRINCR) returns, to determine whether that return was caused by a stop point rather than normal completion.
-- **fvsGetRtnCode**: Returns the current integer return code stored in GLBLCNTL. Subroutines use this to detect fatal error states and propagate returns up the call stack without executing a FORTRAN STOP. At the R level, fvsRun exposes an extended version of this code that includes -1 (FVS not yet started), in addition to the three Fortran-level codes.
-- **fvsSetRtnCode**: Sets the return code in GLBLCNTL to one of three values: 0 (all OK), 1 (error — FVS should not be called again until reset with new input) or 2 (run has ended — new input can be specified). No other values are valid. Fatal errors detected anywhere in the call stack set the code to 1 via fvsSetRtnCode and then return rather than calling FORTRAN STOP, which would terminate the host R session.
+- **fvsGetRtnCode**: Returns the current integer return code stored in GLBLCNTL. Subroutines use this to detect fatal error states and propagate returns up the call stack without executing a FORTRAN STOP. At the R level, `fvsRun` exposes an extended version of this code that includes -1 (FVS not yet started), in addition to the three Fortran-level codes.
+- **fvsSetRtnCode**: Sets the return code in GLBLCNTL to one of three values: 0 (all OK), 1 (error — FVS should not be called again until reset with new input) or 2 (run has ended — new input can be specified). No other values are valid. Fatal errors detected anywhere in the call stack set the code to 1 via `fvsSetRtnCode` and then return rather than calling FORTRAN STOP, which would terminate the host R session.
 
-When FVS is called again after a stop, subroutines FVS, TREGRO, GRINCR and GRADD read the restart code (fvsGetRestartCode) and jump to the point below, skipping the work already done:
+When FVS is called again after a stop, subroutines FVS, TREGRO, GRINCR and GRADD read the restart code (`fvsGetRestartCode`) and jump to the point below, skipping the work already done:
 
 `r rfvs.restart.pts`
 
@@ -502,7 +502,7 @@ fvsSetCmdLine("--keywordfile=example.key")
 ```
 
 ### Tree attribute manipulation
-Once FVS has accessed the keyword file, you can begin interacting with FVS. Here we run to stop point 5 in year 2060 and modify the FVS projections. We then continue to run the projection without interuption. 
+Once FVS has accessed the keyword file, you can begin interacting with FVS. Here we run to stop point code 5 in year 2060 and modify the FVS projections. We then continue to run the projection without interuption. 
 
 ```{r TreeModEx, echo=TRUE, eval=FALSE}
 # Define tree attributes to retrieve
@@ -540,7 +540,7 @@ fvsSetEventMonitorVariables(c("myaba"=100, "another"=40))
 ```
 
 #### Access external data to set event monitor variables
-Event monitor variables can be used to incorporate external data. For example, querying database variables or GIS data. In this example we stop the projection at stop point 1 each cycle. We then fetch the stand id and a potential harvest indicator variable. In R we use the sf package to query the adjacent stand identifiers. Next we query the FVS output database to see if any of the those adjacent stands were treated in the previous five years. Using that information we set the harvest availability for the current stand via the `fvsSetEventMonitorVariables` function. 
+Event monitor variables can be used to incorporate external data. For example, querying database variables or GIS data. In this example we stop the projection at stop point code 1 each cycle. We then fetch the stand ID and a potential harvest indicator variable. In R we use the sf package to query the adjacent stand identifiers. Next we query the FVS output database to see if any of the those adjacent stands were treated in the previous five years. Using that information we set the harvest availability for the current stand via the `fvsSetEventMonitorVariables` function. 
 
 
 ```{r ExtDataEx, echo=TRUE, eval=FALSE}
@@ -548,7 +548,7 @@ require(sf)
 require(RSQLite)
 require(glue)
 
-# Run FVS until stop point 1 (before thinning)
+# Run FVS until stop point code 1 (before thinning)
 fvsRun(stopPointCode = 1, stopPointYear = -1)
 
 # Fetch the FVS StandID
@@ -593,25 +593,25 @@ rFVS functions are organized into three basic groups based on their primary purp
 
 ### R function interaction with FVS
 
-The Get and Set functions reach FVS data through two source files, `apisubs.f` and `apisubsc.c`.
+The get and set functions reach FVS data through two source files, `apisubs.f` and `apisubsc.c`.
 
-`apisubs.f` is a collection of Fortran routines that provide an interface to the shared library version of FVS. It was created in 2011, and routines were added in 2019 so that C functions can pass character strings to Fortran. It contains 15 routines: fvsDimSizes, fvsSummary, fvsTreeAttr, fvsSpeciesAttr, fvsEvmonAttr, fvsAddTrees, fvsSpeciesCode, fvsCutTrees (not implemented; returns 1), fvsStandID, fvsCloseFile, fvsAddActivity, fvsSVSDimSizes, fvsSVSObjData, fvsFFEAttrs and fvsUnitConversion. Each is exported by name from the library.
+`apisubs.f` is a collection of Fortran routines that provide an interface to the shared library version of FVS. It was created in 2011, and routines were added in 2019 so that C functions can pass character strings to Fortran. It contains 15 routines: `fvsDimSizes`, `fvsSummary`, `fvsTreeAttr`, `fvsSpeciesAttr`, `fvsEvmonAttr`, `fvsAddTrees`, `fvsSpeciesCode`, `fvsCutTrees` (not implemented; returns 1), `fvsStandID`, `fvsCloseFile`, `fvsAddActivity`, `fvsSVSDimSizes`, `fvsSVSObjData`, `fvsFFEAttrs` and `fvsUnitConversion`. Each is exported by name from the library.
 
-Nine of these routines take character arguments and have a second, C-callable version whose name ends in an upper-case C (for example fvsTreeAttrC). The C-callable version is declared with `bind(c)` and receives each character argument as an array of single characters. It copies the characters into a Fortran string, sets `action` to "set" if the first character is "s" (otherwise "get") and calls the routine without the C suffix. These versions are compiled only when the compiler flag CMPgcc is defined.
+Nine of these routines take character arguments and have a second, C-callable version whose name ends in an upper case C (for example `fvsTreeAttrC`). The C-callable version is declared with `bind(c)` and receives each character argument as an array of single characters. It copies the characters into a Fortran string, sets `action` to "set" if the first character is "s" (otherwise "get") and calls the routine without the C suffix. These versions are compiled only when the compiler flag CMPgcc is defined.
 
-`apisubsc.c` contains the C functions that R calls with the `.C` interface: CfvsSetCmdLine, CfvsTreeAttr, CfvsSpeciesAttr, CfvsEvmonAttr, CfvsSpeciesCode, CfvsStandID, CfvsUnitConversion, CfvsCloseFile, CfvsSVSObjData and CfvsFFEAttrs. Each receives its character arguments as `char **` (the way `.C` passes strings), dereferences them and calls the matching Fortran routine ending in C (fvsSetCmdLineC is in `cmdline.f`). They are also compiled only when CMPgcc is defined.
+`apisubsc.c` contains the C functions that R calls with the `.C` interface: CfvsSetCmdLine, CfvsTreeAttr, CfvsSpeciesAttr, CfvsEvmonAttr, CfvsSpeciesCode, CfvsStandID, CfvsUnitConversion, CfvsCloseFile, CfvsSVSObjData and CfvsFFEAttrs. Each receives its character arguments as `char **` (the way `.C` passes strings), dereferences them and calls the matching Fortran routine ending in C (`fvsSetCmdLineC` is in `cmdline.f`). They are also compiled only when CMPgcc is defined.
 
-Routines with numeric arguments only are called directly with `.Fortran`: fvsDimSizes, fvsSummary, fvsSVSDimSizes, fvsAddActivity and fvsAddTrees (`apisubs.f`), fvs (`fvs.f`) and fvsGetRestartCode and fvsSetStoppointCodes (`cmdline.f`).
+Routines with numeric arguments only are called directly with `.Fortran`: `fvsDimSizes`, `fvsSummary`, `fvsSVSDimSizes`, `fvsAddActivity` and `fvsAddTrees` (`apisubs.f`), fvs (`fvs.f`) and `fvsGetRestartCode` and `fvsSetStoppointCodes` (`cmdline.f`).
 
 `r rfvs.layers`
 
-Numeric vectors from R are passed as double precision (`real(8)`). The attribute routines (fvsTreeAttr, fvsSpeciesAttr, fvsEvmonAttr, fvsSVSObjData and fvsFFEAttrs) use one double vector argument, `attr`, in both directions. When setting, each value is stored as a `real(4)` or truncated to an integer, depending on the array. Attribute names are passed with their length (`nch`); for tree and species attributes a length of 0 or more than 10 returns code 4. Each routine returns an integer code in `rtnCode`, which R turns into `NA`, a warning or an invisible return value, depending on the function.
+Numeric vectors from R are passed as double precision (`real(8)`). The attribute routines (`fvsTreeAttr`, `fvsSpeciesAttr`, `fvsEvmonAttr`, `fvsSVSObjData` and `fvsFFEAttrs`) use one double vector argument, `attr`, in both directions. When setting, each value is stored as a `real(4)` or truncated to an integer, depending on the array. Attribute names are passed with their length (`nch`); for tree and species attributes a length of 0 or more than 10 returns code 4. Each routine returns an integer code in `rtnCode`, which R turns into `NA`, a warning or an invisible return value, depending on the function.
 
 ### FVS execution functions
 
 These functions control the loading and execution of FVS simulations.
 
-A run uses the execution functions in this sequence. fvsLoad loads the FVS library. fvsSetCmdLine sets the keyword file (and optional stop point options) and prepares FVS. fvsRun or fvsInteractRun then calls FVS repeatedly until the FVS return code is not 0 or FVS stops. Each call returns the FVS return code: 0 when FVS stopped at a stop point or at the end of a stand (the restart code from fvsGetRestartcode is then 1 to 7 or 100), 1 after an error and 2 when all stands have been processed. Before FVS is started the return code is -1.
+A run uses the execution functions in this sequence. `fvsLoad` loads the FVS library. `fvsSetCmdLine` sets the keyword file (and optional stop point options) and prepares FVS. `fvsRun` or `fvsInteractRun` then calls FVS repeatedly until the FVS return code is not 0 or FVS stops. Each call returns the FVS return code: 0 when FVS stopped at a stop point or at the end of a stand (the restart code from `fvsGetRestartcode` is then 1 to 7 or 100), 1 after an error and 2 when all stands have been processed. Before FVS is started the return code is -1.
 
 `r rfvs.exec.funcs`
 
@@ -631,7 +631,7 @@ Loads the desired FVS program as a shared library and creates a global environme
 **Usage**
 
 
-fvsLoad(fvsProgram, bin = "../../trunk/bin")
+`fvsLoad`(fvsProgram, bin = "../../trunk/bin")
 
 
 **Value**
@@ -640,7 +640,7 @@ Invisibly returns the path of the loaded library file. Stops with an error if `f
 
 **Implementation**
 
-**Calls.** `dyn.unload` for any FVS library that is already loaded (its path is in `.FVSLOADEDLIBRARY$ldf`), then `dyn.load(ldfile, local = TRUE, now = TRUE)`, then `is.loaded` for each of the 17 routines the rFVS API needs: the C entry points CfvsEvmonAttr, CfvsFFEAttrs, CfvsSVSObjData, CfvsSetCmdLine, CfvsSpeciesAttr, CfvsSpeciesCode, CfvsStandID, CfvsTreeAttr and CfvsUnitConversion, and the Fortran routines fvs, fvsaddactivity, fvsaddtrees, fvsdimsizes, fvsgetrestartcode, fvssvsdimsizes, fvssetstoppointcodes and fvssummary. If any is missing, the library is unloaded and an error lists the missing routines. No FVS routine is run, so FVS is not initialized until fvsRun first calls subroutine FVS.
+**Calls.** `dyn.unload` for any FVS library that is already loaded (its path is in `.FVSLOADEDLIBRARY$ldf`), then `dyn.load(ldfile, local = TRUE, now = TRUE)`, then `is.loaded` for each of the 17 routines the rFVS API needs: the C entry points CfvsEvmonAttr, CfvsFFEAttrs, CfvsSVSObjData, CfvsSetCmdLine, CfvsSpeciesAttr, CfvsSpeciesCode, CfvsStandID, CfvsTreeAttr and CfvsUnitConversion, and the Fortran routines fvs, fvsaddactivity, fvsaddtrees, fvsdimsizes, fvsgetrestartcode, fvssvsdimsizes, fvssetstoppointcodes and fvssummary. If any is missing, the library is unloaded and an error lists the missing routines. No FVS routine is run, so FVS is not initialized until `fvsRun` first calls subroutine FVS.
 
 **Variables.** The global R object `.FVSLOADEDLIBRARY` in `.GlobalEnv` is a list with `ldf` (the library path) and `pgm` (the program name without suffix). Every later `.C` and `.Fortran` call uses `pgm` as its `PACKAGE`.
 
@@ -664,7 +664,7 @@ Creates an FVS keyword file suitable for running FVS with `fvsLoad`, `fvsSetCmdL
 **Usage**
 
 
-fvsMakeKeyFile(keyFileName = NULL, runTitle = NULL, standIDs = NULL, inDataBase = "FVS_Data.db", outDataBase = "FVSOut.db", ncycles = 10, moreKeywords = NULL)
+`fvsMakeKeyFile`(keyFileName = NULL, runTitle = NULL, standIDs = NULL, inDataBase = "FVS_Data.db", outDataBase = "FVSOut.db", ncycles = 10, moreKeywords = NULL)
 
 **Arguments**
 
@@ -705,13 +705,13 @@ Sets the FVS command line, which identifies the keyword file and optional stop p
 **Usage**
 
 
-fvsSetCmdLine(cl = NULL)
+`fvsSetCmdLine`(cl = NULL)
 
 **Arguments**
 
 - `cl` - Character string with the FVS command line (at most 255 characters). If `NULL`, the arguments passed to R when it started (also from Rscript) are used. Options:
   - `--keywordfile=<file>` - Keyword file to run.
-  - `--stoppoint=<code>,<year>[,<file>]` - Stop point code (-1 to 7; values outside that range are set to the nearest limit) and the year to stop in. A major stop ends the stand at the stop point. If a file name is given, FVS saves the stand state to that file (stop with store); if not, no data are saved. In both cases the next call to fvsRun starts the next stand. A stored stand is continued only with `--restart=<file>` in a new session.
+  - `--stoppoint=<code>,<year>[,<file>]` - Stop point code (-1 to 7; values outside that range are set to the nearest limit) and the year to stop in. A major stop ends the stand at the stop point. If a file name is given, FVS saves the stand state to that file (stop with store); if not, no data are saved. In both cases the next call to `fvsRun` starts the next stand. A stored stand is continued only with `--restart=<file>` in a new session.
   - `--restart=<file>` - Resume from a stop point file. The keyword file name is read from the restart file, and any `--keywordfile=` option is ignored with a message.
 
 **Value**
@@ -726,7 +726,7 @@ Stop points set with `--stoppoint=` are "major" stop points: they end the stand 
 
 **Implementation**
 
-**Calls.** `.C("CfvsSetCmdLine", cl, nch, 0L)` calls CfvsSetCmdLine (`apisubsc.c`), which calls fvsSetCmdLineC and then Fortran subroutine fvsSetCmdLine(theCmdLine, lenCL, IRTNCD) (`cmdline.f`). If the return code or restart code is nonzero when it starts, fvsSetCmdLine first closes the open files (FILCLOSE). It then initializes the multiple report routine (GENRPT), parses the options and opens the keyword and output files (FILOPN).
+**Calls.** `.C("CfvsSetCmdLine", cl, nch, 0L)` calls CfvsSetCmdLine (`apisubsc.c`), which calls `fvsSetCmdLineC` and then Fortran subroutine `fvsSetCmdLine`(theCmdLine, lenCL, IRTNCD) (`cmdline.f`). If the return code or restart code is nonzero when it starts, `fvsSetCmdLine` first closes the open files (FILCLOSE). It then initializes the multiple report routine (GENRPT), parses the options and opens the keyword and output files (FILOPN).
 
 **Variables.** These variables in common block GLBLCNTL are reset: keywordfile, restartfile and stopptfile (cleared); maxStoppts = 7; fvsRtnCode, restartcode, minorstopptcode, minorstopptyear, majorstopptcode, majorstopptyear, stopstatcd and originalRestartCode = 0; readFilePos and oldstopyr = -1; firstWrite = 1; jstash and jdstash = -1. The options then set keywordfile (`--keywordfile=`), majorstopptcode, majorstopptyear and stopptfile (`--stoppoint=`, stop point file on unit 71), and restartfile and restartcode (`--restart=`, restart file on unit 72). The command line buffer is 255 characters.
 
@@ -752,7 +752,7 @@ Runs FVS up to a designated stop point, year or both. This is the primary functi
 **Usage**
 
 
-fvsRun(stopPointCode = NA, stopPointYear = NA)
+`fvsRun`(stopPointCode = NA, stopPointYear = NA)
 
 **Arguments**
 
@@ -760,10 +760,10 @@ fvsRun(stopPointCode = NA, stopPointYear = NA)
 
 - `0` - Never stop
 - `-1` - Stop at every stop location
-- `1` - Stop before first Event Monitor call (before thinning)
-- `2` - Stop after first Event Monitor call (before thinning)
-- `3` - Stop before second Event Monitor call (after thinning)
-- `4` - Stop after second Event Monitor call (after thinning)
+- `1` - Stop before first event monitor call (before thinning)
+- `2` - Stop after first event monitor call (before thinning)
+- `3` - Stop before second event monitor call (after thinning)
+- `4` - Stop after second event monitor call (after thinning)
 - `5` - Stop after growth and mortality computation, before applying them
 - `6` - Stop before ESTAB routines
 - `7` - Stop after input read but before missing value imputation and model calibration (a year above 0 must lie in the first cycle; a year of 0 or below applies no year limit)
@@ -784,15 +784,15 @@ Integer return code:
 
 **Details**
 
-fvsRun executes a single stand in the current keyword file. When valid stopPointCode and stopPointYear are provided, the FVS run is suspended and users can interact with FVS data in an R session via rFVS functions. When fvsRun() is called again, FVS continues processing where it left off.
+`fvsRun` executes a single stand in the current keyword file. When valid stopPointCode and stopPointYear are provided, the FVS run is suspended and users can interact with FVS data in an R session via rFVS functions. When `fvsRun()` is called again, FVS continues processing where it left off.
 
-If one argument to fvsRun() is left as NA (default), then both are ignored. You must code both or neither. A stop request stays in effect until it is changed: fvsRun() with no arguments does not clear it, and fvsRun(0, 0) turns it off.
+If one argument to `fvsRun()` is left as NA (default), then both are ignored. You must code both or neither. A stop request stays in effect until it is changed: `fvsRun()` with no arguments does not clear it, and `fvsRun`(0, 0) turns it off.
  
 **Implementation**
 
-**Calls.** If both `stopPointCode` and `stopPointYear` are provided, `.Fortran("fvsSetStoppointCodes", code, year)` calls Fortran subroutine fvsSetStoppointCodes (`cmdline.f`). Then `.Fortran("fvs", 0L)` calls Fortran subroutine FVS(IRTNCD) (`fvs.f`) and `.Fortran("fvsGetRestartCode", 0L)` calls fvsGetRestartCode (`cmdline.f`); this pair is repeated until the FVS return code is not 0 or the restart code is not 0. On its first call, if the return code is -1, FVS calls fvsSetCmdLine with an empty string, which reads the arguments passed to R. FVS then checks the restart code, runs the initialization, the cycles and the stop points (fvsStopPoint) as described under the [stop point codes](#stop-point-codes-and-processing-sequence) and returns after a stop point or at the end of each stand.
+**Calls.** If both `stopPointCode` and `stopPointYear` are provided, `.Fortran("fvsSetStoppointCodes", code, year)` calls Fortran subroutine `fvsSetStoppointCodes` (`cmdline.f`). Then `.Fortran("fvs", 0L)` calls Fortran subroutine FVS(IRTNCD) (`fvs.f`) and `.Fortran("fvsGetRestartCode", 0L)` calls `fvsGetRestartCode` (`cmdline.f`); this pair is repeated until the FVS return code is not 0 or the restart code is not 0. On its first call, if the return code is -1, FVS calls `fvsSetCmdLine` with an empty string, which reads the arguments passed to R. FVS then checks the restart code, runs the initialization, the cycles and the stop points (`fvsStopPoint`) as described under the [stop point codes](#stop-point-codes-and-processing-sequence) and returns after a stop point or at the end of each stand.
 
-**Variables.** In common block GLBLCNTL: minorstopptcode and minorstopptyear (written by fvsSetStoppointCodes), restartcode and stopstatcd (set by fvsStopPoint and read by fvsGetRestartCode and the restart logic) and fvsRtnCode (read and written). The stop point subroutines are called from FVS (stop point 7), GRINCR (1 to 4) and GRADD (5 and 6).
+**Variables.** In common block GLBLCNTL: minorstopptcode and minorstopptyear (written by `fvsSetStoppointCodes`), restartcode and stopstatcd (set by `fvsStopPoint` and read by `fvsGetRestartCode` and the restart logic) and fvsRtnCode (read and written). The stop point subroutines are called from FVS (stop point code 7), GRINCR (1 to 4) and GRADD (5 and 6).
 
 **Input.** `stopPointCode` and `stopPointYear`: integers, both or neither. A stop request stays in effect until it is changed.
 
@@ -816,17 +816,17 @@ Runs FVS where FVS and R interact: FVS runs to each stop point for which a code 
 **Usage**
 
 
-fvsInteractRun(...)
+`fvsInteractRun`(...)
 
 **Arguments**
 
 All arguments are optional and named. Each code block is a character string of R code or a function.
 
 - `trace` - `TRUE` prints informative messages
-- `BeforeEM1` - Stop point code 1 (before the first Event Monitor call)
-- `AfterEM1` - Stop point code 2 (after the first Event Monitor call)
-- `BeforeEM2` - Stop point code 3 (before the second Event Monitor call)
-- `AfterEM2` - Stop point code 4 (after the second Event Monitor call)
+- `BeforeEM1` - Stop point code 1 (before the first event monitor call)
+- `AfterEM1` - Stop point code 2 (after the first event monitor call)
+- `BeforeEM2` - Stop point code 3 (before the second event monitor call)
+- `AfterEM2` - Stop point code 4 (after the second event monitor call)
 - `BeforeAdd` - Stop point code 5 (after growth and mortality are computed, before they are applied)
 - `BeforeEstab` - Stop point code 6 (before the regeneration establishment model)
 - `SimEnd` - End of each stand's simulation (restart code 100)
@@ -843,9 +843,9 @@ Only stop points with a supplied block are requested, at every cycle (stop point
 
 **Implementation**
 
-**Calls.** R function. It requests the next stop point with `.Fortran("fvsSetStoppointCodes", code, -1L)` (year -1, so the stop is made in every cycle), calling the Fortran subroutine in `cmdline.f`; it cycles through the stop points that have a code block. It then repeats the same `.Fortran("fvs")` and `.Fortran("fvsGetRestartCode")` loop as fvsRun. After each return, R runs the block for the restart code (1 to 6) or, for restart code 100, the SimEnd block. The result names come from fvsGetStandIDs and fvsGetEventMonitorVariables.
+**Calls.** R function. It requests the next stop point with `.Fortran("fvsSetStoppointCodes", code, -1L)` (year -1, so the stop is made in every cycle), calling the Fortran subroutine in `cmdline.f`; it cycles through the stop points that have a code block. It then repeats the same `.Fortran("fvs")` and `.Fortran("fvsGetRestartCode")` loop as `fvsRun`. After each return, R runs the block for the restart code (1 to 6) or, for restart code 100, the SimEnd block. The result names come from `fvsGetStandIDs` and `fvsGetEventMonitorVariables`.
 
-**Variables.** In common block GLBLCNTL: minorstopptcode and minorstopptyear (written by fvsSetStoppointCodes), restartcode and fvsRtnCode (read).
+**Variables.** In common block GLBLCNTL: minorstopptcode and minorstopptyear (written by `fvsSetStoppointCodes`), restartcode and fvsRtnCode (read).
 
 **Input.** Named code blocks (BeforeEM1, AfterEM1, BeforeEM2, AfterEM2, BeforeAdd, BeforeEstab and SimEnd), each a string of R code or a function and the logical `trace`. Other names are ignored with a warning.
 
@@ -881,7 +881,7 @@ Gets the FVS units conversion factor.
 **Usage**
 
 
-fvsUnitConversion(name)
+`fvsUnitConversion`(name)
 
 
 **Arguments**
@@ -902,7 +902,7 @@ The values are held in the currently loaded library and are shared across all va
 
 **Implementation**
 
-**Calls.** `.C("CfvsUnitConversion", name, nch, value, rtnCode)` calls CfvsUnitConversion (`apisubsc.c`), which calls fvsUnitConversionC and then Fortran routine fvsUnitConversion (`apisubs.f`).
+**Calls.** `.C("CfvsUnitConversion", name, nch, value, rtnCode)` calls CfvsUnitConversion (`apisubsc.c`), which calls `fvsUnitConversionC` and then Fortran routine `fvsUnitConversion` (`apisubs.f`).
 
 **Variables.** The routine selects a named constant from the include file METRIC.F77 with `select case`:
 
@@ -962,7 +962,7 @@ Returns the species codes for the loaded FVS variant.
 **Usage**
 
 
-fvsGetSpeciesCodes()
+`fvsGetSpeciesCodes()`
 
 **Value**
 
@@ -970,7 +970,7 @@ A character matrix with one row per species index (`maxspecies` from `fvsGetDims
 
 **Implementation**
 
-**Calls.** The function first calls fvsGetDims for `maxspecies`. For each species index it calls `.C("CfvsSpeciesCode", fvs_code, fia_code, plant_code, indx)`. CfvsSpeciesCode (`apisubsc.c`) calls fvsSpeciesCodeC, which calls Fortran routine fvsSpeciesCode (`apisubs.f`).
+**Calls.** The function first calls `fvsGetDims` for `maxspecies`. For each species index it calls `.C("CfvsSpeciesCode", fvs_code, fia_code, plant_code, indx)`. CfvsSpeciesCode (`apisubsc.c`) calls `fvsSpeciesCodeC`, which calls Fortran routine `fvsSpeciesCode` (`apisubs.f`).
 
 **Arrays.** JSP (FVS code), FIAJSP (FIA code) and PLNJSP (Plants code) from common block PLOT. The character buffers are 5, 5 and 7 characters long.
 
@@ -1005,7 +1005,7 @@ Builds a composite summary statistics table from a list of summary tables, as a 
 **Usage**
 
 
-fvsCompositeSum(allsum)
+`fvsCompositeSum`(allsum)
 
 **Arguments**
 
@@ -1042,7 +1042,7 @@ Returns the dimensions of FVS data storage in the current stand being projected 
 **Usage**
 
 
-fvsGetDims()
+`fvsGetDims()`
 
 
 **Value**
@@ -1061,7 +1061,7 @@ The maximum values are compile-time settings of the loaded FVS variant; the valu
 
 **Implementation**
 
-**Calls.** `.Fortran("fvsDimSizes")` calls Fortran subroutine fvsDimSizes (`apisubs.f`). There is no C wrapper.
+**Calls.** `.Fortran("fvsDimSizes")` calls Fortran subroutine `fvsDimSizes` (`apisubs.f`). There is no C wrapper.
 
 **Arrays.** ntrees is IREC1 while LSTART is true (during initialization) and ITRN afterward (CONTRL); ncycles is NCYC; nplots is IPTINV (PLOT); maxtrees, maxspecies, maxplots and maxcycles are the parameters MAXTRE, MAXSP, MAXPLT and MAXCYC (PRGPRM).
 
@@ -1081,17 +1081,17 @@ fvsGetDims()
 
 **Description**
 
-Gets values of FVS Event Monitor variables by name.
+Gets values of FVS event monitor variables by name.
 
 
 **Usage**
 
 
-fvsGetEventMonitorVariables(vars)
+`fvsGetEventMonitorVariables`(vars)
 
 **Arguments**
 
-- `vars` - A character vector of Event Monitor names. Consult FVS documentation for the possible variable names.
+- `vars` - A character vector of event monitor names. Consult FVS documentation for the possible variable names.
 
 **Value**
 
@@ -1099,7 +1099,7 @@ A named numeric vector of the variables, NA if the variable name does not exist
 
 **Implementation**
 
-**Calls.** For each name, `.C("CfvsEvmonAttr", name, nch, "get", value, rtnCode)` is called with the name converted to lower case. CfvsEvmonAttr (`apisubsc.c`) calls Fortran routine fvsEvmonAttrC, which calls fvsEvmonAttr (`apisubs.f`).
+**Calls.** For each name, `.C("CfvsEvmonAttr", name, nch, "get", value, rtnCode)` is called with the name converted to lower case. CfvsEvmonAttr (`apisubsc.c`) calls Fortran routine `fvsEvmonAttrC`, which calls `fvsEvmonAttr` (`apisubs.f`).
 
 **Arrays.** Predefined variables are read from the arrays below, by group (the index is the position within the array). Variables in groups 1 to 3 are returned as stored. Group 4 variables are valid only when the flag LTSTV4 is set for the index. A name that is not predefined is matched in upper case against CTSTV5 and read from TSTV5 when LTSTV5 is set.
 
@@ -1140,7 +1140,7 @@ Gets the current FVS restart code indicating the point within the FVS processing
 **Usage**
 
 
-fvsGetRestartcode()
+`fvsGetRestartcode()`
 
 
 **Value**
@@ -1148,10 +1148,10 @@ fvsGetRestartcode()
 Integer restart code:
 
 - `0` - FVS is not stopped at a stop point (also returned when the FVS return code is not 0)
-- `1` - Stop before first Event Monitor call
-- `2` - Stop after first Event Monitor call
-- `3` - Stop before second Event Monitor call
-- `4` - Stop after second Event Monitor call
+- `1` - Stop before first event monitor call
+- `2` - Stop after first event monitor call
+- `3` - Stop before second event monitor call
+- `4` - Stop after second event monitor call
 - `5` - Stop after growth and mortality computation, before applying them
 - `6` - Stop before ESTAB routines
 - `7` - Stop after input read, before missing value imputation and model calibration
@@ -1164,7 +1164,7 @@ Returns current value of stop/restart code indicating the point within FVS seque
 
 **Implementation**
 
-**Calls.** `.Fortran("fvsGetRestartCode")` calls Fortran subroutine fvsGetRestartCode (`cmdline.f`). There is no C wrapper.
+**Calls.** `.Fortran("fvsGetRestartCode")` calls Fortran subroutine `fvsGetRestartCode` (`cmdline.f`). There is no C wrapper.
 
 **Arrays.** The variables restartcode and fvsRtnCode in common block GLBLCNTL. The restart code is returned only when the FVS return code is 0; otherwise 0 is returned.
 
@@ -1188,7 +1188,7 @@ Returns the values of species-specific data.
 **Usage**
 
 
-fvsGetSpeciesAttrs(vars)
+`fvsGetSpeciesAttrs`(vars)
 
 
 **Arguments**
@@ -1225,7 +1225,7 @@ fvsGetSpeciesAttrs(vars)
 
 **Details**
 
-fvsGetSpeciesAttrs() calls the underlying FVS function fvsSpeciesAttr(name,nch,action,attr,rtnCode), where:
+`fvsGetSpeciesAttrs()` calls the underlying FVS function `fvsSpeciesAttr`(name,nch,action,attr,rtnCode), where:
 
 - `name` - variable name (case sensitive)
 - `nch` - number of characters in name
@@ -1235,7 +1235,7 @@ fvsGetSpeciesAttrs() calls the underlying FVS function fvsSpeciesAttr(name,nch,a
 
 **Implementation**
 
-**Calls.** For each name, `.C("CfvsSpeciesAttr", name, nch, "get", values, rtnCode)` is called. CfvsSpeciesAttr (`apisubsc.c`) calls Fortran routine fvsSpeciesAttrC, which calls fvsSpeciesAttr (`apisubs.f`).
+**Calls.** For each name, `.C("CfvsSpeciesAttr", name, nch, "get", values, rtnCode)` is called. CfvsSpeciesAttr (`apisubsc.c`) calls Fortran routine `fvsSpeciesAttrC`, which calls `fvsSpeciesAttr` (`apisubs.f`).
 
 **Arrays.** Each attribute selects one array, with one element per species (length MAXSP):
 
@@ -1286,7 +1286,7 @@ Returns the identification codes of the stand being simulated.
 **Usage**
 
 
-fvsGetStandIDs()
+`fvsGetStandIDs()`
 
 **Value**
 
@@ -1294,7 +1294,7 @@ A named list with `standid`, `standcn` (stand control number), `mgmtid` and `cas
 
 **Implementation**
 
-**Calls.** `.C("CfvsStandID", standid, standcn, mgmtid, caseID)` is called with four empty strings. CfvsStandID (`apisubsc.c`) calls Fortran routine fvsStandIDC (`apisubs.f`), which fills the strings.
+**Calls.** `.C("CfvsStandID", standid, standcn, mgmtid, caseID)` is called with four empty strings. CfvsStandID (`apisubsc.c`) calls Fortran routine `fvsStandIDC` (`apisubs.f`), which fills the strings.
 
 **Arrays.** The character variables NPLT (stand ID), DBCN (stand control number), MGMID (management ID) and CASEID (case ID).
 
@@ -1319,7 +1319,7 @@ Returns the summary statistics of the stand being simulated.
 **Usage**
 
 
-fvsGetSummary()
+`fvsGetSummary()`
 
 **Value**
 
@@ -1331,9 +1331,9 @@ The table always has `ncycles + 1` rows. At a stop point, the rows for the end o
 
 **Implementation**
 
-**Calls.** `.Fortran("fvsSummary")` is called once for each of the `ncycles + 1` rows, with the row number as the cycle argument. It calls Fortran subroutine fvsSummary (`apisubs.f`). There is no C wrapper.
+**Calls.** `.Fortran("fvsSummary")` is called once for each of the `ncycles + 1` rows, with the row number as the cycle argument. It calls Fortran subroutine `fvsSummary` (`apisubs.f`). There is no C wrapper.
 
-**Arrays.** The array IOSUM(22, MAXCY1) in common block OUTCOM. Subroutine DISPLY writes the rows: row 1 at initialization, each later row after the cycle completes and the final row at the end of the stand. fvsSummary returns 1 when the row is out of range.
+**Arrays.** The array IOSUM(22, MAXCY1) in common block OUTCOM. Subroutine DISPLY writes the rows: row 1 at initialization, each later row after the cycle completes and the final row at the end of the stand. `fvsSummary` returns 1 when the row is out of range.
 
 **Input.** None (a 20-element integer vector and five integer arguments are passed).
 
@@ -1356,7 +1356,7 @@ Returns the current and maximum dimensions of the Stand Visualization System (SV
 **Usage**
 
 
-fvsGetSVSDims()
+`fvsGetSVSDims()`
 
 **Value**
 
@@ -1364,7 +1364,7 @@ Named numeric vector: `nsvsobjs` (SVS objects), `ndeadobjs` (snag objects), `ncw
 
 **Implementation**
 
-**Calls.** `.Fortran("fvsSVSDimSizes")` calls Fortran subroutine fvsSVSDimSizes (`apisubs.f`). There is no C wrapper.
+**Calls.** `.Fortran("fvsSVSDimSizes")` calls Fortran subroutine `fvsSVSDimSizes` (`apisubs.f`). There is no C wrapper.
 
 **Arrays.** The variables NSVOBJ, NDEAD and NCWD (current numbers of objects, snags and coarse woody debris pieces) and MXSVOB, MXDEAD and MXCWD (their maxima), from the SVDATA and SVDEAD common blocks.
 
@@ -1389,7 +1389,7 @@ Returns the Stand Visualization System objects: live trees, snags and coarse woo
 **Usage**
 
 
-fvsGetSVSObjectSet()
+`fvsGetSVSObjectSet()`
 
 **Value**
 
@@ -1405,7 +1405,7 @@ Snag weights `snagwt0` to `snagwt3` are reduced for the years since each snag fe
 
 **Implementation**
 
-**Calls.** The function first calls fvsGetSVSDims. It then calls `.C("CfvsSVSObjData", name, nch, "get", nobjs, values, rtnCode)` for each attribute below; CfvsSVSObjData (`apisubsc.c`) calls Fortran routine fvsSVSObjDataC, which calls fvsSVSObjData (`apisubs.f`). Snag weights are then aged with `.C("CfvsFFEAttrs")` (Fortran fvsFFEAttrsC and fvsFFEAttrs). Tree attributes come from fvsGetTreeAttrs and species codes from fvsGetSpeciesCodes.
+**Calls.** The function first calls `fvsGetSVSDims`. It then calls `.C("CfvsSVSObjData", name, nch, "get", nobjs, values, rtnCode)` for each attribute below; CfvsSVSObjData (`apisubsc.c`) calls Fortran routine `fvsSVSObjDataC`, which calls `fvsSVSObjData` (`apisubs.f`). Snag weights are then aged with `.C("CfvsFFEAttrs")` (Fortran `fvsFFEAttrsC` and `fvsFFEAttrs`). Tree attributes come from `fvsGetTreeAttrs` and species codes from `fvsGetSpeciesCodes`.
 
 **Arrays.** Each attribute selects one array. The number of objects passed must equal the current count (NSVOBJ for object attributes, NDEAD for snags, NCWD for coarse woody debris, MAXSP for fall years), otherwise nothing is transferred (return code 3; code 2 means the count exceeds the maximum).
 
@@ -1435,7 +1435,7 @@ Snag weights `snagwt0` to `snagwt3` are reduced for the years since each snag fe
 | fallyrs2 | TFALL(1:MAXSP,2) |
 | fallyrs3 | TFALL(1:MAXSP,3) |
 
-Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The tree attributes read are species, dbh, ht, crwdth, cratio and crownwt0 to crownwt3 (see [fvsGetTreeAttrs](#fvsgettreeattrs)).
+Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The tree attributes read are species, dbh, ht, crwdth, cratio and crownwt0 to crownwt3 (see [`fvsGetTreeAttrs`](#fvsgettreeattrs)).
 
 **Input.** None.
 
@@ -1461,7 +1461,7 @@ The defect value is an 8-digit code composed of four 2-digit segments: first two
 
 The ispecl variable is a special tree status code used to flag trees for specific reasons such as wildlife trees. The code can be used in setting cut priority via multiplier on tcondmlt keyword. Also used in organon swo and nwo/smc to define the value "user" in the organon code. Also used to hold the form and risk class (Used in the Acadian model) when damage code 54 is coded.
 
-The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode), where:
+The underlying FVS function is `fvsTreeAttr`(name,nch,action,ntrees,attr,rtnCode), where:
 
 - `name` - variable name (case sensitive)
 - `nch` - number of characters in name
@@ -1472,7 +1472,7 @@ The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode),
 
 **Implementation**
 
-**Calls.** For each attribute, `.C("CfvsTreeAttr", name, nch, "get", ntrees, values, rtnCode)` is called. CfvsTreeAttr (`apisubsc.c`) calls Fortran routine fvsTreeAttrC, which calls fvsTreeAttr (`apisubs.f`).
+**Calls.** For each attribute, `.C("CfvsTreeAttr", name, nch, "get", ntrees, values, rtnCode)` is called. CfvsTreeAttr (`apisubsc.c`) calls Fortran routine `fvsTreeAttrC`, which calls `fvsTreeAttr` (`apisubs.f`).
 
 **Arrays.** Each attribute selects one array, read for the current number of tree records (IREC1 during initialization, otherwise ITRN). The array for each attribute is given in the table below.
 
@@ -1509,7 +1509,7 @@ The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode),
 | kutkod | KUTKOD |
 | wk6 | WK6 |
 
-**Input.** Character vector of attribute names. A double vector of length ntrees (from fvsGetDims) is passed as the buffer for each name.
+**Input.** Character vector of attribute names. A double vector of length ntrees (from `fvsGetDims`) is passed as the buffer for each name.
 
 **Returns.** dataframe with one column per attribute and one row per tree record; an empty dataframe when there are no records. An attribute is left out, without a warning, when its return code is not 0 (1 name not found, 2 ntrees greater than MAXTRE, 3 length differs from the current number of records, 4 invalid name length).
 
@@ -1530,7 +1530,7 @@ Modifies the summary statistics so they are ready to plot. For each cycle with r
 **Usage**
 
 
-fvsSetupSummary(asum)
+`fvsSetupSummary`(asum)
 
 **Arguments**
 
@@ -1571,7 +1571,7 @@ Adds an FVS Activity to the activity schedule.
 **Usage**
 
 
-fvsAddActivity(year, activity, parms = NULL)
+`fvsAddActivity`(year, activity, parms = NULL)
 
 **Arguments**
 
@@ -1586,7 +1586,7 @@ Invisibly returns 0 if the activity was added and 1 if there was an error. With 
 
 **Implementation**
 
-**Calls.** `.Fortran("fvsAddActivity", year, activity, parms, nparms, rtnCode)` calls Fortran subroutine fvsAddActivity (`apisubs.f`), which copies up to 20 parameters to real(4) values and calls OPADD. OPADD calls OPNEW to store the activity and, when the status is 0, OPINCR must be called afterward; fvsAddActivity calls it when OPADD succeeds. There is no C wrapper.
+**Calls.** `.Fortran("fvsAddActivity", year, activity, parms, nparms, rtnCode)` calls Fortran subroutine `fvsAddActivity` (`apisubs.f`), which copies up to 20 parameters to real(4) values and calls OPADD. OPADD calls OPNEW to store the activity and, when the status is 0, OPINCR must be called afterward; `fvsAddActivity` calls it when OPADD succeeds. There is no C wrapper.
 
 **Arrays.** The activity schedule in common block OPCOM: OPNEW stores the activity code in IACT(,1), the parameter pointers in IACT(,2:3), the date in IDATE and the parameters in PARMS, and sets the sort pointer IOPSRT; OPADD sets the status IACT(,4) to 0 and the sequence number ISEQ. The pointers IMPL (next free parameter) and IMGL (next free activity row) are advanced.
 
@@ -1613,7 +1613,7 @@ Adds new tree records to the simulation.
 **Usage**
 
 
-fvsAddTrees(newtrees)
+`fvsAddTrees`(newtrees)
 
 **Arguments**
 
@@ -1629,7 +1629,7 @@ The rFVS help states that this function should be called only at stop point code
 
 **Implementation**
 
-**Calls.** `.Fortran("fvsAddTrees", dbh, species, ht, cratio, plot, tpa, ntrees, rtnCode)` calls Fortran subroutine fvsAddTrees (`apisubs.f`), which calls CWCALC (crown width), MISPUTZ, SPESRT and RDPSRT. There is no C wrapper.
+**Calls.** `.Fortran("fvsAddTrees", dbh, species, ht, cratio, plot, tpa, ntrees, rtnCode)` calls Fortran subroutine `fvsAddTrees` (`apisubs.f`), which calls CWCALC (crown width), MISPUTZ, SPESRT and RDPSRT. There is no C wrapper.
 
 **Arrays.** For each new record, the next position in the tree arrays is filled: DBH, ISP, HT, ICR, ITRE and PROB from the input; IMC is set to 2, ABIRTH to 5, IDTREE to 10000000 plus the cycle number times 10000 plus the record number and CRWDTH from CWCALC. These arrays are set to zero: CFV, MCFV, SCFV, BFV, DG, HTG, PCT, OLDPCT, WK1, WK2, WK4, CULL, PTBALT, DEFECT, ISPECL, ITRUNC, NORMHT, DECAYCD, WDLDSTEM, ABVGRD_BIO, MERCH_BIO, CUBSAW_BIO, FOLI_BIO, ABVGRD_CARB, MERCH_CARB, CUBSAW_CARB, FOLI_CARB, CARB_FRAC, IESTAT, OLDRN, PTOCFV, PMRCFV, PMRBFV, NCFDEF, NBFDEF, PDBH and PHT; ZRAND is set to -999. The counter ITRN is increased, IREC1 is set to ITRN and IFST is set to 1 so that the example tree records are picked again.
 
@@ -1654,7 +1654,7 @@ Specifies a thinning by setting the proportion of each tree record's trees per a
 **Usage**
 
 
-fvsCutNow(propcut)
+`fvsCutNow`(propcut)
 
 **Arguments**
 
@@ -1666,17 +1666,17 @@ Return code, 0 if OK and nonzero otherwise.
 
 **Details**
 
-Can only be used at stop point code 2 (just after the first Event Monitor call); R stops with an error otherwise. The proportions are held in volatile FVS memory that is reused for other purposes after the cut is simulated. The thinning can be combined with other thinning options, including the `MinHarv` and `YardLoss` keywords. It is implemented with the `ThinPrsc` keyword.
+Can only be used at stop point code 2 (just after the first event monitor call); R stops with an error otherwise. The proportions are held in volatile FVS memory that is reused for other purposes after the cut is simulated. The thinning can be combined with other thinning options, including the `MinHarv` and `YardLoss` keywords. It is implemented with the `ThinPrsc` keyword.
 
 **Implementation**
 
-**Calls.** R function. It checks that the restart code (fvsGetRestartcode) is 2, replicates a single proportion to every tree record, calls fvsAddActivity with the current year (from fvsGetEventMonitorVariables), the activity "base_thinprsc" and the parameters 1 and -1, and then calls fvsSetTreeAttrs with the attribute wk6.
+**Calls.** R function. It checks that the restart code (`fvsGetRestartcode`) is 2, replicates a single proportion to every tree record, calls `fvsAddActivity` with the current year (from `fvsGetEventMonitorVariables`), the activity "base_thinprsc" and the parameters 1 and -1, and then calls `fvsSetTreeAttrs` with the attribute wk6.
 
-**Arrays.** The OPCOM activity arrays (as described for fvsAddActivity) and the tree array WK6, which holds the proportion of each tree record to cut. Subroutine CUTS reads WK6 when the ThinPrsc parameter KUTNOW is -1, and then reuses WK6 for the removed volume.
+**Arrays.** The OPCOM activity arrays (as described for `fvsAddActivity`) and the tree array WK6, which holds the proportion of each tree record to cut. Subroutine CUTS reads WK6 when the ThinPrsc parameter KUTNOW is -1, and then reuses WK6 for the removed volume.
 
-**Input.** Numeric vector of proportions, of length 1 or one per tree record (ntrees from fvsGetDims).
+**Input.** Numeric vector of proportions, of length 1 or one per tree record (ntrees from `fvsGetDims`).
 
-**Returns.** The nonzero return code from fvsAddActivity if the activity could not be added; otherwise the invisible return code from fvsSetTreeAttrs (0 when OK).
+**Returns.** The nonzero return code from `fvsAddActivity` if the activity could not be added; otherwise the invisible return code from `fvsSetTreeAttrs` (0 when OK).
 
 **Example**
 
@@ -1689,12 +1689,12 @@ fvsCutNow(0.25)   # cut 25 percent of every tree record
 
 **Description**
 
-Sets the values of Event Monitor variables by name.
+Sets the values of event monitor variables by name.
 
 **Usage**
 
 
-fvsSetEventMonitorVariables(vars)
+`fvsSetEventMonitorVariables`(vars)
 
 **Arguments**
 
@@ -1706,11 +1706,11 @@ A named numeric vector of the values that were set, `NA` where the variable coul
 
 **Details**
 
-Predefined Event Monitor variables can be set, and new user-defined variables are created when the name does not exist. FVS holds at most 399 user-defined variables. Stops with an error if `vars` is missing, not numeric or not named.
+Predefined event monitor variables can be set, and new user-defined variables are created when the name does not exist. FVS holds at most 399 user-defined variables. Stops with an error if `vars` is missing, not numeric or not named.
 
 **Implementation**
 
-**Calls.** For each name, `.C("CfvsEvmonAttr", name, nch, "set", value, rtnCode)` is called with the name converted to lower case. CfvsEvmonAttr (`apisubsc.c`) calls Fortran routine fvsEvmonAttrC, which calls fvsEvmonAttr (`apisubs.f`) with action "set".
+**Calls.** For each name, `.C("CfvsEvmonAttr", name, nch, "set", value, rtnCode)` is called with the name converted to lower case. CfvsEvmonAttr (`apisubsc.c`) calls Fortran routine `fvsEvmonAttrC`, which calls `fvsEvmonAttr` (`apisubs.f`) with action "set".
 
 **Arrays.** Predefined variables are written to the arrays below, by group (the index is the position within the array); setting a group 4 variable also sets the flag LTSTV4 for the index. A name that is not predefined is matched in upper case against CTSTV5: if found, TSTV5 is updated and LTSTV5 is set; if not found and the table is not full (ITST5 below MXTST5 = 399), the name is added to CTSTV5, ITST5 is increased and TSTV5 and LTSTV5 are set; otherwise the return code is 1.
 
@@ -1747,7 +1747,7 @@ Sets the values of species-specific data.
 **Usage**
 
 
-fvsSetSpeciesAttrs(vars)
+`fvsSetSpeciesAttrs`(vars)
 
 **Arguments**
 
@@ -1759,7 +1759,7 @@ Invisibly returns 0 if all attributes were set, or the largest return code from 
 
 **Implementation**
 
-**Calls.** For each name in the list, `.C("CfvsSpeciesAttr", name, nch, "set", values, rtnCode)` is called. CfvsSpeciesAttr (`apisubsc.c`) calls Fortran routine fvsSpeciesAttrC, which calls fvsSpeciesAttr (`apisubs.f`) with action "set".
+**Calls.** For each name in the list, `.C("CfvsSpeciesAttr", name, nch, "set", values, rtnCode)` is called. CfvsSpeciesAttr (`apisubsc.c`) calls Fortran routine `fvsSpeciesAttrC`, which calls `fvsSpeciesAttr` (`apisubs.f`) with action "set".
 
 **Arrays.** Each attribute writes one array with one element per species (length MAXSP):
 
@@ -1789,7 +1789,7 @@ Invisibly returns 0 if all attributes were set, or the largest return code from 
 | maxdbhcd | SIZCAP(,3) | real(4) |
 | maxht | SIZCAP(,4) | real(4) |
 
-**Input.** Named list of numeric vectors, each of length `maxspecies` (from fvsGetDims) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
+**Input.** Named list of numeric vectors, each of length `maxspecies` (from `fvsGetDims`) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
 
 **Returns.** Invisible integer: 0, or the largest return code from FVS (1 name not found, 4 invalid name length). A vector skipped by R does not change the return code.
 
@@ -1812,12 +1812,12 @@ Sets attributes of trees in the current simulation.
 **Usage**
 
 
-fvsSetTreeAttrs(vars)
+`fvsSetTreeAttrs`(vars)
 
 
 **Arguments**
 
-- `vars` - Data frame or named list where each column/element is a numeric vector with no NAs and length equal to current number of trees (ntrees from fvsGetDims()). Column/element names must match valid tree attribute names.
+- `vars` - Data frame or named list where each column/element is a numeric vector with no NAs and length equal to current number of trees (ntrees from `fvsGetDims()`). Column/element names must match valid tree attribute names.
 
 **Value**
 
@@ -1825,11 +1825,11 @@ Invisibly returns 0, or the largest return code from FVS when an attribute is re
 
 **Details**
 
-Uses the same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode) but with action="set".
+Uses the same underlying FVS function as `fvsGetTreeAttrs`: `fvsTreeAttr`(name,nch,action,ntrees,attr,rtnCode) but with action="set".
 
 **Implementation**
 
-**Calls.** For each name in the list, `.C("CfvsTreeAttr", name, nch, "set", ntrees, values, rtnCode)` is called. CfvsTreeAttr (`apisubsc.c`) calls Fortran routine fvsTreeAttrC, which calls fvsTreeAttr (`apisubs.f`) with action "set".
+**Calls.** For each name in the list, `.C("CfvsTreeAttr", name, nch, "set", ntrees, values, rtnCode)` is called. CfvsTreeAttr (`apisubsc.c`) calls Fortran routine `fvsTreeAttrC`, which calls `fvsTreeAttr` (`apisubs.f`) with action "set".
 
 **Arrays.** Each attribute writes one array for the current number of tree records (IREC1 during initialization, otherwise ITRN):
 
@@ -1866,7 +1866,7 @@ Uses the same underlying FVS function as fvsGetTreeAttrs: fvsTreeAttr(name,nch,a
 | kutkod | KUTKOD | integer (truncated with int) |
 | wk6 | WK6 | real(4) |
 
-**Input.** Named list (or dataframe) of numeric vectors, each of length ntrees (from fvsGetDims) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
+**Input.** Named list (or dataframe) of numeric vectors, each of length ntrees (from `fvsGetDims`) and without `NA`. R skips a vector with the wrong length or an `NA` and gives a warning.
 
 **Returns.** Invisible integer: 0, or the largest return code from FVS (1 name not found, 2 ntrees greater than MAXTRE, 3 length differs from the current number of records, 4 invalid name length). A vector skipped by R does not change the return code.
 
