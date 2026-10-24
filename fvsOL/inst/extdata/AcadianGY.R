@@ -19,6 +19,10 @@ AcadianVersionTag = "AcadianV12.5.0"
 #### major update summary ####
 ####
 
+# 12.5.1
+  # added code to prevent NA summary values
+  # updated sp.attr to cover all valid species codes occurring in both ACD and NE
+
 # 12.5.0
   # significant rewrite of codebase   
   # standardized variable names
@@ -130,6 +134,23 @@ sp.attr = dplyr::tribble(
   'WP',  'SW',  0.35,  0.34,    3.21,  2.29,  1.03,     'WP',    # WP=white pine
   'WS',  'SW',  0.4,   0.33,    4.15,  2.88,  1.02,     'SPR',   # WS=white spruce
   'YB',  'HW',  0.62,  0.55,    3.17,  3,     2,        'BCH',   # YB=yellow birch
+  'AE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # AE=American elm- OH values
+  'AH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # AH=American hornbeam- OH values
+  'AP',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # AP=apple- OH values
+  'BE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BE=boxelder- OH values
+  'BN',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BN=butternut- OH values
+  'BO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BO=black oak- OH values
+  'BR',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BR=bur oak- OH values
+  'BW',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BW=American basswood- OH values
+  'HT',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # HT=hawthorn- OH values
+  'PP',  'SW',  0.445,  0,      2.27,  0,     0,        'OS',    # PP=pitch pine- OS values
+  'SE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SE=serviceberry- OH values
+  'SH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SH=shagbark hickory- OH values
+  'SO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SO=scarlet oak- OH values
+  'SV',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SV=silver maple- OH values
+  'TM',  'SW',  0.445,  0,      2.27,  0,     0,        'OS',    # TM=Table Mountain pine- OS values
+  'WO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # WO=white oak- OH values
+  'YP',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # YP=tuliptree  - OH values
   '99',  'HW',  0.3,   0.3,     3.0,   0,     0,        'OH')    # other
 
 
@@ -1541,11 +1562,13 @@ tree.mort.spp = dplyr::tribble(
   'NM', 4.552236589, -0.2313332059, 0.0125996045, 24, 40, 4.5,
   'NS', 17.4833923331, -1.809142126, 0.0616970369, 15, 35, 2,
   'OH', 4.552236589, -0.5204997134, 0.0125996045, 12, 10, 4.5,
+  'OS', 2.5743949775, -0.0851930923, 0.0015971909, 53, 40.6, 1.51, # using BF parameters
   'PB', 2.5863343441, -0.0518497247, 0.0021853588, 26.4, 41.2, 1.88,
   'PP', 12.1649655944, -1.0483772747, 0.0233147008, 25.8, 41.6, 4.41,
   'PR', -1.2171488097, 0.3211464783, -0.0097154365, 10, 40, 2,
   'QA', -0.4584998714, 0.1992627013, -0.0028451758, 60.6, 11, 4.28,
   'RM', 2.1674971386, 0.0557266595, -0.0010435394, 60.2, 40.6, 4.38,
+  'RN', 1.1361278304, 0.1436446742, 0.0018438454, 30, 30, 3,
   'RO', 3.1202275212, -0.041290776, 0.0022978235, 41, 40.4, 3.27,
   'RP', 1.1361278304, 0.1436446742, 0.0018438454, 30, 30, 3,
   'RS', 2.0420797297, 0.0425701678, -0.0004901795, 41, 32, 4.8,
@@ -1565,6 +1588,7 @@ tree.mort.spp = dplyr::tribble(
   'YB', 2.6967072576, -0.001250889, 0.0007521152, 48, 60, 2,
   '99', 2.6967072576, -0.001250889, 0.0007521152, 48, 60, 2)
 
+# table does not include BR, HT, SE, SO, TM, YP - valid FVS-NE species. These default to OH in the match() call
 
 # Plot mortality probability region parameters 
 stand.mort.prob.region = dplyr::tribble(
@@ -1894,7 +1918,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
     dplyr::summarise(ba.bf = sum(ifelse(sp == 'BF', ba, 0), na.rm = TRUE),
                      tph.bf = sum(ifelse(sp == 'BF', expf, 0), na.rm = TRUE)) %>%
     dplyr::ungroup() %>% 
-    dplyr::mutate(qmd.bf = sqrt(ba.bf/(0.00007854*tph.bf)))
+    dplyr::mutate(qmd.bf = dplyr::coalesce(sqrt(ba.bf/(0.00007854*tph.bf)), 0))
   
   # Regional parameters for plot mortality probability
   stand.prob.idx = match(region, stand.mort.prob.region.df$region, 
@@ -3068,7 +3092,7 @@ calc_plot_summary = function(tree.data) {
                      sdi = sum(ifelse(dbh >= 10, (dbh / 25.4)^1.6 * expf, 0), na.rm = TRUE),
                      sdi.all = sum((dbh / 25.4)^1.6 * expf, na.rm = TRUE),
                      # Softwood DBH average (where sp.type == 'SW')
-                     dbh.sw.avg = mean(ifelse(sp.type == 'SW', dbh, NA), na.rm = TRUE),
+                     dbh.sw.avg =  dplyr::coalesce(mean(ifelse(sp.type == 'SW', dbh, NA), na.rm = TRUE), 0),
                      # max tree number for ingrowth
                      max.tree.id = max(tree, na.rm = TRUE), .groups = 'drop') %>%
     # QMD
@@ -3324,17 +3348,17 @@ AcadianGYOneStand = function(tree, stand, ops)
   plot.avg.sw.ht=tree %>% 
     dplyr::filter(sp.type=='SW') %>% 
     dplyr::group_by(plot) %>% 
-    dplyr::summarise(ht.sw.avg = weighted.mean(ht, expf, na.rm = TRUE),
+    dplyr::summarise(ht.sw.avg = weighted.mean(ht, expf, na.rm = TRUE), 
                      .groups = 'drop') %>% 
-    ungroup() %>% 
-    dplyr::mutate(ht.sw.avg =  dplyr::coalesce(ht.sw.avg, 0))
+    ungroup() 
   
   # Add to plot summary
-  plot.smry=plot.smry %>% 
+  plot.smry = plot.smry %>% 
     dplyr::left_join(plot.topht,
                      by='plot') %>% 
     dplyr::left_join(plot.avg.sw.ht, 
-                     by='plot')
+                     by='plot')%>% 
+    dplyr::mutate(ht.sw.avg =  dplyr::coalesce(ht.sw.avg, 0))
  
 ##### Diameter increment ####
   tree = tree %>%

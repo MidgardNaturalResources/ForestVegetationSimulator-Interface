@@ -28,7 +28,10 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
       
       source(rFn)
     }
+  } else {
+    rFn=getwd()
   }
+  
   cat ("\nSource file for this fvsRunAcadian=\n",rFn,"\n")
   cat ("*** in fvsRunAcadian",date()," AcadianVersionTag=",AcadianVersionTag,"\n")
  
