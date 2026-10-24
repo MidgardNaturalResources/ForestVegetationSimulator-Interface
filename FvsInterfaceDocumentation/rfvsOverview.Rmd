@@ -1474,7 +1474,40 @@ The underlying FVS function is fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode),
 
 **Calls.** For each attribute, `.C("CfvsTreeAttr", name, nch, "get", ntrees, values, rtnCode)` is called. CfvsTreeAttr (`apisubsc.c`) calls Fortran routine fvsTreeAttrC, which calls fvsTreeAttr (`apisubs.f`).
 
-**Arrays.** Each attribute selects one array, read for the current number of tree records (IREC1 during initialization, otherwise ITRN). The array for each attribute is given in the Tree attributes table below.
+**Arrays.** Each attribute selects one array, read for the current number of tree records (IREC1 during initialization, otherwise ITRN). The array for each attribute is given in the table below.
+
+| Attribute | Array |
+|---|---|
+| tpa | PROB |
+| mort | WK2 |
+| dbh | DBH |
+| dg | DG |
+| ht | HT |
+| htg | HTG |
+| crwdth | CRWDTH |
+| cratio | ICR |
+| species | ISP |
+| age | ABIRTH |
+| plot | ITRE |
+| tcuft | CFV |
+| mcuft | MCFV |
+| scuft | SCFV |
+| bdft | BFV |
+| defect | DEFECT |
+| ptbalt | PTBALT |
+| mgmtcd | IMC |
+| plotsize | PLTSIZ |
+| bapctile | PCT |
+| crownwt0 | CROWNW(,0) |
+| crownwt1 | CROWNW(,1) |
+| crownwt2 | CROWNW(,2) |
+| crownwt3 | CROWNW(,3) |
+| crownwt4 | CROWNW(,4) |
+| crownwt5 | CROWNW(,5) |
+| id | IDTREE |
+| special | ISPECL |
+| kutkod | KUTKOD |
+| wk6 | WK6 |
 
 **Input.** Character vector of attribute names. A double vector of length ntrees (from fvsGetDims) is passed as the buffer for each name.
 
