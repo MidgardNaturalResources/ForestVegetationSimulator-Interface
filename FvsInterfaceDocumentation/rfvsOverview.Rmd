@@ -176,11 +176,11 @@ fvsol.roles=dplyr::tribble(
 
 fvsol.fg.funcs=dplyr::tribble(
  ~`Step`, ~`rFVS function`, ~`Purpose`,
- "3", "fvsLoad", "Load the selected FVS library",
- "3", "fvsSetCmdLine", "Give FVS the keyword file name",
- "4", "fvsRun", "Run one stand to its end",
- "4", "fvsGetStandIDs", "Identify the stand and the management ID that was just run",
- "4", "fvsGetSummary, fvsSetupSummary", "Read the summary table of the stand and format it for the quick plot") %>% 
+ "3", "fvsLoad", "Loads the selected FVS library",
+ "3", "fvsSetCmdLine", "Gives FVS the keyword file name",
+ "4", "fvsRun", "Runs one stand to its end",
+ "4", "fvsGetStandIDs", "Identifies the stand and the management ID that was just run",
+ "4", "fvsGetSummary, fvsSetupSummary", "Reads the summary table of the stand and formats it for the quick plot") %>% 
   flextable() %>% 
   set_caption(caption = 'rFVS functions called in an FVSOnline foreground run',
               style = 'Table Caption',
@@ -876,7 +876,7 @@ fvsInteractRun(BeforeEM1 = 'test.interact("BeforeEM1")',
 
 **Description**
 
-Get FVS Units Conversion Factor.
+Gets the FVS units conversion factor.
 
 **Usage**
 
@@ -1037,7 +1037,7 @@ fvsCompositeSum(all.sum)
 
 **Description**
 
-Return the dimensions of FVS data storage in the current stand being projected in FVS.
+Returns the dimensions of FVS data storage in the current stand being projected in FVS.
 
 **Usage**
 
@@ -1134,7 +1134,7 @@ fvsGetEventMonitorVariables("myaba")
 
 **Description**
 
-Get the current FVS restart code indicating the point within the FVS processing sequence.
+Gets the current FVS restart code indicating the point within the FVS processing sequence.
 
 
 **Usage**
