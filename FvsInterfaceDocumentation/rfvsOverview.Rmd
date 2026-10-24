@@ -631,8 +631,13 @@ Loads the desired FVS program as a shared library and creates a global environme
 **Usage**
 
 
-`fvsLoad`(fvsProgram, bin = "../../trunk/bin")
+`fvsLoad(fvsProgram, bin = "../../trunk/bin")`
 
+
+**Arguments**
+
+- `fvsProgram` - Character string with the name of the FVS shared library. Any suffix is removed and the platform's shared library extension is added. Required.
+- `bin` - Directory that holds the shared library. A trailing file separator is added if it is missing.
 
 **Value**
 
@@ -664,7 +669,7 @@ Creates an FVS keyword file suitable for running FVS with `fvsLoad`, `fvsSetCmdL
 **Usage**
 
 
-`fvsMakeKeyFile`(keyFileName = NULL, runTitle = NULL, standIDs = NULL, inDataBase = "FVS_Data.db", outDataBase = "FVSOut.db", ncycles = 10, moreKeywords = NULL)
+`fvsMakeKeyFile(keyFileName = NULL, runTitle = NULL, standIDs = NULL, inDataBase = "FVS_Data.db", outDataBase = "FVSOut.db", ncycles = 10, moreKeywords = NULL)`
 
 **Arguments**
 
@@ -705,7 +710,7 @@ Sets the FVS command line, which identifies the keyword file and optional stop p
 **Usage**
 
 
-`fvsSetCmdLine`(cl = NULL)
+`fvsSetCmdLine(cl = NULL)`
 
 **Arguments**
 
@@ -752,7 +757,7 @@ Runs FVS up to a designated stop point, year or both. This is the primary functi
 **Usage**
 
 
-`fvsRun`(stopPointCode = NA, stopPointYear = NA)
+`fvsRun(stopPointCode = NA, stopPointYear = NA)`
 
 **Arguments**
 
@@ -816,7 +821,7 @@ Runs FVS where FVS and R interact: FVS runs to each stop point for which a code 
 **Usage**
 
 
-`fvsInteractRun`(...)
+`fvsInteractRun(...)`
 
 **Arguments**
 
@@ -881,7 +886,7 @@ Gets the FVS units conversion factor.
 **Usage**
 
 
-`fvsUnitConversion`(name)
+`fvsUnitConversion(name)`
 
 
 **Arguments**
@@ -964,6 +969,10 @@ Returns the species codes for the loaded FVS variant.
 
 `fvsGetSpeciesCodes()`
 
+**Arguments**
+
+None.
+
 **Value**
 
 A character matrix with one row per species index (`maxspecies` from `fvsGetDims`). Row names are the internal FVS species index. Columns: `fvs` (FVS species code), `fia` (FIA numeric species code), `plant` (Plants code).
@@ -1005,7 +1014,7 @@ Builds a composite summary statistics table from a list of summary tables, as a 
 **Usage**
 
 
-`fvsCompositeSum`(allsum)
+`fvsCompositeSum(allsum)`
 
 **Arguments**
 
@@ -1044,6 +1053,10 @@ Returns the dimensions of FVS data storage in the current stand being projected 
 
 `fvsGetDims()`
 
+
+**Arguments**
+
+None.
 
 **Value**
 
@@ -1087,7 +1100,7 @@ Gets values of FVS event monitor variables by name.
 **Usage**
 
 
-`fvsGetEventMonitorVariables`(vars)
+`fvsGetEventMonitorVariables(vars)`
 
 **Arguments**
 
@@ -1143,6 +1156,10 @@ Gets the current FVS restart code indicating the point within the FVS processing
 `fvsGetRestartcode()`
 
 
+**Arguments**
+
+None.
+
 **Value**
 
 Integer restart code:
@@ -1188,7 +1205,7 @@ Returns the values of species-specific data.
 **Usage**
 
 
-`fvsGetSpeciesAttrs`(vars)
+`fvsGetSpeciesAttrs(vars)`
 
 
 **Arguments**
@@ -1223,9 +1240,13 @@ Returns the values of species-specific data.
 | maxdbhcd | Morphological maximum diameter use code for each species from TreeSZCp keyword |
 | maxht | Morphological maximum height for each species from TreeSZCp keyword |
 
+**Value**
+
+A dataframe with one column per attribute and one row per species. An attribute is left out, without a warning, when its return code is not 0.
+
 **Details**
 
-`fvsGetSpeciesAttrs()` calls the underlying FVS function `fvsSpeciesAttr`(name,nch,action,attr,rtnCode), where:
+`fvsGetSpeciesAttrs()` calls the underlying FVS function `fvsSpeciesAttr(name,nch,action,attr,rtnCode)`, where:
 
 - `name` - variable name (case sensitive)
 - `nch` - number of characters in name
@@ -1288,6 +1309,10 @@ Returns the identification codes of the stand being simulated.
 
 `fvsGetStandIDs()`
 
+**Arguments**
+
+None.
+
 **Value**
 
 A named list with `standid`, `standcn` (stand control number), `mgmtid` and `caseID`. The values are blank until a run is started.
@@ -1320,6 +1345,10 @@ Returns the summary statistics of the stand being simulated.
 
 
 `fvsGetSummary()`
+
+**Arguments**
+
+None.
 
 **Value**
 
@@ -1358,6 +1387,10 @@ Returns the current and maximum dimensions of the Stand Visualization System (SV
 
 `fvsGetSVSDims()`
 
+**Arguments**
+
+None.
+
 **Value**
 
 Named numeric vector: `nsvsobjs` (SVS objects), `ndeadobjs` (snag objects), `ncwdobjs` (coarse woody debris objects) and the corresponding maxima `mxsvsobjs`, `mxdeadobjs`, `mxcwdobjs`.
@@ -1390,6 +1423,10 @@ Returns the Stand Visualization System objects: live trees, snags and coarse woo
 
 
 `fvsGetSVSObjectSet()`
+
+**Arguments**
+
+None.
 
 **Value**
 
@@ -1453,6 +1490,54 @@ fvsGetSVSObjectSet() # returns a list with NULL for trees, snags and cwd until a
 
 Gets attributes of trees in the current FVS stand.
 
+**Usage**
+
+
+`fvsGetTreeAttrs(vars)`
+
+**Arguments**
+
+- `vars` - Character vector of tree attribute names (see Available tree attributes)
+
+**Available tree attributes**
+
+| Attribute | Description |
+|-----------|-------------|
+| id | Tree identification number (may not be unique) |
+| species | FVS numeric species code |
+| tpa | Trees per acre |
+| mort | Trees per acre predicted to die |
+| dbh | Diameter at breast height (inches) |
+| dg | Diameter growth scaled to cycle length (inches) |
+| ht | Height (feet) |
+| htg | Height growth scaled to cycle length (feet) |
+| crwdth | Crown width (feet) |
+| cratio | Crown ratio (crown length as a percentage of total height) |
+| age | Tree age |
+| plot | FVS numeric plot index |
+| tcuft | Total cubic volume |
+| mcuft | Merchantable cubic volume |
+| scuft | Sawlog cubic volume |
+| bdft | Board foot volume |
+| ptbalt | Point basal area in larger trees (sq ft/acre) |
+| bapctile | Percentile in the distribution of tree basal area |
+| defect | Defect coded as 11223344 (see Details) |
+| mgmtcd | Tree value class or management code (1, 2 or 3) |
+| plotsize | Size of plot the tree was sampled from |
+| crownwt0 | Weight of foliage (pounds) |
+| crownwt1 | Weight of 0-0.25 inch crown material (pounds) |
+| crownwt2 | Weight of 0.25-1 inch crown material (pounds) |
+| crownwt3 | Weight of 1-3 inch crown material (pounds) |
+| crownwt4 | Weight of 3-6 inch crown material (pounds) |
+| crownwt5 | Weight of 6-12 inch crown material (pounds) |
+| special | Special tree status code (see Details) |
+| kutkod | Flag designating tree status when the prescription thin method is used |
+| wk6 | Work array; `fvsCutNow` uses it to hold the proportion of each tree record to cut |
+
+**Value**
+
+A dataframe with one column per attribute and one row per tree record. An attribute is left out, without a warning, when its return code is not 0. The dataframe is empty when there are no tree records.
+
 **Details**
 
 This function returns tree attributes at the current cycle stop point. If FVS encounters an error, nothing is returned. If there are no records in the tree list, an empty dataframe is returned.
@@ -1461,7 +1546,7 @@ The defect value is an 8-digit code composed of four 2-digit segments: first two
 
 The ispecl variable is a special tree status code used to flag trees for specific reasons such as wildlife trees. The code can be used in setting cut priority via multiplier on tcondmlt keyword. Also used in organon swo and nwo/smc to define the value "user" in the organon code. Also used to hold the form and risk class (Used in the Acadian model) when damage code 54 is coded.
 
-The underlying FVS function is `fvsTreeAttr`(name,nch,action,ntrees,attr,rtnCode), where:
+The underlying FVS function is `fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode)`, where:
 
 - `name` - variable name (case sensitive)
 - `nch` - number of characters in name
@@ -1530,7 +1615,7 @@ Modifies the summary statistics so they are ready to plot. For each cycle with r
 **Usage**
 
 
-`fvsSetupSummary`(asum)
+`fvsSetupSummary(asum)`
 
 **Arguments**
 
@@ -1571,7 +1656,7 @@ Adds an FVS Activity to the activity schedule.
 **Usage**
 
 
-`fvsAddActivity`(year, activity, parms = NULL)
+`fvsAddActivity(year, activity, parms = NULL)`
 
 **Arguments**
 
@@ -1613,7 +1698,7 @@ Adds new tree records to the simulation.
 **Usage**
 
 
-`fvsAddTrees`(newtrees)
+`fvsAddTrees(newtrees)`
 
 **Arguments**
 
@@ -1654,7 +1739,7 @@ Specifies a thinning by setting the proportion of each tree record's trees per a
 **Usage**
 
 
-`fvsCutNow`(propcut)
+`fvsCutNow(propcut)`
 
 **Arguments**
 
@@ -1694,7 +1779,7 @@ Sets the values of event monitor variables by name.
 **Usage**
 
 
-`fvsSetEventMonitorVariables`(vars)
+`fvsSetEventMonitorVariables(vars)`
 
 **Arguments**
 
@@ -1747,7 +1832,7 @@ Sets the values of species-specific data.
 **Usage**
 
 
-`fvsSetSpeciesAttrs`(vars)
+`fvsSetSpeciesAttrs(vars)`
 
 **Arguments**
 
@@ -1812,12 +1897,12 @@ Sets attributes of trees in the current simulation.
 **Usage**
 
 
-`fvsSetTreeAttrs`(vars)
+`fvsSetTreeAttrs(vars)`
 
 
 **Arguments**
 
-- `vars` - Data frame or named list where each column/element is a numeric vector with no NAs and length equal to current number of trees (ntrees from `fvsGetDims()`). Column/element names must match valid tree attribute names.
+- `vars` - Data frame or named list where each column/element is a numeric vector with no NAs and length equal to current number of trees (ntrees from `fvsGetDims()`). Column/element names must match valid tree attribute names (see Available tree attributes in [`fvsGetTreeAttrs`](#fvsgettreeattrs)).
 
 **Value**
 
@@ -1825,7 +1910,7 @@ Invisibly returns 0, or the largest return code from FVS when an attribute is re
 
 **Details**
 
-Uses the same underlying FVS function as `fvsGetTreeAttrs`: `fvsTreeAttr`(name,nch,action,ntrees,attr,rtnCode) but with action="set".
+Uses the same underlying FVS function as `fvsGetTreeAttrs`: `fvsTreeAttr(name,nch,action,ntrees,attr,rtnCode)` but with action="set".
 
 **Implementation**
 
