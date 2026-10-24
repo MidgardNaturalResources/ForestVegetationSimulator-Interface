@@ -238,7 +238,7 @@ Using the rFVS framework researchers can test new equations and tools without th
 - Prototyping new volume estimation methods
 
 ### FVSOnline integration
-Since the retirement of the FVS Suppose interface, FVSOnline has been the primary way for users to interact with FVS via a graphic user interface. Users interact with FVS via the R Shiny application and the underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results. Additional details are provided below in the FVSOnline graphic interface section. 
+Since the retirement of the FVS Suppose interface, FVSOnline has been the primary way for users to interact with FVS via a graphic user interface. Users interact with FVS via the R Shiny application and the underlying code utilizes user selections to build keyword files; execute FVS and provide tables and figures of the results. Additional details are provided below in the [FVSOnline graphic interface](#fvsonline-graphic-interface) section. 
 
 
 ## FVS processing flow
@@ -286,7 +286,7 @@ When running as a shared library (the rFVS case), all essential projection state
 
 ### Stop point codes and processing sequence
 
-FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. Stop points 1 through 6 are checked in every projection cycle, and stop point 7 once per stand during initialization. If a stop point year greater than 0 was requested, the stop occurs only in the cycle that contains that year (see Stop point years). The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadian variant to provide examples, as this is the most mature usage of FVS stop points. 
+FVS can be instructed to stop at specific computational stages within the processing cycle. Stop points are checked by subroutine fvsStopPoint, which is called from within the subroutines that own each stage. When a stop point is reached, FVS returns up the call stack to R with all COMMON block state intact. Stop points 1 through 6 are checked in every projection cycle, and stop point 7 once per stand during initialization. If a stop point year greater than 0 was requested, the stop occurs only in the cycle that contains that year (see [Stop point years](#stop-point-years)). The following describes each stop point, where in the call sequence it falls, what data is and is not yet computed and which rFVS Get/Set functions are meaningful. The stop point descriptions use the Acadian variant to provide examples, as this is the most mature usage of FVS stop points. 
 
 **Stop point code 0: Never stop**
 
@@ -438,7 +438,7 @@ When the run is started with "Wait for run", fvsOL does the following:
 1. Saves the run and writes the keyword file.
 2. Starts one child R session (`makePSOCKcluster(1)`) and loads rFVS in it. The FVS library is loaded in the child session, not in the Shiny session.
 3. Calls `fvsLoad` and `fvsSetCmdLine("--keywordfile=[uuid].key")` in the child session.
-4. For each stand, calls `fvsRun()` (or the run function of a custom run script, described below), then `fvsGetStandIDs()` and `fvsSetupSummary(fvsGetSummary())`. A nonzero FVS return code ends the loop.
+4. For each stand, calls `fvsRun()` (or the run function of a [custom run script](#custom-run-scripts), described below), then `fvsGetStandIDs()` and `fvsSetupSummary(fvsGetSummary())`. A nonzero FVS return code ends the loop.
 5. Calls `fvsRun()` once more after the last stand.
 6. Scans the FVS output for errors (`extnErrorScan`), merges the run's output database into `FVSOut.db` (`addNewRun2DB`) and plots total cubic foot volume from the summaries returned by rFVS.
 
@@ -790,7 +790,7 @@ If one argument to fvsRun() is left as NA (default), then both are ignored. You 
  
 **Implementation**
 
-**Calls.** If both `stopPointCode` and `stopPointYear` are provided, `.Fortran("fvsSetStoppointCodes", code, year)` calls Fortran subroutine fvsSetStoppointCodes (`cmdline.f`). Then `.Fortran("fvs", 0L)` calls Fortran subroutine FVS(IRTNCD) (`fvs.f`) and `.Fortran("fvsGetRestartCode", 0L)` calls fvsGetRestartCode (`cmdline.f`); this pair is repeated until the FVS return code is not 0 or the restart code is not 0. On its first call, if the return code is -1, FVS calls fvsSetCmdLine with an empty string, which reads the arguments passed to R. FVS then checks the restart code, runs the initialization, the cycles and the stop points (fvsStopPoint) as described under the stop point codes and returns after a stop point or at the end of each stand.
+**Calls.** If both `stopPointCode` and `stopPointYear` are provided, `.Fortran("fvsSetStoppointCodes", code, year)` calls Fortran subroutine fvsSetStoppointCodes (`cmdline.f`). Then `.Fortran("fvs", 0L)` calls Fortran subroutine FVS(IRTNCD) (`fvs.f`) and `.Fortran("fvsGetRestartCode", 0L)` calls fvsGetRestartCode (`cmdline.f`); this pair is repeated until the FVS return code is not 0 or the restart code is not 0. On its first call, if the return code is -1, FVS calls fvsSetCmdLine with an empty string, which reads the arguments passed to R. FVS then checks the restart code, runs the initialization, the cycles and the stop points (fvsStopPoint) as described under the [stop point codes](#stop-point-codes-and-processing-sequence) and returns after a stop point or at the end of each stand.
 
 **Variables.** In common block GLBLCNTL: minorstopptcode and minorstopptyear (written by fvsSetStoppointCodes), restartcode and stopstatcd (set by fvsStopPoint and read by fvsGetRestartCode and the restart logic) and fvsRtnCode (read and written). The stop point subroutines are called from FVS (stop point 7), GRINCR (1 to 4) and GRADD (5 and 6).
 
@@ -1435,7 +1435,7 @@ Snag weights `snagwt0` to `snagwt3` are reduced for the years since each snag fe
 | fallyrs2 | TFALL(1:MAXSP,2) |
 | fallyrs3 | TFALL(1:MAXSP,3) |
 
-Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The tree attributes read are species, dbh, ht, crwdth, cratio and crownwt0 to crownwt3 (see fvsGetTreeAttrs).
+Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The tree attributes read are species, dbh, ht, crwdth, cratio and crownwt0 to crownwt3 (see [fvsGetTreeAttrs](#fvsgettreeattrs)).
 
 **Input.** None.
 
@@ -1592,7 +1592,7 @@ Invisibly returns 0 if the trees were added and 1 if there was an error.
 
 **Details**
 
-The rFVS help states that this function should be called only at stop point code 6 or 7 (see `fvsRun`); FVS itself does not check the stop point. R stops with an error if a required column is missing, any value is `NA`, a species or plot index is out of range or there is no room (`maxtrees` minus `ntrees` from `fvsGetDims`).
+The rFVS help states that this function should be called only at stop point code 6 or 7 (see [`fvsRun`](#fvsrun)); FVS itself does not check the stop point. R stops with an error if a required column is missing, any value is `NA`, a species or plot index is out of range or there is no room (`maxtrees` minus `ntrees` from `fvsGetDims`).
 
 **Implementation**
 
@@ -1718,7 +1718,7 @@ fvsSetSpeciesAttrs(vars)
 
 **Arguments**
 
-- `vars` - A named list of numeric vectors. Each name is a species attribute (see the attribute table in `fvsGetSpeciesAttrs`), and each vector holds a value for every species, in order (length `maxspecies` from `fvsGetDims`).
+- `vars` - A named list of numeric vectors. Each name is a species attribute (see the attribute table in [`fvsGetSpeciesAttrs`](#fvsgetspeciesattrs)), and each vector holds a value for every species, in order (length `maxspecies` from `fvsGetDims`).
 
 **Value**
 
