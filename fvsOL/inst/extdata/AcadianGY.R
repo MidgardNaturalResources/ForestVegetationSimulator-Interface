@@ -1,6 +1,6 @@
 # $Id: AcadianGY.R 3968 2022-04-28 10:36:05Z nickcrookston $
 ################################################################################
-# v12.5.0.r 
+# v12.5.1.r 
 #
 # Acadian Variant of the Forest Vegetation Simulator (FVS-ACD)                                                                                            #
 # Developed by Aaron Weiskittel, University of Maine, School of Forest Resources
@@ -13,7 +13,7 @@
 library(dplyr) # needed arrange, mutate, left_join, tibble, select, group_by, summarise, ungroup, case_when, all_of
 library(purrr) # needed for pmap_*
 
-AcadianVersionTag = "AcadianV12.5.0"
+AcadianVersionTag = "AcadianV12.5.1"
 
 ##############################
 #### major update summary ####
