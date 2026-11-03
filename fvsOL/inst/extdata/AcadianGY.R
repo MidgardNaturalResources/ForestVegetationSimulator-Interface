@@ -22,6 +22,7 @@ AcadianVersionTag = "AcadianV12.5.1"
 # 12.5.1
   # added code to prevent NA summary values
   # updated sp.attr to cover all valid species codes occurring in both ACD and NE
+  # fixed bugs in thinning modifier functions
 
 # 12.5.0
   # significant rewrite of codebase   
@@ -116,12 +117,11 @@ sp.attr = dplyr::tribble(
   'OH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # OH=other hardwoods
   'OS',  'SW',  0.445, 0,       2.27,  0,     0,        'OS',    # OS=other softwoods
   'PB',  'HW',  0.55,  0.48,    1.54,  2.02,  1.25,     'BCH',   # PB=paper birch
-  'PC',  'HW',  0.38,  0.36,    2.26,  0,     0,        'OH',    # PC=pin cherry  
   'PR',  'HW',  0.38,  0.36,    2.26,  0,     0,        'OH',    # PR=pin cherry 
   'QA',  'HW',  0.38,  0.35,    1.21,  1.77,  1.77,     'QA',    # QA=quaking aspen
   'RB',  'HW',  0.62,  0.49,    1.45,  1.53,  2.85,     'BCH',   # RB=river birch
   'RM',  'HW',  0.54,  0.49,    3.44,  1.84,  3.08,     'RM',    # RM=red maple
-  'RP',  'SW',  0.46,  0.41,    1.89,  3,     1,        'OS',    # RP=red pine 
+  'RP',  'SW',  0.46,  0.41,    1.89,  3,     1,        'OS',    # RP=red pine - plantation
   'RN',  'SW',  0.46,  0.41,    1.89,  3,     1,        'OS',    # RN=red pine
   'RO',  'HW',  0.63,  0.56,    2.75,  2.88,  1.12,     'OH',    # RO=red oak
   'RS',  'SW',  0.4,   0.37,    4.39,  2.5,   2,        'SPR',   # RS=red spruce
@@ -803,7 +803,7 @@ ddbh_hw_mod = function(sp, dbh, bal, form, risk, spp.coeff, dbh.interaction) {
 #' Calculate diameter thinning modifier
 #' 
 #' @param sp Character: Species code
-#' @param ba.perc.rmv Numeric: Percent basal area removed (proportion 0-1)
+#' @param ba.perc.rmv Numeric: Percent basal area removed 
 #' @param ba.pre.thin Numeric: Pre-thinning basal area (m^2 per ha)
 #' @param qmd.ratio Numeric: QMD ratio before and after thinning 
 #' @param year.thin Numeric: Commercial thinning year
@@ -838,7 +838,7 @@ ddbh_thin_mod = function(sp, ba.perc.rmv, ba.pre.thin, qmd.ratio, year.thin, yea
                            !is.na(qmd.ratio) & 
                            !is.na(ba.pre.thin) & 
                            year.thin <= year,
-                         round(1 + (exp(y0 + (y1 / ((100 * ba.perc.rmv * qmd.ratio) + 0.01))) * y2^tst * tst^y3), 5),
+                         round(1 + (exp(y0 + (y1 / ((ba.perc.rmv * qmd.ratio) + 0.01))) * y2^tst * tst^y3), 5),
                          1.0)
   
   ddbh.thin.mod
@@ -1211,7 +1211,7 @@ dht = function(ht, cr, ccfl, csi, dht.b0.spp, dht.b2.spp) {
 #' Calculate height thinning modifier
 #' 
 #' @param sp Character: Species code (FVS alpha)
-#' @param ba.perc.rmv Numeric: Percent basal area removed (proportion 0-1)
+#' @param ba.perc.rmv Numeric: Percent basal area removed 
 #' @param ba.pre.thin Numeric: Pre-thinning basal area (m^2 per ha)
 #' @param qmd.ratio Numeric: QMD ratio before and after thinning
 #' @param year.thin Numeric: Commercial thinning year
@@ -1240,7 +1240,7 @@ dht_thin_mod = function(sp, ba.perc.rmv, ba.pre.thin, qmd.ratio, year.thin, year
     y3 = 0.0
   }
   
-  dht.thin.mod = 1 - (exp(y0 + y1 / ((100 * ba.perc.rmv) + 0.01)) * y2^tst * tst^y3)
+  dht.thin.mod = 1 - (exp(y0 + y1 / ((ba.perc.rmv) + 0.01)) * y2^tst * tst^y3)
   dht.thin.mod = pmax(0.75, pmin(dht.thin.mod, 1.25))
   
   dht.thin.mod
@@ -1438,7 +1438,7 @@ dhcb = function(dht, dbh, ht, hcb, ccf, shade) {
 #' Calculate crown recession thinning modifier
 #' 
 #' @param sp Character: Species code (FVS alpha)
-#' @param ba.perc.rmv Numeric: Percent basal area removed (proportion 0-1)
+#' @param ba.perc.rmv Numeric: Percent basal area removed 
 #' @param ba.pre.thin Numeric: Pre-thinning basal area (m^2 per ha)
 #' @param qmd.ratio Numeric: QMD ratio before and after thinning 
 #' @param year.thin Numeric: Commercial thinning year
@@ -1472,7 +1472,7 @@ dhcb_thin_mod = function(sp, ba.perc.rmv, ba.pre.thin, qmd.ratio, year.thin, yea
                            !is.na(qmd.ratio) & 
                            !is.na(ba.pre.thin) & 
                            year.thin <= year,
-                         1 - (exp(y0 + (y1 / ((100 * ba.perc.rmv * qmd.ratio) + 0.01))) * y2^tst * tst^y3),
+                         1 - (exp(y0 + (y1 / ((ba.perc.rmv * qmd.ratio) + 0.01))) * y2^tst * tst^y3),
                          1.0)
   
   dhcb.thin.mod = pmin(abs(dhcb.thin.mod), 1)
@@ -1799,7 +1799,7 @@ tsurv_hw_mod = function(dbh, bal, ba.plot, form, b0, b1) {
 #' 
 #' @param year.thin Numeric: Commercial thinning year
 #' @param year Numeric: Current year
-#' @param ba.perc.rmv Numeric: Percent basal area removed (proportion 0-1)
+#' @param ba.perc.rmv Numeric: Percent basal area removed 
 #' @param ba.pre.thin Numeric: Pre-thinning basal area (m^2 per ha)
 #' @return Numeric: Survival probability multiplier (>=1)
 ssurv_thin_mod = function(year.thin, year, ba.perc.rmv, ba.pre.thin) {
@@ -1813,7 +1813,7 @@ ssurv_thin_mod = function(year.thin, year, ba.perc.rmv, ba.pre.thin) {
   y33 = 1.5798
   
   thin.mod = ifelse(!is.na(year.thin) & year.thin <= year,
-                    1.0 + exp(y30 + (y31 / ((100 * (ba.perc.rmv) + ba.pre.thin) + 0.01))) * y32^tst * tst^y33,
+                    1.0 + exp(y30 + (y31 / ((ba.perc.rmv + ba.pre.thin) + 0.01))) * y32^tst * tst^y33,
                     1.0)
   
   thin.mod
@@ -1822,7 +1822,7 @@ ssurv_thin_mod = function(year.thin, year, ba.perc.rmv, ba.pre.thin) {
 #' Tree thinning survival modifier
 #' 
 #' @param sp Character: Species code ('BF', 'RS')
-#' @param ba.perc.rmv Numeric: Percent basal area removed (proportion 0-1)
+#' @param ba.perc.rmv Numeric: Percent basal area removed 
 #' @param ba.pre.thin Numeric: Pre-thinning basal area (m^2 per ha)
 #' @param qmd.ratio Numeric: QMD ratio before and after thinning 
 #' @param year.thin Numeric: Commercial thinning year
@@ -1844,7 +1844,7 @@ tsurv_thin_mod = function(sp, ba.perc.rmv, ba.pre.thin, qmd.ratio, year.thin, ye
     y3 = 0.8474
     
     thin.mod = ifelse((!is.na(year.thin) & year.thin <= year),
-                      1 + (exp(y0 + (y1 / (((100 * ba.perc.rmv + ba.pre.thin) * qmd.ratio) + 0.01))) * y2^tst * tst^y3),
+                      1 + (exp(y0 + (y1 / (((ba.perc.rmv + ba.pre.thin) * qmd.ratio) + 0.01))) * y2^tst * tst^y3),
                       1)
   } else if (sp == 'RS') {
     y0 = 10.5057
@@ -1854,7 +1854,7 @@ tsurv_thin_mod = function(sp, ba.perc.rmv, ba.pre.thin, qmd.ratio, year.thin, ye
     
     # RS doesn't include * qmd.ratio
     thin.mod = ifelse((!is.na(year.thin) & year.thin <= year),
-                      1 + (exp(y0 + (y1 / ((100 * ba.perc.rmv + ba.pre.thin) + 0.01))) * y2^tst * tst^y3),
+                      1 + (exp(y0 + (y1 / ((ba.perc.rmv + ba.pre.thin) + 0.01))) * y2^tst * tst^y3),
                       1)
   } 
   
@@ -2062,7 +2062,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
   tree = tree %>%
     dplyr::mutate(tree.mortba = ((dbh + ddbh)^2 * 0.00007854) * expf * tmort) %>%
     dplyr::group_by(plot) %>%
-    dplyr::mutate(sum.tree.mortba = sum(tree.mortba)) %>%
+    dplyr::mutate(sum.tree.mortba = sum(tree.mortba, na.rm = TRUE)) %>%
     dplyr::ungroup() %>%
     dplyr::mutate(mort.ratio = ifelse(stand.mort.ba > 0, sum.tree.mortba / stand.mort.ba, 0),
                   tree.mortba.adj = ifelse(stand.mort.ba > 0, tree.mortba / mort.ratio, 0),
@@ -2404,6 +2404,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
 #' 
 #' @param tree.data Dataframe: Tree list 
 #' @param plot.data Dataframe: Plot summary data
+#' @param calib.spp Dataframe: Data frame of species calibration and size limits (default calib.fvs). Required fields: sp (FVS alpha species code), ddbh.mult, dht.mult, mort.mult, max.dbh, max.height
 #' @param ingrowth.prob.parms.df Dataframe: Ingrowth probability model parameters df
 #' @param csi Numeric: Climate site index (m; default=stand$csi)
 #' @param min.dbh.ingrowth Numeric: Minimum DBH threshold for ingrowth (cm; default=ops$ingrowth.min.dbh)
@@ -2414,6 +2415,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
 #' @return Dataframe: Ingrowth tree list
     calc_ingrowth = function(tree.data, 
                              plot.data,
+                             calib.spp = calib.fvs,
                              ingrowth.prob.parms.df = ingrowth.prob.parms,
                              csi = stand$csi, 
                              min.dbh.ingrowth=ops$ingrowth.min.dbh, 
@@ -2489,7 +2491,9 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
                                            tree.ingrowth, 
                                            plot.data,
                                            min.dbh.ingrowth,
-                                           sp.attr.data)
+                                           sp.attr.data)%>%
+        dplyr::left_join(calib.spp, 
+                         by = 'sp')
       
       tree.ingrowth
     }
@@ -2673,7 +2677,7 @@ validate_tree = function(tree) {
 #' @param sbw.cdef Numeric: Spruce budworm outbreak cumulative defoliation (percent; default NA)
 #' @param sbw.yr Numeric: Initial year of spruce budworm outbreak (year; default NA)
 #' @param sbw.dur Numeric: Duration of spruce budworm outbreak (years; default NA)
-#' @param use.thin.mod Logical or character: Apply post-commercial thinning modifiers. Accepts TRUE/FALSE or 'Yes'/'No'/'Y'/'N' (default TRUE)
+#' @param use.thin.mod Logical or character: Apply post-commercial thinning modifiers. Accepts TRUE/FALSE or 'Yes'/'No'/'Y'/'N' (default FALSE)
 #' @param thin.ba.perc.rmv Numeric: Plot basal area percent removed (percent; default NA)
 #' @param thin.ba.pre Numeric: Plot pre-thin basal area (default NA)
 #' @param thin.qmd.ratio Numeric: Thinning QMD ratio. Before thinning QMD / After thinning QMD (default NA)
@@ -3333,9 +3337,9 @@ AcadianGYOneStand = function(tree, stand, ops)
            #predicted height to crown base (returns phcb)
     calc_hcb(plot.data = plot.smry) %>% 
            #use predicted height to crown base if crown ratio is missing or >99 and if hcb is missing or invalid
-    dplyr::mutate(hcb= dplyr::case_when(cr %in% c(NA, 0) | cr>99 | is.na(hcb) | hcb>ht  ~phcb, 
+    dplyr::mutate(hcb= dplyr::case_when(cr %in% c(NA, 0) | cr>0.99 | is.na(hcb) | hcb>ht  ~phcb, 
                                 TRUE ~hcb),
-                    cr= dplyr::case_when(cr %in% c(NA, 0) | cr>99 ~1-(phcb/ht),
+                    cr= dplyr::case_when(cr %in% c(NA, 0) | cr>0.99 ~1-(phcb/ht),
                         TRUE ~cr))
   
 # Compute plot-level heights

@@ -271,7 +271,7 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
     orgtree = validate_acd_tree_spp(orgtree, spcodes=spcodes)  
     
     # create ACD species calibration dataframe
-    calib.fvs = make_fvs_calib(spcodes=spcodes, 
+    .GlobalEnv$calib.fvs = make_fvs_calib(spcodes=spcodes, 
                          tree.size.cap=tree.size.cap)
     
       # the make_fvs_calib() function fetches species calibration data from FVS using fvsGetSpeciesAttrs()
@@ -348,6 +348,8 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
 #### Regeneration ####    
     # adding regeneration?
     if(ops$use.ingrowth == TRUE){
+      
+    # generate ingrowth tree list  
     toadd= make_fvs_regen(tree.data=tree, 
                            orgtree.list=orgtree,
                            num.plots=as.numeric(room['nplots']),
@@ -355,9 +357,10 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
    
     newTrees = nrow(toadd)
     
-    if(ops$verbose){cat ("fvsRunAcadian: num newtrees=",newTrees,"\n")}
-        if (newTrees>0)
-          {
+    if(ops$verbose) {
+      cat ("fvsRunAcadian: num newtrees=",newTrees,"\n")
+      }
+    if (newTrees>0) {
             if (newTrees < room["maxtrees"] - room["ntrees"])
             {
              
