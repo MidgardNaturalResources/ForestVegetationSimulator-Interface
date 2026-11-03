@@ -265,7 +265,7 @@ Three arrays support access patterns beyond simple 1-to-ITRN loops:
 
 ### The main FVS subroutine
 
-The top-level routine PROGRAM MAIN calls `fvsSetCmdLine` to retrieve command line options (keyword file name, restart file name, stop point parameters) and then calls subroutine FVS, which orchestrates all other subroutines. PROGRAM MAIN contains the only FORTRAN STOP statement in the program. This structure, separating MAIN from subroutine FVS, was introduced around 2010 specifically to support use of FVS as a shared library callable by external programs such as rFVS.
+The top-level routine PROGRAM MAIN calls `fvsSetCmdLine` to retrieve command line options (keyword file name, restart file name, stop point parameters) and then calls subroutine FVS, which orchestrates all other subroutines. PROGRAM MAIN is the only routine that contains FORTRAN STOP statements. This structure, separating MAIN from subroutine FVS, was introduced around 2010 specifically to support use of FVS as a shared library callable by external programs such as rFVS.
 
 During the projection initialization phase, subroutine FVS: checks command line options and return/restart codes; opens required input and output files; initializes parameters to defaults; processes all keyword records; sets up the projection cycling array; initializes extension files; establishes the initial species sort; expands tree data to a per-acre basis based on the sample design; calibrates internal equations to the input data; flags best trees for the regeneration establishment model; computes initial tree-level variables (volumes, crown width); computes initial stand-level variables (basal area per acre); computes initial percentile distributions; assigns example trees to output arrays; and writes initial output data. A logical variable LSTART is set to .TRUE. during initialization and .FALSE. upon completion; it is used extensively during model calibration to control program logic flow.
 
@@ -840,7 +840,7 @@ Other arguments are ignored with a warning. There is no block for stop point cod
 
 **Value**
 
-A named list of the non-`NULL` results returned by the code blocks. Names have the form `standid:mgmtid:year`, or `standid:mgmtid:SimEnd` for the `SimEnd` block.
+A named list with one entry for each non-`NULL` result. Entries for the stop point blocks are named `standid:mgmtid:year` and each holds a list, named for the block (for example `BeforeEM1`), that contains the block result. Entries for the `SimEnd` block are named `standid:mgmtid:SimEnd` and hold the block result itself.
 
 **Details**
 
@@ -854,7 +854,7 @@ Only stop points with a supplied block are requested, at every cycle (stop point
 
 **Input.** Named code blocks (BeforeEM1, AfterEM1, BeforeEM2, AfterEM2, BeforeAdd, BeforeEstab and SimEnd), each a string of R code or a function and the logical `trace`. Other names are ignored with a warning.
 
-**Returns.** Named list of the non-`NULL` results of the code blocks. Names have the form `standid:mgmtid:year`, or `standid:mgmtid:SimEnd`.
+**Returns.** Named list with one entry for each non-`NULL` result. Stop point entries are named `standid:mgmtid:year` and each holds a list, named for the block, that contains the block result. `SimEnd` entries are named `standid:mgmtid:SimEnd` and hold the block result itself.
 
 **Example**
 
@@ -1120,8 +1120,8 @@ A named numeric vector of the variables, NA if the variable name does not exist
 |---|---|
 | TSTV1 | year (1), age (2), btpa (3), btcuft (4), bmcuft (5), bbdft (6), bba (7), bccf (8), btopht (9), badbh (10), yes (11), no (12), cycle (13), numtrees (14), bsdimax (15), bsdi (16), brden (17), brden2 (18), bhtwtba (19), bscuft (20), habtype (26), slope (27), aspect (28), elev (29), sampwt (30), invyear (31), cendyear (32), evphase (33), smr (34), site (35), cut (36), lat (37), long (38), state (39), county (40), fortyp (41), sizcls (42), stkcls (43), propstk (44), mai (45), agecmp (46), bdbhwtba (47), silvahft (48), fisherin (49), bsdi2 (50), babvbio (51), bmerbio (52), bsawbio (53), bfolbio (54), babvcrb (55), bmercrb (56), bsawcrb (57), bfolcrb (58) |
 | TSTV2 | atpa (1), atcuft (2), amcuft (3), abdft (4), aba (5), accf (6), atopht (7), aadbh (8), rtpa (9), rtcuft (10), rmcuft (11), rbdft (12), asdimax (13), asdi (14), arden (15), adbhwtba (16), arden2 (17), asdi2 (18), ahtwtba (19), ascuft (20), rscuft (21), aabvbio (22), rabvbio (23), amerbio (24), rmerbio (25), asawbio (26), rsawbio (27), aabvcrb (28), rabvcrb (29), amercrb (30), rmercrb (31), asawcrb (32), rsawcrb (33), afolbio (34), rfolbio (35), afolcrb (36), rfolcrb (37) |
-| TSTV3 | acc (1), mort (2), pai (3), dtpa (5), dba (7), dccf (9) |
-| TSTV4 | mpbtpak (4), mpbprob (6), bsclass (16), asclass (17), bstrdbh (18), astrdbh (19), fire (20), minsoil (21), crownidx (22), fireyear (23), bcancov (24), acancov (25), crbaseht (26), torchidx (27), crbulkdn (28), disccost (30), discrevn (31), forstval (32), harvcost (33), harvrevn (34), irr (35), pctcost (36), pnv (37), rprodval (38), sev (39), bmaxhs (40), amaxhs (41), bminhs (42), aminhs (43), bnumss (44), anumss (45), discrate (46), undiscst (47), undisrvn (48), eccuft (49), ecbdft (50) (valid when LTSTV4 is set) |
+| TSTV3 | acc (1), mort (2), pai (3), dtpa (5), dtpa% (6), dba (7), dba% (8), dccf (9), dccf% (10) |
+| TSTV4 | tm%stnd (1), tm%df (2), tm%gf (3), mpbtpak (4), bw%stnd (5), mpbprob (6), bsclass (16), asclass (17), bstrdbh (18), astrdbh (19), fire (20), minsoil (21), crownidx (22), fireyear (23), bcancov (24), acancov (25), crbaseht (26), torchidx (27), crbulkdn (28), disccost (30), discrevn (31), forstval (32), harvcost (33), harvrevn (34), irr (35), pctcost (36), pnv (37), rprodval (38), sev (39), bmaxhs (40), amaxhs (41), bminhs (42), aminhs (43), bnumss (44), anumss (45), discrate (46), undiscst (47), undisrvn (48), eccuft (49), ecbdft (50) (valid when LTSTV4 is set) |
 | FLIVE | shrubwt (1), herbwt (2) |
 | TSTV5, CTSTV5, LTSTV5 | any other name (matched in upper case against CTSTV5; at most MXTST5 = 399 names) |
 
@@ -1471,6 +1471,8 @@ Snag weights `snagwt0` to `snagwt3` are reduced for the years since each snag fe
 | fallyrs1 | TFALL(1:MAXSP,1) |
 | fallyrs2 | TFALL(1:MAXSP,2) |
 | fallyrs3 | TFALL(1:MAXSP,3) |
+| fallyrs4 | TFALL(1:MAXSP,4) |
+| fallyrs5 | TFALL(1:MAXSP,5) |
 
 Object type 1 is a live tree, 2 a snag and 4 a piece of coarse woody debris. The tree attributes read are species, dbh, ht, crwdth, cratio and crownwt0 to crownwt3 (see [`fvsGetTreeAttrs`](#fvsgettreeattrs)).
 
@@ -1684,7 +1686,7 @@ Invisibly returns 0 if the activity was added and 1 if there was an error. With 
 ```{r Ex_fvsAddActivity, echo=TRUE, eval=FALSE}
 #edit fvsLoad to reflect where FVSbin is stored on your system.
 fvsLoad(bin="FVSbin",fvsProgram="FVSie")
-fvsAddActivity()  # a list of all possible activities is returned
+fvsAddActivity()  # a named vector of all possible activity codes is returned
 fvsAddActivity(1993,"base_yardloss",c(0.50, 0.70, 0.50))
 fvsAddActivity(1993,"base_thindbh",c(0.00,12.00,1.00,0.00,0.00))
 ```
@@ -1803,8 +1805,8 @@ Predefined event monitor variables can be set, and new user-defined variables ar
 |---|---|
 | TSTV1 | year (1), age (2), btpa (3), btcuft (4), bmcuft (5), bbdft (6), bba (7), bccf (8), btopht (9), badbh (10), yes (11), no (12), cycle (13), numtrees (14), bsdimax (15), bsdi (16), brden (17), brden2 (18), bhtwtba (19), bscuft (20), habtype (26), slope (27), aspect (28), elev (29), sampwt (30), invyear (31), cendyear (32), evphase (33), smr (34), site (35), cut (36), lat (37), long (38), state (39), county (40), fortyp (41), sizcls (42), stkcls (43), propstk (44), mai (45), agecmp (46), bdbhwtba (47), silvahft (48), fisherin (49), bsdi2 (50), babvbio (51), bmerbio (52), bsawbio (53), bfolbio (54), babvcrb (55), bmercrb (56), bsawcrb (57), bfolcrb (58) |
 | TSTV2 | atpa (1), atcuft (2), amcuft (3), abdft (4), aba (5), accf (6), atopht (7), aadbh (8), rtpa (9), rtcuft (10), rmcuft (11), rbdft (12), asdimax (13), asdi (14), arden (15), adbhwtba (16), arden2 (17), asdi2 (18), ahtwtba (19), ascuft (20), rscuft (21), aabvbio (22), rabvbio (23), amerbio (24), rmerbio (25), asawbio (26), rsawbio (27), aabvcrb (28), rabvcrb (29), amercrb (30), rmercrb (31), asawcrb (32), rsawcrb (33), afolbio (34), rfolbio (35), afolcrb (36), rfolcrb (37) |
-| TSTV3 | acc (1), mort (2), pai (3), dtpa (5), dba (7), dccf (9) |
-| TSTV4 | mpbtpak (4), mpbprob (6), bsclass (16), asclass (17), bstrdbh (18), astrdbh (19), fire (20), minsoil (21), crownidx (22), fireyear (23), bcancov (24), acancov (25), crbaseht (26), torchidx (27), crbulkdn (28), disccost (30), discrevn (31), forstval (32), harvcost (33), harvrevn (34), irr (35), pctcost (36), pnv (37), rprodval (38), sev (39), bmaxhs (40), amaxhs (41), bminhs (42), aminhs (43), bnumss (44), anumss (45), discrate (46), undiscst (47), undisrvn (48), eccuft (49), ecbdft (50) (valid when LTSTV4 is set) |
+| TSTV3 | acc (1), mort (2), pai (3), dtpa (5), dtpa% (6), dba (7), dba% (8), dccf (9), dccf% (10) |
+| TSTV4 | tm%stnd (1), tm%df (2), tm%gf (3), mpbtpak (4), bw%stnd (5), mpbprob (6), bsclass (16), asclass (17), bstrdbh (18), astrdbh (19), fire (20), minsoil (21), crownidx (22), fireyear (23), bcancov (24), acancov (25), crbaseht (26), torchidx (27), crbulkdn (28), disccost (30), discrevn (31), forstval (32), harvcost (33), harvrevn (34), irr (35), pctcost (36), pnv (37), rprodval (38), sev (39), bmaxhs (40), amaxhs (41), bminhs (42), aminhs (43), bnumss (44), anumss (45), discrate (46), undiscst (47), undisrvn (48), eccuft (49), ecbdft (50) (valid when LTSTV4 is set) |
 | FLIVE | shrubwt (1), herbwt (2) |
 | TSTV5, CTSTV5, LTSTV5 | any other name (matched in upper case against CTSTV5; at most MXTST5 = 399 names) |
 
