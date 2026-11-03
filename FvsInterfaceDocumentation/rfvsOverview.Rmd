@@ -502,7 +502,7 @@ fvsSetCmdLine("--keywordfile=example.key")
 ```
 
 ### Tree attribute manipulation
-Once FVS has accessed the keyword file, you can begin interacting with FVS. Here we run to stop point code 5 in year 2060 and modify the FVS projections. We then continue to run the projection without interuption. 
+Once FVS has accessed the keyword file, you can begin interacting with FVS. Here we run to stop point code 5 in year 2060 and modify the FVS projections. We then continue to run the projection without interruption. 
 
 ```{r TreeModEx, echo=TRUE, eval=FALSE}
 # Define tree attributes to retrieve
@@ -532,7 +532,7 @@ fvsRun(0, 0)
 ### Event monitor integration
 
 #### Get and set event monitor variables
-Event monitor variables can be queried and assigned at a stop point. Here we query the year, after treatment TPA and the after treatment basal area, using `fvsGetEventMonitorVariables`. The `fvsSetEventMonitorVariables` function can be used to modify existing variables in the event monitor or create new variables and assign values.  
+Event monitor variables can be queried and assigned at a stop point. Here we query the year, after-treatment TPA and the after-treatment basal area, using `fvsGetEventMonitorVariables`. The `fvsSetEventMonitorVariables` function can be used to modify existing variables in the event monitor or create new variables and assign values.  
 
 ```{r EmModEx, echo=TRUE, eval=FALSE}
 em.vars = fvsGetEventMonitorVariables(c("year", "atpa", "aba"))
@@ -540,7 +540,7 @@ fvsSetEventMonitorVariables(c("myaba"=100, "another"=40))
 ```
 
 #### Access external data to set event monitor variables
-Event monitor variables can be used to incorporate external data. For example, querying database variables or GIS data. In this example we stop the projection at stop point code 1 each cycle. We then fetch the stand ID and a potential harvest indicator variable. In R we use the sf package to query the adjacent stand identifiers. Next we query the FVS output database to see if any of the those adjacent stands were treated in the previous five years. Using that information we set the harvest availability for the current stand via the `fvsSetEventMonitorVariables` function. 
+Event monitor variables can be used to incorporate external data. For example, querying database variables or GIS data. In this example we stop the projection at stop point code 1 each cycle. We then fetch the stand ID and a potential harvest indicator variable. In R we use the sf package to query the adjacent stand identifiers. Next we query the FVS output database to see if any of those adjacent stands were treated in the previous five years. Using that information we set the harvest availability for the current stand via the `fvsSetEventMonitorVariables` function. 
 
 
 ```{r ExtDataEx, echo=TRUE, eval=FALSE}
