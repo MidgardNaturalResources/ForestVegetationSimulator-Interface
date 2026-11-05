@@ -22,13 +22,13 @@ VersionTag = "HiGyV0.4.0"
 #### major update summary ####
 ####
 
-# version 0.4.0
+# version 0.4.0 (2026-10-14)
   # Height- refit parameters and changed relative diameter definition 
-  # Height-to-crown-base- Guards added 
+  # Height to crown base- guards added 
   # Diameter increment- refit parameters and modified calculation 
   # Height increment- refit parameters and modified calculation 
   # Mortality- replaced the single tree-level logistic survival equation with a
-      # three-stage plot mortality model:
+      # three-stage plot mortality model
 
 
 # version 0.2.0
@@ -185,7 +185,7 @@ calc_ht = function(tree.data, plot.data, byi=stand$byi,
                           'site')
     
     hcb.parm = hcb.pred.parm.df %>% 
-      filter(type==ht.parm.type)
+      filter(type==hcb.parm.type)
     
     tree=tree.data %>% 
       dplyr::left_join(plot.data %>% 
@@ -422,7 +422,7 @@ calc_dht = function(tree.data,
                   byi = dplyr::coalesce(byi, 0),
                   planted = dplyr::coalesce(planted, 0),
       # use purrr::reduce() to generate annual height increment
-     dht = dht(dbh, ht, bal, ba, cr, byi,
+     dht = dht(dbh, ht, bal, ba.plot, cr, byi,
                                planted, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9),
       #apply ht increment multiplier
       dht = dht * dht.mult)
@@ -920,7 +920,7 @@ make_ops = function(verbose = FALSE,
     
     stand=data.frame(stand.id = stand.id,
                      elev = elev,
-                     byi = byi, 
+                     byi = pmin(coalesce(byi, 0), 600), # BYI capped at 600 
                      planted = planted)
     
     stand
@@ -1167,8 +1167,8 @@ HiGYOneStand = function(tree, stand, ops)
     #        temp=stand.copy$temp) %>% 
           #predicted height
     calc_ht(plot.data = plot.smry) %>% 
-    dplyr::mutate(#use predicted height if missing or > 150ft
-           ht= dplyr::case_when(ht %in% c(NA, 0)| ht>150 ~pht,
+    dplyr::mutate(#use predicted height if missing or > 150ft (45.72m)
+           ht= dplyr::case_when(ht %in% c(NA, 0)| ht>45.72 ~pht,
                         TRUE ~ ht),
            hcb = ht-cr*ht) %>% 
            #predicted height to crown base (returns phcb)
@@ -1239,7 +1239,8 @@ HiGYOneStand = function(tree, stand, ops)
   tree=tree %>% 
     calc_hcb(plot.data = plot.smry) %>% 
     dplyr::mutate(pcr= 1-(hcb/ht), 
-                  cr= dplyr::case_when(abs((pcr-cr)/cr)>0.1 ~cr*0.99, 
+                  cr= dplyr::case_when((pcr-cr)/cr>0.01 ~cr*0.99,
+                                       (pcr-cr)/cr<-0.01 ~cr*1.01,
                                        TRUE ~pcr))
   
 #### Output ####      
