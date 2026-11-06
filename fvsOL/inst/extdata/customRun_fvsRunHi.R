@@ -223,11 +223,18 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
     # advance to the next cycle if no tree records
     if (nrow(tree) == 0) next
 
-    # H_QMD of the previous year from the last cycle of this stand
+    # H_QMD of the previous year from the last cycle of this stand; dropped for plots
+    # whose TPH changed since then (FVS thinning), as at the first year
     if (!is.null(h.qmd.cycle) && h.qmd.cycle$stand.id[1] == std.id[['standid']] &&
         h.qmd.cycle$year[1] == stdInfo[['year']]) {
+      tph.start = tree %>%
+        dplyr::group_by(plot) %>%
+        dplyr::summarise(tph.start = sum(expf), .groups='drop')
       tree = tree %>%
         dplyr::left_join(h.qmd.cycle %>%
+                           dplyr::left_join(tph.start, by='plot') %>%
+                           dplyr::mutate(h.qmd.prev = ifelse(abs(tph.start/tph.prev - 1) > 1e-6,
+                                                             NA_real_, h.qmd.prev)) %>%
                            dplyr::select(plot, h.qmd.prev),
                          by='plot')
     }
@@ -257,11 +264,6 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
     # if there was a failure, tree will be NULL, go on to the next stand cycle
     if (is.null(tree)) next
 
-    h.qmd.cycle = tree %>%
-      dplyr::distinct(plot, h.qmd.prev) %>%
-      dplyr::mutate(stand.id = std.id[['standid']],
-                    year = tree$year[1])
-      
    
     # cat ("fvsRunHi: is.null(tree$expf)=",is.null(tree$expf),"\n") 
     
@@ -269,6 +271,18 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
     tofvs=make_fvs_tree(tree.data=tree, 
                         orgtree.list=orgtree,
                         num.plots=as.numeric(room['nplots']))
+
+    # H_QMD of the previous year and plot TPH handed back to FVS, carried to the next cycle
+    h.qmd.cycle = orgtree %>%
+      dplyr::mutate(expf = expf - tofvs$mort*dplyr::coalesce(as.numeric(room['nplots']), 1)*2.47105) %>%
+      validate_tree_status() %>%
+      dplyr::group_by(plot) %>%
+      dplyr::summarise(tph.prev = sum(expf), .groups='drop') %>%
+      dplyr::left_join(tree %>%
+                         dplyr::distinct(plot, h.qmd.prev),
+                       by='plot') %>%
+      dplyr::mutate(stand.id = std.id[['standid']],
+                    year = tree$year[1])
 
     
     fvsSetTreeAttrs(tofvs)

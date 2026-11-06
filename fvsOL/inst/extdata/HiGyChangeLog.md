@@ -54,6 +54,8 @@ Parameters and equation forms follow the koa v105final model.
 - `make_fvs_tree()`: `dg` returned inside bark (x 0.9, FVS-HI koa bark
   ratio). FVS adds `dg`/bark ratio to DBH, so diameter growth was 11% high.
 - customRun_fvsRunHi.R: `h.qmd.prev` carried between cycles of a stand.
+- customRun_fvsRunHi.R: `h.qmd.prev` dropped for a plot after an FVS thinning.
+- `make_fvs_tree()`: `cratio` set for records the model does not handle.
 
 #### Checks
 - Ten 60 year projections (natural and planted, BYI 142 to 418, one with

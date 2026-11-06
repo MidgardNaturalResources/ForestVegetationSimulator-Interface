@@ -1055,14 +1055,14 @@ make_fvs_tree=function(tree.data, orgtree.list, num.plots){
   
   # dataframe with tree records not handled by model- snags and invalid DBH; species not in model
   tree.org=orgtree.list %>% 
-    dplyr::select(tree, 
+    dplyr::transmute(tree, 
                   dbh, # metric
                   ht, # metric
                   expf, # plot level tph 
                   dg, # customary units
                   htg, # customary units
                   mort, # stand level TPA
-                  cr) %>% 
+                  cratio = round(cr * 100, 1)) %>%  # convert proportion to percentage
     dplyr::anti_join(tree.list, 
                      by='tree')
   # metric to customary option
