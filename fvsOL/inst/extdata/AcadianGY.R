@@ -21,6 +21,7 @@ AcadianVersionTag = "AcadianV12.5.2"
 
 # 12.5.2
   # diameter growth returned to FVS converted to inside bark using FVS-NE bark ratios (BKRAT)
+  # stop if not run on FVS-NE species
 
 # 12.5.1
   # added code to prevent NA summary values
@@ -2518,6 +2519,8 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
     #' @return Dataframe: Tree list with added columns (sp: FVS alpha speies code and acd.ex: indicator value to drop records when returning to FVS)
     #'
      validate_acd_tree_spp=function(tree.data, spcodes, acd.species=acd.species.ht.dia$species){
+    
+    if (nrow(spcodes) != length(fvs.ne.bkrat)) stop("AcadianGY runs on FVS-NE: ", nrow(spcodes), " FVS species found, ", length(fvs.ne.bkrat), " expected")
     
     # retain records in the projections for accurate plot values and change species to OH
     
