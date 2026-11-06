@@ -487,7 +487,7 @@ The values chosen are saved with the run (`uiCustomRunOps`) and passed to the ru
 ## Examples
 
 ### Basic library loading and initialization
-To interact with FVS we need to first create a keyword file. In this case we are calling the file example.key and we assume that it is located in the current working directory. Loading the fvsOL package will also load the rFVS package. While the fvsOL functions are necessary for the following examples, there are some useful functions. Next the `fvsSetCmdLine` function is used to set the keyword file.  
+To interact with FVS we need to first create a keyword file. In this case we are calling the file example.key and we assume that it is located in the current working directory. Loading the fvsOL package will also load the rFVS package. While the fvsOL functions are not necessary for the following examples, there are functions useful in interactive FVS runs and output management. Next the `fvsSetCmdLine` function is used to set the keyword file.  
 
 ```{r LoadLibEx, echo=TRUE, eval=FALSE}
 # load fvsOL package
@@ -554,12 +554,13 @@ fvsRun(stopPointCode = 1, stopPointYear = -1)
 # Fetch the FVS StandID
 current.stand = fvsGetStandIDs()$standid
 
-# Fetch current FVS year and HarvestOperation indicator variable
-em.vars = fvsGetEventMonitorVariables(c('year', 'HarvestOperation'))
+# Fetch current FVS year and HarvOp indicator variable
+em.vars = fvsGetEventMonitorVariables(c('year', 'HarvOp'))
 current.year = em.vars$year
 
 # Load the stand shapefile using sf package (dsn=Stands)
-stands.sf = st_read("Stands/Stands.shp", quiet = TRUE)
+stands.sf = st_read("Stands/Stands.shp", 
+                    quiet = TRUE)
 
 # Fetch the StandID values of adjacent polygons
 current.poly = stands.sf[stands.sf$StandID == current.stand, ]
@@ -575,7 +576,8 @@ results = dbGetQuery(fvsout.con, glue_sql("
   FROM FVS_EventMonitor 
   WHERE StandID IN ({adjacent.ids*}) AND 
     Year >= {current.year - 5} AND 
-    HarvestOperation = 1", .con = fvsout.con))
+    HarvOp = 1", 
+  .con = fvsout.con))
     
 dbDisconnect(fvsout.con)
 
