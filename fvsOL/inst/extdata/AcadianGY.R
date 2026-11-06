@@ -1,6 +1,6 @@
 # $Id: AcadianGY.R 3968 2022-04-28 10:36:05Z nickcrookston $
 ################################################################################
-# v12.5.1.r 
+# v12.5.2.r 
 #
 # Acadian Variant of the Forest Vegetation Simulator (FVS-ACD)                                                                                            #
 # Developed by Aaron Weiskittel, University of Maine, School of Forest Resources
@@ -13,11 +13,14 @@
 library(dplyr) # needed arrange, mutate, left_join, tibble, select, group_by, summarise, ungroup, case_when, all_of
 library(purrr) # needed for pmap_*
 
-AcadianVersionTag = "AcadianV12.5.1"
+AcadianVersionTag = "AcadianV12.5.2"
 
 ##############################
 #### major update summary ####
 ####
+
+# 12.5.2
+  # diameter growth returned to FVS converted to inside bark using FVS-NE bark ratios (BKRAT)
 
 # 12.5.1
   # added code to prevent NA summary values
@@ -2959,12 +2962,13 @@ make_fvs_tree=function(tree.data, orgtree.list, num.plots){
   
   tree=orgtree.list %>% 
     dplyr::select(tree, 
+                  fvs.num,
                   dbh.fvs=dbh,
                   ht.fvs=ht, 
                   expf.fvs=expf) %>% 
     dplyr::inner_join(tree.list, # inner join excludes regeneration and records not handled by ACD
                       by='tree') %>% 
-    dplyr::mutate(dg=(dbh-dbh.fvs)*cm.to.in, # diameter growth to inches
+    dplyr::mutate(dg=(dbh-dbh.fvs)*cm.to.in*fvs.ne.bkrat[fvs.num], # inside bark diameter growth to inches; FVS adds dg/BRATIO to DBH
                   htg=(ht-ht.fvs)*m.to.ft,  # height growth to feet
                   # set the crown ratio sign to negative so that FVS doesn't change them. 
                   cratio = round((1-(hcb/ht))*-100, 1), # 
@@ -3656,6 +3660,12 @@ bark.ratio.spp = dplyr::tribble(
   "OS", 0, 0.887333009, 1.019266336,
   "99", 0, 0.889808171, 1.019266336
 )
+
+# FVS-NE bark ratios (BKRAT) indexed by FVS species number
+fvs.ne.bkrat = c(0.9349, 0.9349, 0.956, rep(0.9324, 4), 0.920, 0.920, 0.890, 0.964,
+                 rep(0.950, 4), rep(0.934, 2), rep(0.964, 8), 0.950, rep(0.920, 3), rep(0.948, 3), rep(0.948, 2),
+                 rep(0.900, 5), 0.950, rep(0.900, 5), rep(0.900, 3), rep(0.900, 5), 0.940, rep(0.910, 5), rep(0.900, 4),
+                 rep(0.880, 3), rep(0.900, 2), rep(0.900, 2), rep(0.900, 27), rep(0.900, 11))
 
 #' Calculate diameter inside bark (DIB) from diameter outside bark (DOB)
 #' 
