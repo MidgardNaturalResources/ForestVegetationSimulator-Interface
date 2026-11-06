@@ -1,5 +1,71 @@
 # HiGy.R changelog 
 
+### Version 0.4.2
+
+Parameters and equation forms follow the koa v105final model.
+
+#### Parameters
+- `ht.pred.parm`, `ddbh.parm`, `dht.parm` and `mort.s3.parm` refit; `b3` of
+  `ddbh.parm` and `dht.parm` fixed at 0.
+- `ddbh()`: correction factor 1.57859; origin calibration 0.76421 (planted),
+  0.23596 (natural).
+- `dht()`: correction factor 2.39567; origin calibration 1.21046 (planted),
+  0.17573 (natural).
+- `mort_prob()` coefficients, `p.bar`, Garcia `beta`, `h.qmd.a` and `h.qmd.k`
+  refit; natural stand mortality factor 2.43532.
+- New: `sdi.max` (741.996871565), `rd.floor` (0.001130119195), `ingrowth.parm`.
+
+#### Diameter and height increment
+- `calc_plot_summary()` returns relative density `rd`: SDI on the 25.4 cm
+  index diameter divided by `sdi.max`.
+- BAL terms use the BAL share of plot BA times `rd`; `sqrt(ba*dbh)` and
+  `sqrt(ba*ht)` replaced by `sqrt(rd*dbh)` and `sqrt(rd*ht)`.
+
+#### Mortality
+- Stage 3: `log(ba+1)` and `log(bal+1)` replaced by `log(rd)` (floored at
+  `rd.floor`) and `log(bal/ba*rd+1)`.
+- Stage 2: Garcia step from the previous year's `H_QMD` to the current
+  year's, carried on the tree list as `h.qmd.prev`. Without it (first year)
+  only the background floor applies.
+
+#### BAL
+- `calc_bal()`: plot BA times the expansion factor weighted share of the
+  other trees with DBH at least as large (ties count as larger), as fitted.
+- Tree BA and BAL recomputed after growth are now kept (the result was not
+  assigned).
+
+#### Crown ratio
+- `make_ops(cr.update)`: 'engine' (default) predicts crown ratio from height
+  to crown base each year, bounded 0.05 to 0.95; 'recession' keeps the 1%
+  annual limit.
+- `(pcr-cr)/cr<-0.01` was parsed as an assignment and stopped every
+  `HiGYOneStand()` call; now `< -0.01`.
+
+#### Ingrowth
+- `pred_ingrowth()` and `calc_ingrowth()`, off by default
+  (`make_ops(use.ingrowth)`). Recruits enter at 2.5 cm DBH, crown ratio 0.6,
+  and are not returned to FVS.
+
+#### Size limits, BYI, FVS hand-off
+- `tree.size.cap` metric and by origin: DBH 90 cm natural, 69.7 cm planted;
+  height 28.0416 m (92 ft). `max.dbh` 90 was converted as inches (228.6 cm).
+  `make_fvs_calib()` gains `planted`.
+- BYI cap of 600 removed; the model of record has none.
+- `make_fvs_tree()`: `dg` returned inside bark (x 0.9, FVS-HI koa bark
+  ratio). FVS adds `dg`/bark ratio to DBH, so diameter growth was 11% high.
+- customRun_fvsRunHi.R: `h.qmd.prev` carried between cycles of a stand.
+- customRun_fvsRunHi.R: `h.qmd.prev` dropped for a plot after an FVS thinning.
+- `make_fvs_tree()`: `cratio` set for records the model does not handle.
+
+#### Checks
+- Ten 60 year projections (natural and planted, BYI 142 to 418, one with
+  ingrowth) against the v105final engine: largest relative difference
+  1.6e-13 tree DBH, 7.7e-12 expansion factor, 6.0e-13 stand TPH.
+- customRun_fvsRunHi.R with FVShi, 9 Hawaii stands, 50 years, 5 year
+  cycles, NoTriple: no failures, NA or negative values. Tree DBH and height
+  within 5.5e-7 and stand BA within 1.0e-6 (relative) of the engine
+  projections of the same stands.
+
 ### Version 0.4.0
 
 #### Height
