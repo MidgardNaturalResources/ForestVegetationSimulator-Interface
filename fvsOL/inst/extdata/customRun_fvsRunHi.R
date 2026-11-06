@@ -150,6 +150,9 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
 
   
  
+  # H_QMD of the previous year carried between cycles
+  h.qmd.cycle = NULL
+
   # call FVS fvsRun() until the end of the projection or an error occurs
   repeat
   {
@@ -219,6 +222,15 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
 
     # advance to the next cycle if no tree records
     if (nrow(tree) == 0) next
+
+    # H_QMD of the previous year from the last cycle of this stand
+    if (!is.null(h.qmd.cycle) && h.qmd.cycle$stand.id[1] == std.id[['standid']] &&
+        h.qmd.cycle$year[1] == stdInfo[['year']]) {
+      tree = tree %>%
+        dplyr::left_join(h.qmd.cycle %>%
+                           dplyr::select(plot, h.qmd.prev),
+                         by='plot')
+    }
     
     for (year in stdInfo['year']:stdInfo['cendyear'])
     {
@@ -244,6 +256,11 @@ fvsRunHi <- function(runOps=NULL, logfile="FvsHi.log", autoload.model=TRUE)
     }
     # if there was a failure, tree will be NULL, go on to the next stand cycle
     if (is.null(tree)) next
+
+    h.qmd.cycle = tree %>%
+      dplyr::distinct(plot, h.qmd.prev) %>%
+      dplyr::mutate(stand.id = std.id[['standid']],
+                    year = tree$year[1])
       
    
     # cat ("fvsRunHi: is.null(tree$expf)=",is.null(tree$expf),"\n") 

@@ -1,6 +1,6 @@
 # $Id: HiGy.R 3968 2026-02-10 10:36:05Z benrice $
 ################################################################################
-# v0.4.0
+# v0.4.2
 #
 # Hawaii Variant of the Forest Vegetation Simulator (FVS-HI)
 #
@@ -16,11 +16,19 @@
 library(dplyr) # needed arrange, mutate, left_join, tibble, select, group_by, summarise, ungroup, case_when, all_of
 library(purrr) # needed for pmap_*
 
-VersionTag = "HiGyV0.4.0"
+VersionTag = "HiGyV0.4.2"
 
 ##############################
 #### major update summary ####
 ####
+
+# version 0.4.2 (2026-11-05)
+  # Parameters and equation forms from the koa v105final model
+  # Diameter and height increment- relative density (RD) competition terms
+  # Mortality- Stage 3 RD terms; Garcia step on the previous year's H_QMD
+  # BAL- expansion factor weighted percentile
+  # Crown ratio- predicted from height to crown base each year (ops$cr.update)
+  # Ingrowth- optional (ops$use.ingrowth), off by default
 
 # version 0.4.0 (2026-10-14)
   # Height- refit parameters and changed relative diameter definition 
@@ -222,12 +230,13 @@ calc_ht = function(tree.data, plot.data, byi=stand$byi,
 #' @param dbh Numeric: Diameter at breast height (cm)
 #' @param bal Numeric: Plot basal area larger trees (m^2 per ha)
 #' @param ba Numeric: Plot basal area (m^2 per ha)
+#' @param rd Numeric: Plot relative density
 #' @param cr Numeric: Live crown ratio (0-1)
 #' @param byi Numeric: Biomass Yield Index (Mg per ha). If NULL or 0, uses base model parameters
 #' @param planted Boolean: Origin indicator (1 = planted, 0 = natural)
 #' @param b0-b9 Numeric: Species parameters
 #' @return Numeric: Diameter increment (cm)
-ddbh = function(dbh, bal, ba, cr, byi, planted,
+ddbh = function(dbh, bal, ba, rd, cr, byi, planted,
                 b0, b1, b2, b3, b4, b5, b6, b7, b8, b9) {
 
   cf = 1.57859   # Duan (1983) smearing correction factor
@@ -237,13 +246,16 @@ ddbh = function(dbh, bal, ba, cr, byi, planted,
                       0.76421, # plantation origin
                       0.23596) # natural origin
 
+  # relative competition (BAL share of plot BA times RD)
+  bal.rd = ifelse(ba > 0, bal / ba, 0) * rd
+
   # diameter increment
   ddbh = exp(b0 + b1*log(dbh+1) +
                b2 * dbh +
-               b3 * bal^2 / log(dbh + 5) +
-               b4 * log(bal + 1) +
+               b3 * bal.rd^2 / log(dbh + 5) +
+               b4 * log(bal.rd + 1) +
                b5 * log(pmax(cr, 0.01)) +
-               b6 * sqrt(pmax(ba * dbh, 0)) +
+               b6 * sqrt(pmax(rd * dbh, 0)) +
                b7 * planted * pmin(dbh, 45) +
                b8 * log(pmax(byi, 1)) +
                b9 * planted) *cf * origin.calib
@@ -285,7 +297,8 @@ calc_ddbh = function(tree.data, plot.data,
   tree = tree.data %>%
     dplyr::left_join(plot.data %>%
                        dplyr::select(plot, 
-                                     ba.plot),
+                                     ba.plot,
+                                     rd),
                      by = 'plot') %>%
     # Match parameter estimates on species, Koa is currently the default
     dplyr::mutate(idx = match(sp, ddbh.parm$species, nomatch = match('AK', ddbh.parm$species)),
@@ -302,7 +315,7 @@ calc_ddbh = function(tree.data, plot.data,
                   byi = dplyr::coalesce(byi, 0),
                   planted = dplyr::coalesce(planted, 0),
                   ddbh = dplyr::case_when(ht<1.3716 ~0,
-                                          TRUE ~ddbh(dbh, bal, ba=ba.plot, cr,
+                                          TRUE ~ddbh(dbh, bal, ba=ba.plot, rd=rd, cr,
                                                      byi, planted,
                                                      b0, b1, b2, b3, b4, b5, b6, b7, b8, b9)),
                   # apply dbh increment multiplier
@@ -339,12 +352,13 @@ dht.parm = dplyr::tribble(
 #' @param ht Numeric: Tree height (m)
 #' @param bal Numeric: Plot basal area larger (m^2 per ha)
 #' @param ba Numeric: Plot basal area (m^2 per ha)
+#' @param rd Numeric: Plot relative density
 #' @param cr Numeric: Live crown ratio (0-1)
 #' @param byi Numeric: Biomass Yield Index (Mg per ha). If NULL or 0, uses base model parameters
 #' @param planted Boolean: Origin indicator (1 = planted, 0 = natural)
 #' @param b0-b9 Numeric: Species parameters
 #' @return Numeric: Height increment (m)
-dht = function(dbh, ht, bal, ba, cr, byi, planted,
+dht = function(dbh, ht, bal, ba, rd, cr, byi, planted,
                b0, b1, b2, b3, b4, b5, b6, b7, b8, b9) {
 
 
@@ -355,12 +369,15 @@ dht = function(dbh, ht, bal, ba, cr, byi, planted,
                       1.21046, # plantation origin
                       0.17573) # natural origin
 
+  # relative competition (BAL share of plot BA times RD)
+  bal.rd = ifelse(ba > 0, bal / ba, 0) * rd
+
   dht = exp(b0 + b1 * log(ht+1) +
               b2 * ht +
-              b3 * bal^2 / log(ht + 5) +
-              b4 * log(bal + 1) +
+              b3 * bal.rd^2 / log(ht + 5) +
+              b4 * log(bal.rd + 1) +
               b5 * log(pmax(cr, 0.01)) +
-              b6 * sqrt(pmax(ba * ht, 0)) +
+              b6 * sqrt(pmax(rd * ht, 0)) +
               b7 * planted * pmin(ht, 20) +
               b8 * log(pmax(byi, 1)) +
               b9 * planted) *cf *origin.calib
@@ -403,7 +420,8 @@ calc_dht = function(tree.data,
   tree = tree.data %>%
     dplyr::left_join(plot.data %>% 
                        dplyr::select(plot, 
-                                     ba.plot), 
+                                     ba.plot,
+                                     rd),
                      by = 'plot') %>%
     # Species parameters
     dplyr::mutate(idx = match(sp,  
@@ -422,7 +440,7 @@ calc_dht = function(tree.data,
                   byi = dplyr::coalesce(byi, 0),
                   planted = dplyr::coalesce(planted, 0),
       # use purrr::reduce() to generate annual height increment
-     dht = dht(dbh, ht, bal, ba.plot, cr, byi,
+     dht = dht(dbh, ht, bal, ba.plot, rd, cr, byi,
                                planted, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9),
       #apply ht increment multiplier
       dht = dht * dht.mult)
@@ -453,7 +471,7 @@ calc_dht = function(tree.data,
       # stand rate under a per-tree cap (tree_mort).
 
 
-# Stage 3 parameters (diameter, relative height, plot BA, BAL)
+# Stage 3 parameters (diameter, relative height, RD, BAL share times RD)
 mort.s3.parm = dplyr::tribble(
   ~species, ~b0, ~b1, ~b2, ~b3, ~b4,
   'AK', -0.901059329975794, -0.668917016326945, -1.20293687663928, 0.101091640663181, 1.854166504258)
@@ -483,8 +501,8 @@ mort_prob = function(sdi, planted) {
 #' Stage 2: Plot self-thinning mortality fraction Garcia (2009) 
 #'
 #' @param tph Numeric: Live trees per hectare at the start of the step
-#' @param h.qmd.t0 Numeric: Allometric height-equivalent of QMD at the start of the step (m)
-#' @param h.qmd.t1 Numeric: Allometric height-equivalent of QMD projected to the end of the step (m)
+#' @param h.qmd.t0 Numeric: Allometric height-equivalent of QMD of the previous year (m); NA gives the floor
+#' @param h.qmd.t1 Numeric: Allometric height-equivalent of QMD of the current year (m)
 #' @param planted Boolean: Origin indicator (1 = planted, 0 = natural)
 #' @return Numeric: Stand mortality fraction for the step
 plot_survival = function(tph, h.qmd.t0, h.qmd.t1, planted) {
@@ -496,7 +514,7 @@ plot_survival = function(tph, h.qmd.t0, h.qmd.t1, planted) {
   inner = s0^alpha - (beta * h.qmd.t0)^alpha + (beta * h1)^alpha
   s1    = pmax(inner, 1e-9)^(1 / alpha)
   n1    = pmin(10000 / s1^2, tph)
-  m.step = ifelse(h1 > h.qmd.t0, (tph - n1) / pmax(tph, 1e-9), 0)
+  m.step = ifelse(dplyr::coalesce(h1 > h.qmd.t0, FALSE), (tph - n1) / pmax(tph, 1e-9), 0)
   
   surv=pmax(m.step, floor.rate)
   
@@ -512,9 +530,10 @@ plot_survival = function(tph, h.qmd.t0, h.qmd.t1, planted) {
 #' @param rht Numeric: Relative height (ht / plot max height)
 #' @param ba Numeric: Plot basal area (m^2 per ha)
 #' @param bal Numeric: Plot basal area in larger trees (m^2 per ha)
+#' @param rd Numeric: Plot relative density
 #' @param b0-b4 Numeric: Species parameters
 #' @return Numeric: Raw (uncapped) per-tree mortality shares
-tree_mort_allocate = function(dbh, expf, tph, mort.plot, rht, ba, bal,
+tree_mort_allocate = function(dbh, expf, tph, mort.plot, rht, ba, bal, rd,
                               b0, b1, b2, b3, b4) {
   n = length(dbh)
   if (n == 0L) {
@@ -524,8 +543,8 @@ tree_mort_allocate = function(dbh, expf, tph, mort.plot, rht, ba, bal,
   eta = b0 +
     b1 * log(pmax(dbh, 0.1)) +
     b2 * rht +
-    b3 * log(ba + 1) +
-    b4 * log(pmax(bal, 0) + 1)
+    b3 * log(pmax(rd, rd.floor)) +
+    b4 * log(ifelse(ba > 0, bal / ba, 0) * rd + 1)
 
   mort.weight = pmin(pmax(1 - exp(-exp(eta)), 1e-9), 1)
 
@@ -593,7 +612,8 @@ tree_mort = function(m.tree, expf, mort.target, cap = 0.95) {
 calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm, 
                           planted = stand$planted) {
 
-  tree.data.names = colnames(tree.data)
+  if (!'h.qmd.prev' %in% colnames(tree.data)) tree.data$h.qmd.prev = NA_real_
+  tree.data.names = setdiff(colnames(tree.data), 'h.qmd.prev')
   planted.stand = dplyr::coalesce(as.numeric(planted), 0)
   p.bar = 0.31272560255909
 
@@ -601,18 +621,17 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
   h.qmd.a = 0.167997928455782
   h.qmd.k = 1.04106514616602
 
-  qmd.t1.plot = tree.data %>%
+  # H_QMD of the previous year carried on the tree list
+  h.qmd.t0.plot = tree.data %>%
     dplyr::group_by(plot) %>%
-    dplyr::summarise(qmd.t1.sq = sum(expf * (dbh + dplyr::coalesce(ddbh, 0))^2), 
+    dplyr::summarise(h.qmd.t0 = dplyr::first(h.qmd.prev),
                      .groups = 'drop')
 
   plot.mort = plot.data %>%
     dplyr::select(plot, tph.plot, qmd, sdi) %>%
-    dplyr::left_join(qmd.t1.plot, by = 'plot') %>%
-    dplyr::mutate(qmd.t1 = sqrt(qmd.t1.sq / pmax(tph.plot, 1e-12)),
-                  # allometric height-equivalent of QMD, current and projected
-                  h.qmd.t0 = exp((log(pmax(qmd, 1e-6)) - h.qmd.a) / h.qmd.k),
-                  h.qmd.t1 = exp((log(pmax(qmd.t1, 1e-6)) - h.qmd.a) / h.qmd.k),
+    dplyr::left_join(h.qmd.t0.plot, by = 'plot') %>%
+    dplyr::mutate(# allometric height-equivalent of QMD, current year
+                  h.qmd.t1 = exp((log(pmax(qmd, 1e-6)) - h.qmd.a) / h.qmd.k),
                   # Stage 2 self-thinning rate, Stage 1 gate, origin-level factor, 95% cap
                   mort.plot.reg = plot_survival(tph.plot,
                                               h.qmd.t0,
@@ -624,17 +643,21 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
                                     1.0,
                                     2.43532),
                   mort.plot = pmin(pmax(mort.plot.reg / p.bar * p.gate * mort.cal, 0), 0.95),
-                  mort.target = mort.plot * tph.plot) %>%
+                  mort.target = mort.plot * tph.plot,
+                  h.qmd.prev = h.qmd.t1) %>%
     dplyr::select(plot, 
                   tph.plot, 
                   mort.plot, 
-                  mort.target)
+                  mort.target,
+                  h.qmd.prev)
 
   tree = tree.data %>%
+    dplyr::select(-h.qmd.prev) %>%
     dplyr::left_join(plot.data %>% 
                        dplyr::select(plot, 
                                      ba.plot, 
-                                     max.plot.ht), 
+                                     max.plot.ht,
+                                     rd),
                      by = 'plot') %>%
     dplyr::left_join(plot.mort, 
                      by = 'plot') %>%
@@ -650,7 +673,7 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
     dplyr::mutate(mort.share = tree_mort_allocate(dbh, expf, 
                                                   dplyr::first(tph.plot), 
                                                   dplyr::first(mort.plot),
-                                                  rht, ba.plot, bal, 
+                                                  rht, ba.plot, bal, rd,
                                                   b0, b1, b2, b3, b4),
                   mort.frac = tree_mort(mort.share, 
                                         expf, 
@@ -660,7 +683,7 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
     dplyr::ungroup()
 
   tree = tree %>%
-    dplyr::select(dplyr::all_of(tree.data.names), dexpf)
+    dplyr::select(dplyr::all_of(tree.data.names), dexpf, h.qmd.prev)
 
   tree
 }
@@ -670,20 +693,22 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
 # multipliers for diameter increment, height increment and mortality
 # maximum tree diameter and height
     
-  # default tree size limits from HI FIA data 
+  # default tree size limits (cm, m) by origin
     
     tree.size.cap=dplyr::tribble(
-      ~species, ~max.dbh, ~max.height,
-      'AK',	  90,	    92)	# 
+      ~species, ~planted, ~max.dbh, ~max.height,
+      'AK',     0,        90,       28.0416,
+      'AK',     1,        69.7,     28.0416)
    
 
 #' create table of height and diameter increment and mortality multipliers from FVS species attributes and tree size cap       
 #' 
 #' @param spcodes Dataframe: FVS species codes from fvsGetSpeciesCodes(). Required fields- fvs (FVS alpha species code). FVS numeric code is the vector "row" number. Note fvsGetSpeciesCodes() returns a character vector 
-#' @param tree.size.cap Dataframe: tree size limits, Required fields: species (FVS alpha species code), max.dbh and max.height 
+#' @param tree.size.cap Dataframe: tree size limits, Required fields: species (FVS alpha species code), planted, max.dbh (cm) and max.height (m)
+#' @param planted Boolean: Origin indicator (1 = planted, 0 = natural)
 #' @return Dataframe: Species calibration factors (ddbh multiplier, dht multiplier, mortality multiplier, max dbh, max total height)
 
-    make_fvs_calib=function(spcodes, tree.size.cap){
+    make_fvs_calib=function(spcodes, tree.size.cap, planted = stand$planted){
       
       # customary-metric conversion
       in.to.cm = 2.54
@@ -736,7 +761,9 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
       
       # join with default max height and diameter values
       calib.fvs=calib.fvs %>% 
-        dplyr::left_join(tree.size.cap,
+        dplyr::left_join(tree.size.cap %>%
+                           dplyr::filter(planted == dplyr::coalesce(as.numeric(.env$planted), 0)) %>%
+                           dplyr::select(-planted),
                          by=c('sp'='species')) %>% 
         dplyr::mutate(dplyr::across(c(ddbh.mult, # if multipliers are 0 or 999 change to NA 
                                       dht.mult, 
@@ -744,10 +771,10 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
                                       maxdbh.fvs,
                                       maxht.fvs),
                                     ~ifelse(.x %in% c(0, 999), NA, .x)),
-                      max.dbh=dplyr::coalesce(maxdbh.fvs, 
-                                              max.dbh, 999) * in.to.cm, # metric conversion 
-                      max.height=dplyr::coalesce(maxht.fvs, 
-                                                 max.height, 999) * ft.to.m,
+                      max.dbh=dplyr::coalesce(maxdbh.fvs * in.to.cm, # metric conversion
+                                              max.dbh, 999),
+                      max.height=dplyr::coalesce(maxht.fvs * ft.to.m,
+                                                 max.height, 999),
                       ddbh.mult=dplyr::coalesce(ddbh.mult, 1), 
                       dht.mult=dplyr::coalesce(dht.mult, 1), 
                       mort.mult=dplyr::coalesce(mort.mult, 1)) %>% 
@@ -759,7 +786,7 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
    
     # Notes: 
       # function will test if FVS DLL is loaded
-      # tree size limits from FVS-NE and tree.size.cap values are in customary units
+      # tree size limits from FVS are in customary units, tree.size.cap values are metric
       # call to FVS will return multipliers via fvsGetSpeciesAttrs(c("baimult","htgmult","mortmult","mortdia1","mortdia2",
         #  "maxdbh", "maxht", "minmort", "maxdbhcd"))
     
@@ -770,6 +797,68 @@ calc_mortality = function(tree.data, plot.data, mort.parm.df = mort.s3.parm,
 ingrowth.parm = dplyr::tribble(
   ~species, ~b0,       ~b1,          ~b2,       ~max.tph,
   'AK',     3.383783, -0.005379672,  1.639832,  160)
+
+#' Predict annual ingrowth
+#'
+#' @param sdi Numeric: Stand density index
+#' @param planted Boolean: Origin indicator (1 = planted, 0 = natural)
+#' @param b0-b2, max.tph Numeric: Parameters
+#' @return Numeric: Recruits (trees per ha per year)
+pred_ingrowth = function(sdi, planted, b0, b1, b2, max.tph) {
+
+  n.rec = pmin(pmax(exp(b0 + b1 * sdi + b2 * planted), 0), max.tph)
+
+  n.rec
+}
+
+#' Add annual ingrowth to tree list
+#'
+#' @param tree.data Dataframe: Tree list after the annual update
+#' @param plot.data Dataframe: Plot summary data at the start of the year
+#' @param byi Numeric: Biomass Yield Index (Mg per ha)
+#' @param planted Boolean: Origin indicator (1 = planted, 0 = natural)
+#' @return Dataframe: Tree list with recruits (2.5 cm DBH, crown ratio 0.6) added
+calc_ingrowth = function(tree.data, plot.data,
+                         ingrowth.parm.df = ingrowth.parm,
+                         ht.pred.parm.df = ht.pred.parm,
+                         byi = stand$byi,
+                         planted = stand$planted) {
+
+  byi = dplyr::coalesce(as.numeric(byi), 0)
+  planted = dplyr::coalesce(as.numeric(planted), 0)
+
+  ing.parm = ingrowth.parm.df %>%
+    filter(species=='AK')
+
+  ht.parm = ht.pred.parm.df %>%
+    filter(type==ifelse(byi==0, 'base', 'site'), species=='AK')
+
+  recruit = tree.data %>%
+    dplyr::group_by(plot) %>%
+    dplyr::mutate(max.plot.dbh = max(dbh, na.rm = TRUE)) %>%
+    dplyr::slice(1) %>%
+    dplyr::ungroup() %>%
+    dplyr::left_join(plot.data %>%
+                       dplyr::select(plot,
+                                     ba.plot,
+                                     sdi),
+                     by = 'plot') %>%
+    dplyr::mutate(expf = pred_ingrowth(sdi, planted,
+                                       ing.parm$b0, ing.parm$b1, ing.parm$b2, ing.parm$max.tph),
+                  dbh = 2.5,
+                  ht = pred_ht(dbh, ba=ba.plot, bal=NA, max.plot.dbh=pmax(max.plot.dbh, 2.5), byi,
+                               ht.parm$a0, ht.parm$a1, ht.parm$b, ht.parm$c, ht.parm$g1, ht.parm$g2),
+                  cr = 0.6,
+                  hcb = ht * (1 - cr),
+                  sp = 'AK',
+                  tree = max(tree.data$tree) + dplyr::row_number()) %>%
+    dplyr::filter(expf > 0.001) %>%
+    dplyr::select(dplyr::any_of(colnames(tree.data)))
+
+  tree = dplyr::bind_rows(tree.data, recruit)
+
+  tree
+}
 
 #### Prepare input tree list ####
 ####
@@ -877,14 +966,18 @@ make_tree=function(tree.list, num.plots, calib.spp){
 #' @param rtn.vars Character vector: Variables to return in output (default core variables)
 #' @param use.cap.dbh Logical or character: Apply maximum DBH constraint. Accepts TRUE/FALSE or 'Yes'/'No'/'Y'/'N' (default TRUE).
 #' @param use.cap.ht Logical or character: Apply maximum total tree height constraint. Accepts TRUE/FALSE or 'Yes'/'No'/'Y'/'N' (default TRUE)
+#' @param cr.update Character: 'engine' predicts crown ratio from height to crown base each year; 'recession' limits annual crown ratio change to 1% (default 'engine')
+#' @param use.ingrowth Logical or character: Add annual ingrowth. Accepts TRUE/FALSE or 'Yes'/'No'/'Y'/'N' (default FALSE)
 #' @return Dataframe: Run options dataframe
 #'
 make_ops = function(verbose = FALSE,
                     rtn.vars = c('year', 'plot', 'tree', 'sp', 'dbh', 'ht', 
-                                 'cr', 'expf', 'pht',  
+                                 'cr', 'expf', 'pht', 'h.qmd.prev',
                                  'ddbh.mult', 'dht.mult', 'mort.mult', 'max.dbh', 'max.height'),
                     use.cap.dbh = TRUE,
-                    use.cap.ht = TRUE) {
+                    use.cap.ht = TRUE,
+                    cr.update = 'engine',
+                    use.ingrowth = FALSE) {
   
   # Convert strings to logical-- in case someone redefines TRUE and FALSE 
   char_to_logical = function(x) {
@@ -904,8 +997,10 @@ make_ops = function(verbose = FALSE,
   ops = data.frame(verbose = char_to_logical(verbose),
                    rtn.vars = I(list(rtn.vars)), # rtn.vars as a list column 
                    use.cap.dbh = char_to_logical(use.cap.dbh),
-                   use.cap.ht = char_to_logical(use.cap.ht)) %>%
-    dplyr::mutate(dplyr::across(c(verbose, use.cap.dbh, use.cap.ht), 
+                   use.cap.ht = char_to_logical(use.cap.ht),
+                   cr.update = match.arg(cr.update, c('engine', 'recession')),
+                   use.ingrowth = char_to_logical(use.ingrowth)) %>%
+    dplyr::mutate(dplyr::across(c(verbose, use.cap.dbh, use.cap.ht, use.ingrowth),
                                 as.logical))
   
   
@@ -928,7 +1023,7 @@ make_ops = function(verbose = FALSE,
     
     stand=data.frame(stand.id = stand.id,
                      elev = elev,
-                     byi = pmin(coalesce(byi, 0), 600), # BYI capped at 600 
+                     byi = coalesce(byi, 0),
                      planted = planted)
     
     stand
@@ -982,7 +1077,7 @@ make_fvs_tree=function(tree.data, orgtree.list, num.plots){
                   expf.fvs=expf) %>% 
     dplyr::inner_join(tree.list, # inner join excludes records not handled by model
                       by='tree') %>% 
-    dplyr::mutate(dg=(dbh-dbh.fvs)*cm.to.in, # diameter growth to inches
+    dplyr::mutate(dg=(dbh-dbh.fvs)*cm.to.in*0.9, # diameter growth to inches, inside bark (FVS-HI bark ratio 0.9)
                   htg=(ht-ht.fvs)*m.to.ft,  # height growth to feet
                   # set the crown ratio sign to negative so that FVS doesn't change them. 
                   cratio = round(cr*-100, 1), # 
@@ -1016,18 +1111,21 @@ make_fvs_tree=function(tree.data, orgtree.list, num.plots){
 calc_bal = function(tree.data) {
   
   # Check required columns
-  required.cols = c('plot', 'dbh', 'ba')
+  required.cols = c('plot', 'dbh', 'ba', 'expf')
   missing.cols = setdiff(required.cols, names(tree.data))
   if (length(missing.cols) > 0) {
     stop(paste("Missing required columns:", paste(missing.cols, collapse = ", ")))
   }
   
-  # Sort by plot and descending DBH; calculate cumulative BA
+  # Sort by plot and descending DBH; plot BA times the expansion factor weighted
+  # share of the other trees with DBH at least as large
   tree=tree.data %>%
     dplyr::arrange(plot, 
             desc(dbh)) %>%
     dplyr::group_by(plot) %>%
-    dplyr::mutate(bal = cumsum(ba) - ba) %>% 
+    dplyr::mutate(expf.ge = cumsum(expf)[findInterval(-dbh, -dbh)],
+                  bal = sum(ba) * pmin(pmax((expf.ge - expf) / pmax(sum(expf) - expf, 1e-12), 0), 1)) %>%
+    dplyr::select(-expf.ge) %>%
     dplyr::ungroup()
   
   tree
@@ -1076,7 +1174,9 @@ calc_plot_summary = function(tree.data) {
     # QMD
     dplyr::mutate(qmd = dplyr::coalesce(sqrt(ba.plot / (0.00007854 * tph.plot)), 0),
                   # stand density index, Reineke exponent 1.605
-                  sdi = tph.plot * (pmax(qmd, 0.1) / 25)^1.605)
+                  sdi = tph.plot * (pmax(qmd, 0.1) / 25)^1.605,
+                  # relative density (SDI on the 25.4 cm index diameter)
+                  rd = sdi * (25 / 25.4)^1.605 / sdi.max)
   
   plot.summary
 }
@@ -1189,6 +1289,13 @@ HiGYOneStand = function(tree, stand, ops)
                                 TRUE ~hcb),
                   cr = 1-(hcb/ht))
   
+  # crown ratio predicted from height to crown base
+  if (ops$cr.update == 'engine') {
+    tree = tree %>%
+      dplyr::mutate(hcb = phcb,
+                    cr = pmin(pmax(1 - phcb / pmax(ht, 0.1), 0.05), 0.95))
+  }
+
 # Compute plot-level heights
   
   # Plot top height (for 100 tph)
@@ -1217,10 +1324,6 @@ HiGYOneStand = function(tree, stand, ops)
     calc_dht(plot.data = plot.smry)
 
 
-
-#### Ingrowth ####
-  
-  
 #### Mortality ####
   # calc_mortality = function(tree.data, plot.data, planted = stand$planted)
 
@@ -1237,9 +1340,16 @@ HiGYOneStand = function(tree, stand, ops)
                   expf= dplyr::coalesce(expf, 0) - dplyr::coalesce(dexpf, 0),
                   expf= ifelse(expf< 0.00001, 0.00001, expf)) 
 
+#### Ingrowth ####
+  if (ops$use.ingrowth == TRUE) {
+    tree = tree %>%
+      calc_ingrowth(plot.data = plot.smry)
+  }
+
 #### Crown recession ####
  # calculate t+1 height to crown base  
-  tree %>% 
+  tree = tree %>%
+    dplyr::mutate(ba = (dbh^2*0.00007854)*expf) %>%
     calc_bal()
   
   # Calculate plot summary
@@ -1247,12 +1357,14 @@ HiGYOneStand = function(tree, stand, ops)
     calc_plot_summary()
   
   # crown ratio change limited to 1% annually   
-  tree=tree %>% 
-    calc_hcb(plot.data = plot.smry) %>% 
-    dplyr::mutate(pcr= 1-(hcb/ht), 
-                  cr= dplyr::case_when((pcr-cr)/cr>0.01 ~cr*0.99,
-                                       (pcr-cr)/cr<-0.01 ~cr*1.01,
-                                       TRUE ~pcr))
+  if (ops$cr.update == 'recession') {
+    tree=tree %>%
+      calc_hcb(plot.data = plot.smry) %>%
+      dplyr::mutate(pcr= 1-(hcb/ht),
+                    cr= dplyr::case_when((pcr-cr)/cr>0.01 ~cr*0.99,
+                                         (pcr-cr)/cr< -0.01 ~cr*1.01,
+                                         TRUE ~pcr))
+  }
   
 #### Output ####      
   # select return variables
