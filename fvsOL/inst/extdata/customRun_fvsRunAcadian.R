@@ -148,17 +148,20 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
     plot.smry = plot.smry %>%
       dplyr::left_join(plot.ccf, by="plot")
     
-    # predict height and height to crown base
-    tree = tree %>%
-      calc_ht(plot.data=plot.smry, csi=csi) %>%
-      calc_hcb(plot.data=plot.smry) %>%
-      dplyr::mutate(pcr = round((1 - phcb / pht) * 100, 1))
-    
-    # write Acadian-predicted values back to FVS for dubbed trees
-   
+    # index impute records 
     dub.ht.idx = which(dubHtRows)
     dub.cr.idx = which(dubCrRows)
     
+    # predict height and height to crown base
+    tree = tree %>%
+      calc_ht(plot.data=plot.smry, csi=csi) %>%
+      dplyr::mutate(ht = ifelse(tree %in% dub.ht.idx & dbh > 2.5, 
+                                pht, ht)) %>%
+      calc_hcb(plot.data=plot.smry) %>%
+      dplyr::mutate(pcr = round((1 - phcb / pht) * 100, 1))
+    
+    # write Acadian predicted values back to FVS for dubbed trees
+   
     # imputed height
     tree.aftrdub=tree.aftrdub %>% 
       mutate(ht=ht*3.28084) # height to FVS: feet
@@ -243,7 +246,7 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
       if (thinning["rtpa"] > 0) {
 
         # updated thinning variables code
-        ops=ops %>% 
+        .GlobalEnv$ops=ops %>% 
           mutate(thin.ba.perc.rmv = (1-(thinning["aba"]/thinning["bba"]))*100.,
                  thin.ba.pre = thinning["bba"]*fvsUnitConversion("FT2pACRtoM2pHA"),
                  thin.qmd.ratio = ifelse(thinning["aadbh"]>=1, 
@@ -255,7 +258,7 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
                  stdInfo["year"]-ops$thin.year > 20) {
         # reset thinning variables to NA after 20 years
           # maybe we need an indicator variable ops$thin.active; to bypass thinning modifier calculations when ops$thin.active==F
-        ops=ops %>% 
+        .GlobalEnv$ops=ops %>% 
           mutate(thin.ba.perc.rmv = NA_real_,
                  thin.ba.pre = NA_real_,
                  thin.qmd.ratio = NA_real_,
@@ -357,9 +360,9 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
    
     newTrees = nrow(toadd)
     
-    if(ops$verbose) {
+    # if(ops$verbose) {
       cat ("fvsRunAcadian: num newtrees=",newTrees,"\n")
-      }
+      # }
     if (newTrees>0) {
             if (newTrees < room["maxtrees"] - room["ntrees"])
             {
@@ -377,6 +380,14 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
     if (ops$use.vol==TRUE)
     {
       if(ops$verbose){cat ("fvsRunAcadian: Applying Acadian volume logic\n")}
+      
+      # advance to stop point 6 if not already there
+      if (!atstop6)
+      {
+        fvsRun(stopPointCode = 6, stopPointYear = -1)
+        atstop6 = TRUE
+      }
+      
       
       mcstds = fvsGetSpeciesAttrs(vars=c("mcmind","mctopd","mcstmp"))
       vols = fvsGetTreeAttrs(c("species","ht","dbh","mcuft","defect"))
@@ -430,11 +441,6 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
           dplyr::select(mcuft)
       
       
-      if (!atstop6)
-      {
-        fvsRun(stopPointCode=6,stopPointYear=-1)
-        atstop6 = TRUE
-      }
       fvsSetTreeAttrs(vols)
     } 
   }

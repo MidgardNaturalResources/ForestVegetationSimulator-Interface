@@ -23,6 +23,9 @@ AcadianVersionTag = "AcadianV12.5.1"
   # added code to prevent NA summary values
   # updated sp.attr to cover all valid species codes occurring in both ACD and NE
   # fixed bugs in thinning modifier functions
+  # updated ingrowth tree id definition to prevent collision with tree ids from FVS
+  # taper and dib bug fixes. Also updates to customRun_fvsRunAcadian.R to ensure fvsGetTreeAttrs() call is at the correct processing sequence step 
+  # FVS expects diameter increment inside bark. Added FVS-NE bark ratios to sp.attr and code to make_fvs_tree()
 
 # 12.5.0
   # significant rewrite of codebase   
@@ -94,64 +97,63 @@ AcadianVersionTag = "AcadianV12.5.1"
 ##############################
 
 
-
 #### Species functional attributes ####
 sp.attr = dplyr::tribble(
-  ~species,  ~sp.type, ~sg, ~wd, ~shade, ~drought, ~waterlog, ~sp.grp.ingrowth,
-  #species sp.type  sg     wd      shade   drought waterlog  sp.grp.ingrowth
-  'AB',  'HW',  0.64,  0.56,    4.75,  1.5,   1.5,      'AB',    # AB=American beech
-  'AS',  'HW',  0.57,  0.51,    2.84,  2.74,  3.02,     'OH',    # AS=ash                 
-  'BA',  'HW',  0.5,   0.45,    2.96,  2,     3.5,      'OH',    # BA=black ash
-  'BC',  'HW',  0.5,   0.47,    2.46,  3.02,  1.06,     'OH',    # BC=black cherry
-  'BF',  'SW',  0.35,  0.33,    5.01,  1,     2,        'BF',    # BF=balsam fir
-  'BP',  'HW',  0.34,  0.31,    1.27,  1.77,  2.63,     'OH',    # BP=balsam poplar
-  'BS',  'SW',  0.46,  0.38,    4.08,  2.0,   2.0,      'SPR',   # BS=black spruce
-  'BT',  'HW',  0.39,  0.36,    1.21,  2.5,   2,        'OH',    # BT=bigtooth aspen
-  'EC',  'HW',  0.4,   0.37,    1.76,  1.57,  3.03,     'OH',    # EC=eastern cottonwood
-  'EH',  'SW',  0.4,   0.38,    4.83,  1,     1.25,     'OS',    # EH=eastern hemlock
-  'GA',  'HW',  0.56,  0.53,    3.11,  3.85,  2.98,     'OH',    # GA=green ash
-  'GB',  'HW',  0.48,  0.45,    1.5,   2.34,  1,        'BCH',   # GB=gray birch
-  'HH',  'HW',  0.78,  0.63,    4.58,  3.25,  1.07,     'OH',    # HH=eastern hophornbeam
-  'JP',  'SW',  0.43,  0.4,     1.36,  4,     1,        'OS',    # JP=jack pine
-  'NS',  'SW',  0.43,  0.37023, 4.45,  1.75,  1.22,     'OS',    # NS=Norway spruce
-  'OH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # OH=other hardwoods
-  'OS',  'SW',  0.445, 0,       2.27,  0,     0,        'OS',    # OS=other softwoods
-  'PB',  'HW',  0.55,  0.48,    1.54,  2.02,  1.25,     'BCH',   # PB=paper birch
-  'PR',  'HW',  0.38,  0.36,    2.26,  0,     0,        'OH',    # PR=pin cherry 
-  'QA',  'HW',  0.38,  0.35,    1.21,  1.77,  1.77,     'QA',    # QA=quaking aspen
-  'RB',  'HW',  0.62,  0.49,    1.45,  1.53,  2.85,     'BCH',   # RB=river birch
-  'RM',  'HW',  0.54,  0.49,    3.44,  1.84,  3.08,     'RM',    # RM=red maple
-  'RP',  'SW',  0.46,  0.41,    1.89,  3,     1,        'OS',    # RP=red pine - plantation
-  'RN',  'SW',  0.46,  0.41,    1.89,  3,     1,        'OS',    # RN=red pine
-  'RO',  'HW',  0.63,  0.56,    2.75,  2.88,  1.12,     'OH',    # RO=red oak
-  'RS',  'SW',  0.4,   0.37,    4.39,  2.5,   2,        'SPR',   # RS=red spruce
-  'SB',  'HW',  0.65,  0.6,     2.58,  3,     1,        'BCH',   # SB=Sweet birch
-  'SM',  'HW',  0.63,  0.56,    4.76,  2.25,  1.09,     'SM',    # SM=sugar maple
-  'ST',  'HW',  0.46,  0.44,    3.56,  2,     1,        'OH',    # ST=striped maple
-  'TA',  'SW',  0.53,  0.49,    0.98,  2,     3,        'OS',    # TA=larch/tamarack
-  'WA',  'HW',  0.6,   0.55,    2.46,  2.38,  2.59,     'OH',    # WA=white ash             
-  'WC',  'SW',  0.31,  0.29,    3.45,  2.71,  1.46,     'WC',    # WC=northern white cedar
-  'WP',  'SW',  0.35,  0.34,    3.21,  2.29,  1.03,     'WP',    # WP=white pine
-  'WS',  'SW',  0.4,   0.33,    4.15,  2.88,  1.02,     'SPR',   # WS=white spruce
-  'YB',  'HW',  0.62,  0.55,    3.17,  3,     2,        'BCH',   # YB=yellow birch
-  'AE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # AE=American elm- OH values
-  'AH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # AH=American hornbeam- OH values
-  'AP',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # AP=apple- OH values
-  'BE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BE=boxelder- OH values
-  'BN',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BN=butternut- OH values
-  'BO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BO=black oak- OH values
-  'BR',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BR=bur oak- OH values
-  'BW',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # BW=American basswood- OH values
-  'HT',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # HT=hawthorn- OH values
-  'PP',  'SW',  0.445,  0,      2.27,  0,     0,        'OS',    # PP=pitch pine- OS values
-  'SE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SE=serviceberry- OH values
-  'SH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SH=shagbark hickory- OH values
-  'SO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SO=scarlet oak- OH values
-  'SV',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # SV=silver maple- OH values
-  'TM',  'SW',  0.445,  0,      2.27,  0,     0,        'OS',    # TM=Table Mountain pine- OS values
-  'WO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # WO=white oak- OH values
-  'YP',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    # YP=tuliptree  - OH values
-  '99',  'HW',  0.3,   0.3,     3.0,   0,     0,        'OH')    # other
+  ~species,  ~sp.type, ~sg, ~wd, ~shade, ~drought, ~waterlog, ~sp.grp.ingrowth, ~bark.ratio.fvs,
+  #species sp.type  sg     wd      shade   drought waterlog  sp.grp.ingrowth  bark.ratio.fvs -From FVS-NE overview
+  'AB',  'HW',  0.64,  0.56,    4.75,  1.5,   1.5,      'AB',    0.950,     # AB=American beech
+  'AS',  'HW',  0.57,  0.51,    2.84,  2.74,  3.02,     'OH',    0.900,     # AS=ash
+  'BA',  'HW',  0.5,   0.45,    2.96,  2,     3.5,      'OH',    0.900,     # BA=black ash
+  'BC',  'HW',  0.5,   0.47,    2.46,  3.02,  1.06,     'OH',    0.940,     # BC=black cherry
+  'BF',  'SW',  0.35,  0.33,    5.01,  1,     2,        'BF',    0.9349,    # BF=balsam fir
+  'BP',  'HW',  0.34,  0.31,    1.27,  1.77,  2.63,     'OH',    0.900,     # BP=balsam poplar
+  'BS',  'SW',  0.46,  0.38,    4.08,  2.0,   2.0,      'SPR',   0.9324,    # BS=black spruce
+  'BT',  'HW',  0.39,  0.36,    1.21,  2.5,   2,        'OH',    0.900,     # BT=bigtooth aspen
+  'EC',  'HW',  0.4,   0.37,    1.76,  1.57,  3.03,     'OH',    0.900,     # EC=eastern cottonwood
+  'EH',  'SW',  0.4,   0.38,    4.83,  1,     1.25,     'OS',    0.934,     # EH=eastern hemlock
+  'GA',  'HW',  0.56,  0.53,    3.11,  3.85,  2.98,     'OH',    0.900,     # GA=green ash
+  'GB',  'HW',  0.48,  0.45,    1.5,   2.34,  1,        'BCH',   0.948,     # GB=gray birch
+  'HH',  'HW',  0.78,  0.63,    4.58,  3.25,  1.07,     'OH',    0.900,     # HH=eastern hophornbeam
+  'JP',  'SW',  0.43,  0.4,     1.36,  4,     1,        'OS',    0.964,     # JP=jack pine
+  'NS',  'SW',  0.43,  0.37023, 4.45,  1.75,  1.22,     'OS',    0.9324,    # NS=Norway spruce
+  'OH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # OH=other hardwoods
+  'OS',  'SW',  0.445, 0,       2.27,  0,     0,        'OS',    0.964,     # OS=other softwoods
+  'PB',  'HW',  0.55,  0.48,    1.54,  2.02,  1.25,     'BCH',   0.948,     # PB=paper birch
+  'PR',  'HW',  0.38,  0.36,    2.26,  0,     0,        'OH',    0.900,     # PR=pin cherry
+  'QA',  'HW',  0.38,  0.35,    1.21,  1.77,  1.77,     'QA',    0.900,     # QA=quaking aspen
+  'RB',  'HW',  0.62,  0.49,    1.45,  1.53,  2.85,     'OH',   0.948,      # RB=river birch
+  'RM',  'HW',  0.54,  0.49,    3.44,  1.84,  3.08,     'RM',    0.950,     # RM=red maple
+  'RP',  'SW',  0.46,  0.41,    1.89,  3,     1,        'OS',    0.920,     # RP=red pine - plantation
+  'RN',  'SW',  0.46,  0.41,    1.89,  3,     1,        'OS',    0.920,     # RN=red pine
+  'RO',  'HW',  0.63,  0.56,    2.75,  2.88,  1.12,     'OH',    0.900,     # RO=red oak
+  'RS',  'SW',  0.4,   0.37,    4.39,  2.5,   2,        'SPR',   0.9324,    # RS=red spruce
+  'SB',  'HW',  0.65,  0.6,     2.58,  3,     1,        'OH',   0.948,      # SB=Sweet birch
+  'SM',  'HW',  0.63,  0.56,    4.76,  2.25,  1.09,     'SM',    0.920,     # SM=sugar maple
+  'ST',  'HW',  0.46,  0.44,    3.56,  2,     1,        'OH',    0.900,     # ST=striped maple
+  'TA',  'SW',  0.53,  0.49,    0.98,  2,     3,        'OS',    0.9349,    # TA=larch/tamarack
+  'WA',  'HW',  0.6,   0.55,    2.46,  2.38,  2.59,     'OH',    0.900,     # WA=white ash
+  'WC',  'SW',  0.31,  0.29,    3.45,  2.71,  1.46,     'WC',    0.950,     # WC=northern white cedar
+  'WP',  'SW',  0.35,  0.34,    3.21,  2.29,  1.03,     'WP',    0.920,     # WP=white pine
+  'WS',  'SW',  0.4,   0.33,    4.15,  2.88,  1.02,     'SPR',   0.956,     # WS=white spruce
+  'YB',  'HW',  0.62,  0.55,    3.17,  3,     2,        'BCH',   0.948,     # YB=yellow birch
+  'AE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # AE=American elm- OH values
+  'AH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # AH=American hornbeam- OH values
+  'AP',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # AP=apple- OH values
+  'BE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # BE=boxelder- OH values
+  'BN',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # BN=butternut- OH values
+  'BO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # BO=black oak- OH values
+  'BR',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.910,     # BR=bur oak- OH values
+  'BW',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # BW=American basswood- OH values
+  'HT',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # HT=hawthorn- OH values
+  'PP',  'SW',  0.445,  0,      2.27,  0,     0,        'OS',    0.964,     # PP=pitch pine- OS values
+  'SE',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # SE=serviceberry- OH values
+  'SH',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # SH=shagbark hickory- OH values
+  'SO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # SO=scarlet oak- OH values
+  'SV',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.920,     # SV=silver maple- OH values
+  'TM',  'SW',  0.445,  0,      2.27,  0,     0,        'OS',    0.964,     # TM=Table Mountain pine- OS values
+  'WO',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.910,     # WO=white oak- OH values
+  'YP',  'HW',  0.5121, 0,      2.29,  0,     0,        'OH',    0.900,     # YP=tuliptree  - OH values
+  '99',  'HW',  0.3,   0.3,     3.0,   0,     0,        'OH',    0.900)     # other
 
 
 #### Crown prediction ####
@@ -2332,12 +2334,15 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
 #' @param tree.data Dataframe: Tree list
 #' @param plot.data Dataframe: Plot summary data
 #' @param min.dbh.ingrowth Numeric: Minimum DBH treshold for ingrowth trees (cm)
+#' @param begin.tree.id Integer: Ingrowth beginning tree id 
 #' @param sp.attr.data Dataframe: species functional attributes table (default sp.attr)
 #' @return Dataframe: Ingrowth tree list
     create_ingrowth_tree = function(tree.data, 
                                     tree.ingrowth.data, 
                                     plot.data, 
-                                    min.dbh.ingrowth, sp.attr.data) {
+                                    min.dbh.ingrowth, 
+                                    begin.tree.id,
+                                    sp.attr.data) {
       
       # Break down species groups into individual species
       species.grp.ba = tree.data %>% 
@@ -2367,7 +2372,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
         dplyr::bind_rows(tree.group.ingrowth)%>% 
         dplyr::filter(sp.ing>0) %>% 
         dplyr::transmute(plot, 
-                         tree = max.tree.id + row_number(),
+                         tree = begin.tree.id + row_number(),
                          sp,
                          dbh = min.dbh.ingrowth,
                          expf = sp.ing,
@@ -2384,7 +2389,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
                            .groups = 'drop')
         
         tree.ingrowth = tree.ingrowth %>%
-          dplyr::left_join(sp.attr, 
+          dplyr::left_join(sp.attr.data, 
                            by=c('sp'='species')) %>% # calc BAL needs sp.type for HW/SW
           calc_bal() %>% 
           dplyr::left_join(tree.max.bal, 
@@ -2411,6 +2416,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
 #' @param cut.point.ingrowth Numeric: Probability threshold for ingrowth occurrence (default ops$ingrowth.thrshld)
 #' @param sp.attr.data Dataframe: species functional attributes table (default sp.attr)
 #' @param ingrowth.comp.spp.df Dataframe: Ingrowth composition species group parameters dataframe (default ingrowth.comp.spp)
+#' @param begin.tree.id Integer: Ingrowth beginning tree id; the tree.data row count is added (default ops$ingrowth.tree.id)
 #' @param model.type Character: Parameter estimates for prob_ingrowth(). Choices are NLME and GNLS (default 'GNLS')
 #' @return Dataframe: Ingrowth tree list
     calc_ingrowth = function(tree.data, 
@@ -2422,10 +2428,11 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
                              cut.point.ingrowth = ops$ingrowth.thrshld, 
                              sp.attr.data = sp.attr,
                              ingrowth.comp.spp.df = ingrowth.comp.spp, 
+                             begin.tree.id = ops$ingrowth.tree.id,
                              model.type = 'GNLS') {
       
       # Required columns in plot.data
-        # 'plot', 'ba.plot', 'tph.plot', 'qmd', 'ba.perc.hw', 'max.tree.id')
+        # 'plot', 'ba.plot', 'tph.plot', 'qmd', 'ba.perc.hw')
      
       # Get parameters for specified model
       parms = dplyr::filter(ingrowth.prob.parms.df, 
@@ -2491,6 +2498,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
                                            tree.ingrowth, 
                                            plot.data,
                                            min.dbh.ingrowth,
+                                           begin.tree.id,
                                            sp.attr.data)%>%
         dplyr::left_join(calib.spp, 
                          by = 'sp')
@@ -2686,6 +2694,7 @@ validate_tree = function(tree) {
 #' @param use.ingrowth Logical or character: Use ingrowth sub-model. Accepts TRUE/FALSE or 'Yes'/'No'/'Y'/'N' (default TRUE)
 #' @param ingrowth.min.dbh Numeric: Minimum DBH threshold for ingrowth (cm; default 3.0)
 #' @param ingrowth.thrshld Numeric: Ingrowth threshold (default 0.95)
+#' @param ingrowth.tree.id Integer: Ingrowth first tree id (default 5000)
 #' @param use.vol Logical or character: Use Acadian volume calculation. Accepts TRUE/FALSE or 'Yes'/'No'/'Y'/'N' (default FALSE)
 #' @return Dataframe: Run options dataframe
 #'
@@ -2708,6 +2717,7 @@ make_ops = function(verbose = FALSE,
                     use.ingrowth = FALSE,
                     ingrowth.min.dbh = 3.0,
                     ingrowth.thrshld = 0.95,
+                    ingrowth.tree.id = 5000,
                     use.vol = FALSE) {
   
   # Convert strings to logical-- in case someone redefines TRUE and FALSE 
@@ -2743,6 +2753,7 @@ make_ops = function(verbose = FALSE,
                    use.ingrowth = char_to_logical(use.ingrowth),
                    ingrowth.min.dbh = ingrowth.min.dbh,
                    ingrowth.thrshld = ingrowth.thrshld,
+                   ingrowth.tree.id = as.integer(ingrowth.tree.id),
                    use.vol=use.vol) %>%
     dplyr::mutate(dplyr::across(c(verbose, use.cap.dbh, use.cap.ht, use.sbw.mod, 
                                   use.thin.mod, use.hw.mod, use.ingrowth), 
@@ -2964,7 +2975,10 @@ make_fvs_tree=function(tree.data, orgtree.list, num.plots){
                   expf.fvs=expf) %>% 
     dplyr::inner_join(tree.list, # inner join excludes regeneration and records not handled by ACD
                       by='tree') %>% 
-    dplyr::mutate(dg=(dbh-dbh.fvs)*cm.to.in, # diameter growth to inches
+    dplyr::left_join(sp.attr %>%
+                       dplyr::select(species, bark.ratio.fvs),
+                     by = c('sp' = 'species')) %>%
+    dplyr::mutate(dg=(dbh-dbh.fvs)* cm.to.in * bark.ratio.fvs, # diameter growth to inches inside bark 
                   htg=(ht-ht.fvs)*m.to.ft,  # height growth to feet
                   # set the crown ratio sign to negative so that FVS doesn't change them. 
                   cratio = round((1-(hcb/ht))*-100, 1), # 
@@ -3019,9 +3033,10 @@ make_fvs_regen=function(tree.data, orgtree.list, num.plots, spcodes){
     dplyr::mutate(expf= expf/dplyr::coalesce(num.plots, 1)) %>%  # calculate stand level TPH
     dplyr::transmute(dbh=dplyr::coalesce(dbh*cm.to.in, 0),
                      species=match(sp, spcodes[,"fvs"]),
+                     cratio= dplyr::coalesce(round((1-(hcb/ht))*-100, 1), 0),
                      ht= dplyr::case_when(dbh<0.5 & ht>1 ~3, # if ingrowth dbh is less than 0.5 in and height>1 m - set to 3 ft
                                           TRUE ~dplyr::coalesce(ht*m.to.ft, 0)),
-                     cratio= dplyr::coalesce(round((1-(hcb/ht))*-100, 1), 0),
+                     
                      plot= as.numeric(plot),
                      tpa= expf*ac.to.ha)
   
@@ -3096,9 +3111,7 @@ calc_plot_summary = function(tree.data) {
                      sdi = sum(ifelse(dbh >= 10, (dbh / 25.4)^1.6 * expf, 0), na.rm = TRUE),
                      sdi.all = sum((dbh / 25.4)^1.6 * expf, na.rm = TRUE),
                      # Softwood DBH average (where sp.type == 'SW')
-                     dbh.sw.avg =  dplyr::coalesce(mean(ifelse(sp.type == 'SW', dbh, NA), na.rm = TRUE), 0),
-                     # max tree number for ingrowth
-                     max.tree.id = max(tree, na.rm = TRUE), .groups = 'drop') %>%
+                     dbh.sw.avg =  dplyr::coalesce(mean(ifelse(sp.type == 'SW', dbh, NA), na.rm = TRUE), 0), .groups = 'drop') %>%
     # QMD
     dplyr::mutate(qmd = sqrt(ba.plot / (0.00007854 * tph.plot)), 
                   # percent plot BA in hardwood
@@ -3514,7 +3527,7 @@ taper.westfall.scott.spp = dplyr::tribble(
 #' @param ht.dia Numeric: Height at which to predict diameter (m)
 #' @param dia.type Character: Diameter type 'ob' (outside bark) or 'ib' (inside bark), kozak only (default 'ib')
 #' @param plt Integer: Plantation indicator (1=plantation, 0=natural), kozak only (default 0)
-#' @param taper.kozak.spp Dataframe: Kozak taper function parameters (default 0taper.kozak.spp)
+#' @param taper.kozak.df Dataframe: Kozak taper function parameters (default taper.kozak.spp)
 #' @return Numeric: Predicted diameter at the specified height
 #'
 # Li, R; Weiskittel, AR; Dick, A; Kershaw JA; Seymour, RS. 2012. Regional stem 
@@ -3526,16 +3539,16 @@ taper.westfall.scott.spp = dplyr::tribble(
 # Annual Report. University of Maine, School of Forest Resources, Orono, ME; pp 76-84.
 
 taper_kozak = function(sp, dbh, ht, ht.dia, dia.type = 'ib', plt = 0, 
-                       taper.kozak.spp=taper.kozak.spp) {
+                       taper.kozak.df=taper.kozak.spp) {
   
   # parameters
-  parms = taper.kozak.spp %>% 
+  parms = taper.kozak.df %>% 
     dplyr::filter(bark == dia.type, 
                   species == sp)
   
   # If no match found, use default parameters
   if (is.na(parms$a0[1])) {
-    parms = taper.kozak.spp %>% 
+    parms = taper.kozak.df %>% 
       dplyr::filter(bark == 'ib', 
                     species == 'OS')
   }
@@ -3566,18 +3579,18 @@ taper_kozak = function(sp, dbh, ht, ht.dia, dia.type = 'ib', plt = 0,
 #' @param ht.dia Numeric: Height at which to predict diameter (m)
 #' @param ht Numeric: Total tree height (m)
 #' @param dbh Numeric: Diameter at breast height (cm)
-#' @param taper.westfall.scott.spp Dataframe: Westfall Scott taper function parameters (default taper.westfall.scott.spp)
+#' @param taper.westfall.scott.df Dataframe: Westfall Scott taper function parameters (default taper.westfall.scott.spp)
 #' @return Numeric: Predicted diameter at the specified height
 #'
 # Westfall, JA; Scott, CT. 2010. Taper Models for Commercial Tree Species in the
 # Northeastern United States, Forest Science 56(6): 515-528. doi: 10.1093/forestscience/56.6.515
 taper_westfall_scott = function(sp, dbh, ht, ht.dia, 
-                                taper.westfall.scott.spp=taper.westfall.scott.spp) {
+                                taper.westfall.scott.df=taper.westfall.scott.spp) {
   
   # parameters
-  idx = match(sp, taper.westfall.scott.spp$species, 
-              nomatch = match('99', taper.westfall.scott.spp$species))
-  parms = taper.westfall.scott.spp[idx, ]
+  idx = match(sp, taper.westfall.scott.df$species, 
+              nomatch = match('99', taper.westfall.scott.df$species))
+  parms = taper.westfall.scott.df[idx, ]
   
   # Calculate taper
   x = dbh/ht
@@ -3622,7 +3635,7 @@ calc_taper = function(model = c('kozak', 'westfall'), sp, dbh, ht, ht.dia,
 #### Bark ratio ####
 
 # Bark ratio parameters 
-bark.ratio.spp = dplyr::tribble(
+bark.ratio.df = dplyr::tribble(
   ~species, ~pcnt.bark, ~b0, ~b1,
   "AB", 7, 1, 1,
   "BC", 10, 1, 1,
@@ -3661,14 +3674,14 @@ bark.ratio.spp = dplyr::tribble(
 #' 
 #' @param sp Character: Species code (FVS alpha)
 #' @param dob Numeric: Diameter outside bark (cm)
-#' @param bark.ratio.spp Dataframe: Bark ratio parameters (default bark.ratio.spp)
+#' @param bark.ratio.df Dataframe: Bark ratio parameters (default bark.ratio.spp)
 #' @return Numeric vector: Diameter inside bark, rounded to 4 decimal places
 #'
-calc_dib = function(sp, dob, bark.ratio.spp=bark.ratio.spp) {
+calc_dib = function(sp, dob, bark.ratio.df=bark.ratio.spp) {
   
   # parameters
-  idx = match(sp, bark.ratio.spp$species, nomatch = match('99', bark.ratio.spp$species))
-  parms = bark.ratio.spp[idx, ]
+  idx = match(sp, bark.ratio.df$species, nomatch = match('99', bark.ratio.df$species))
+  parms = bark.ratio.df[idx, ]
   
   #calculate
   dib = ifelse(parms$pcnt.bark == 0, 
