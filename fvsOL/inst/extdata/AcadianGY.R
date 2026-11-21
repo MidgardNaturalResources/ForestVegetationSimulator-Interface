@@ -2317,7 +2317,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
 #' @param min.dbh.ingrowth Numeric: Minimum DBH threshold for ingrowth (cm)
 #' @return Numeric: Species composition probability (0-1)
     comp_ingrowth = function(ba, ba.perc.grp, b0, b1, b2, b3, b4, 
-                             csi=stand$csi, min.dbh.ingrowth) {
+                             csi, min.dbh.ingrowth) {
       
       # Calculate percent  
       sp.perc = b0 + b1 * ba + b2 * ba.perc.grp + b3 * csi + b4 * min.dbh.ingrowth
@@ -2335,6 +2335,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
 #' @param plot.data Dataframe: Plot summary data
 #' @param min.dbh.ingrowth Numeric: Minimum DBH treshold for ingrowth trees (cm)
 #' @param begin.tree.id Integer: Ingrowth beginning tree id 
+#' @param csi Numeric: Climate site index (m)
 #' @param sp.attr.data Dataframe: species functional attributes table (default sp.attr)
 #' @return Dataframe: Ingrowth tree list
     create_ingrowth_tree = function(tree.data, 
@@ -2342,6 +2343,7 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
                                     plot.data, 
                                     min.dbh.ingrowth, 
                                     begin.tree.id,
+                                    csi,
                                     sp.attr.data) {
       
       # Break down species groups into individual species
@@ -2395,9 +2397,12 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
           dplyr::left_join(tree.max.bal, 
                            by = 'plot') %>% 
           dplyr::mutate(bal=bal + dplyr::coalesce(bal.plot.max, 0)) %>% # future proof - coalesce() to handle cases where we have plots with no existing tree records
-          calc_ht(tree.data=., plot.data = plot.data) %>%
+          calc_ht(tree.data=., 
+                  plot.data = plot.data, 
+                  csi = csi) %>%
           dplyr::mutate(ht = pht) %>% 
-          calc_hcb(tree.data=., plot.data = plot.data) %>%
+          calc_hcb(tree.data=., 
+                   plot.data = plot.data) %>%
           dplyr::mutate(hcb = phcb,
                         cr=1-(phcb/ht))
       }
@@ -2471,12 +2476,12 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
         # by = c('plot', 'sp.grp.ingrowth')) %>% # when using all possible species
         dplyr::mutate(sp.ba = ifelse(is.na(sp.ba), 0, sp.ba),
                       ba.perc.grp = ifelse(ba.plot == 0, 0, sp.ba / ba.plot),
-                      idx = match(sp.grp.ingrowth, ingrowth.comp.spp$group),
-                      b0 = ingrowth.comp.spp$b0[idx],
-                      b1 = ingrowth.comp.spp$b1[idx],
-                      b2 = ingrowth.comp.spp$b2[idx],
-                      b3 = ingrowth.comp.spp$b3[idx],
-                      b4 = ingrowth.comp.spp$b4[idx],
+                      idx = match(sp.grp.ingrowth, ingrowth.comp.spp.df$group),
+                      b0 = ingrowth.comp.spp.df$b0[idx],
+                      b1 = ingrowth.comp.spp.df$b1[idx],
+                      b2 = ingrowth.comp.spp.df$b2[idx],
+                      b3 = ingrowth.comp.spp.df$b3[idx],
+                      b4 = ingrowth.comp.spp.df$b4[idx],
                       comp.prob = purrr::pmap_dbl(list(ba.plot, 
                                                        ba.perc.grp, 
                                                        b0, b1, b2, b3, b4,
@@ -2498,7 +2503,8 @@ calc_mortality = function(tree.data, plot.data, region = stand$region,
                                            tree.ingrowth, 
                                            plot.data,
                                            min.dbh.ingrowth,
-                                           begin.tree.id,
+                                           begin.tree.id + nrow(tree.data),
+                                           csi,
                                            sp.attr.data)%>%
         dplyr::left_join(calib.spp, 
                          by = 'sp')
@@ -3271,7 +3277,7 @@ Acadian.GY = function(tree, stand, ops = NULL) {
 #' @param tree Dataframe: Tree list
 #' @param stand Dataframe: Stand attributes
 #' @param ops Dataframe: 
-#' @return Dataframe: Plot top height values with columns for plot and topht
+#' @return Dataframe: Projected tree list 
 #'
 AcadianGYOneStand = function(tree, stand, ops)
 {
@@ -3343,7 +3349,8 @@ AcadianGYOneStand = function(tree, stand, ops)
   #all may be missing when code us used to grow tree lists from other sources. 
   tree=tree %>% 
           #predicted height
-    calc_ht(plot.data = plot.smry) %>% 
+    calc_ht(plot.data = plot.smry,
+            csi = stand$csi) %>% 
     dplyr::mutate(#use predicted height if missing or > 50m and DBH> 2.5cm
            ht= dplyr::case_when((ht %in% c(NA, 0)| ht>50) & dbh>2.5 ~pht,
                         TRUE ~ ht)) %>% 
@@ -3379,15 +3386,45 @@ AcadianGYOneStand = function(tree, stand, ops)
  
 ##### Diameter increment ####
   tree = tree %>%
-    calc_ddbh(plot.data = plot.smry)
+    calc_ddbh(plot.data = plot.smry,
+              csi = stand$csi,
+              region = stand$region,
+              use.cap.dbh = ops$use.cap.dbh,
+              use.sbw.mod = ops$use.sbw.mod,
+              use.hw.mod = ops$use.hw.mod,
+              use.thin.mod = ops$use.thin.mod,
+              thin.ba.perc.rmv = ops$thin.ba.perc.rmv,
+              thin.ba.pre = ops$thin.ba.pre,
+              thin.qmd.ratio = ops$thin.qmd.ratio,
+              thin.year = ops$thin.year,
+              sbw.cdef = ops$sbw.cdef,
+              sbw.yr = ops$sbw.yr,
+              sbw.dur = ops$sbw.dur)
  
 ##### Height increment ####  
   tree= tree %>%
-    calc_dht(plot.data = plot.smry)
+    calc_dht(plot.data = plot.smry,
+             csi = stand$csi,
+             use.cap.ht = ops$use.cap.ht,
+             use.sbw.mod = ops$use.sbw.mod,
+             use.thin.mod = ops$use.thin.mod,
+             thin.ba.perc.rmv = ops$thin.ba.perc.rmv,
+             thin.ba.pre = ops$thin.ba.pre,
+             thin.qmd.ratio = ops$thin.qmd.ratio,
+             thin.year = ops$thin.year,
+             sbw.cdef = ops$sbw.cdef,
+             sbw.yr = ops$sbw.yr,
+             sbw.dur = ops$sbw.dur,
+             region = stand$region)
 
 #### Crown recession ####
   tree= tree %>%
-    calc_dhcb(plot.data = plot.smry) 
+    calc_dhcb(plot.data = plot.smry,
+              use.thin.mod = ops$use.thin.mod,
+              thin.ba.perc.rmv = ops$thin.ba.perc.rmv,
+              thin.ba.pre = ops$thin.ba.pre,
+              thin.qmd.ratio = ops$thin.qmd.ratio,
+              thin.year = ops$thin.year) 
   
   # if (verbose) cat ("mean tree$dHCB.thin.mod=",mean(tree$dHCB.thin.mod),"\n")  
   # cat ("na dbh values=", sum(is.na(tree$dbh)), "\n")
@@ -3398,12 +3435,27 @@ AcadianGYOneStand = function(tree, stand, ops)
 #### Mortality ####
   ## Mortality from version 12.1.6
   tree=tree %>% 
-    calc_mortality(plot.data=plot.smry)
+    calc_mortality(plot.data = plot.smry,
+                   region = stand$region,
+                   use.sbw.mod = ops$use.sbw.mod,
+                   use.hw.mod = ops$use.hw.mod,
+                   use.thin.mod = ops$use.thin.mod,
+                   thin.ba.perc.rmv = ops$thin.ba.perc.rmv,
+                   thin.ba.pre = ops$thin.ba.pre,
+                   thin.qmd.ratio = ops$thin.qmd.ratio,
+                   thin.year = ops$thin.year,
+                   sbw.cdef = ops$sbw.cdef,
+                   sbw.yr = ops$sbw.yr,
+                   sbw.dur = ops$sbw.dur)
   
 #### Ingrowth ####
   if(ops$use.ingrowth == TRUE){
     ingrowth= tree %>% 
-      calc_ingrowth(plot.data=plot.smry)
+      calc_ingrowth(plot.data = plot.smry,
+                    csi = stand$csi,
+                    min.dbh.ingrowth = ops$ingrowth.min.dbh,
+                    cut.point.ingrowth = ops$ingrowth.thrshld,
+                    begin.tree.id = ops$ingrowth.tree.id)
   }
 
 #### Output ####  
@@ -3635,7 +3687,7 @@ calc_taper = function(model = c('kozak', 'westfall'), sp, dbh, ht, ht.dia,
 #### Bark ratio ####
 
 # Bark ratio parameters 
-bark.ratio.df = dplyr::tribble(
+bark.ratio.spp = dplyr::tribble(
   ~species, ~pcnt.bark, ~b0, ~b1,
   "AB", 7, 1, 1,
   "BC", 10, 1, 1,

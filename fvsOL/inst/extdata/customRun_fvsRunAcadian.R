@@ -158,7 +158,7 @@ fvsRunAcadian <- function(runOps=NULL, logfile='Acadian.log', autoload.model=TRU
       dplyr::mutate(ht = ifelse(tree %in% dub.ht.idx & dbh > 2.5, 
                                 pht, ht)) %>%
       calc_hcb(plot.data=plot.smry) %>%
-      dplyr::mutate(pcr = round((1 - phcb / pht) * 100, 1))
+      dplyr::mutate(pcr = round((1 - phcb / ht) * 100, 1))
     
     # write Acadian predicted values back to FVS for dubbed trees
    
